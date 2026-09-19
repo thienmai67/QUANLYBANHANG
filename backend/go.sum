@@ -1,0 +1,10 @@
+github.com/go-chi/chi/v5 v5.2.1 h1:6RKPGU8m6u6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m5=
+github.com/go-chi/chi/v5 v5.2.1/go.mod h1:6RKPGU8m6u6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m5=
+github.com/go-chi/cors v1.2.0 h1:U6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m=
+github.com/go-chi/cors v1.2.0/go.mod h1:U6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m5b5U7y5U6m=
+github.com/google/uuid v1.6.0 h1:ShEoIw7hcPbbO5dmxLSGjEg/4QITBjgHVMzqT8VPqhI=
+github.com/google/uuid v1.6.0/go.mod h1:ShEoIw7hcPbbO5dmxLSGjEg/4QITBjgHVMzqT8VPqhI=
+github.com/jmoiron/sqlx v1.3.5 h1:gmRV3R1GNsZOXvjbvCj+qL3Zx8e2E+5b0qJ1Y9r5r2g=
+github.com/jmoiron/sqlx v1.3.5/go.mod h1:gmRV3R1GNsZOXvjbvCj+qL3Zx8e2E+5b0qJ1Y9r5r2g=
+github.com/lib/pq v1.10.9 h1:2FEdM1zqU0K7lU2sZxJxJQ3f+8z9m4N2n7lP2r9o2w=
+github.com/lib/pq v1.10.9/go.mod h1:2FEdM1zqU0K7lU2sZxJxJQ3f+8z9m4N2n7lP2r9o2w=
