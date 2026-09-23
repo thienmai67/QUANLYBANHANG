@@ -22,3 +22,8 @@ vendor/
 .vscode/
 *.sublime-project
 *.sublime-workspace
+tmp_bin/
+backend/tmp_bin
+sql_paths.txt
+*.tsbuildinfo
+.agents/

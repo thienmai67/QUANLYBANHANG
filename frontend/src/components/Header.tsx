@@ -1,50 +1,139 @@
-import React from "react";
-import { Droplet, Zap, Activity, FileSpreadsheet, Package, Layers } from "lucide-react";
+"use client";
 
-export default function Header() {
+import React, { useState, useEffect } from "react";
+import { FileSpreadsheet, Layers, Package, Menu, X, Calculator, ShoppingBag, ArrowRight, LogOut } from "lucide-react";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { getCurrentUser, logout, type AuthUser } from "@/lib/auth";
+
+export default function Header({ onOpenRFQ }: { onOpenRFQ?: () => void }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setUser(getCurrentUser());
+  }, []);
+
+  const navLinks = [
+    { href: "#bom-estimator", label: "BÓC TÁCH BOM", icon: FileSpreadsheet },
+    { href: "#orders-pipeline", label: "HỒ SƠ TIẾN ĐỘ", icon: Layers },
+    { href: "#engineering-calc", label: "TÍNH TOÁN KỸ THUẬT", icon: Calculator },
+    { href: "#catalog", label: "BỘ SƯU TẬP VẬT TƯ", icon: Package },
+  ];
+
   return (
-    <header className="border-b border-white/[0.08] bg-[#080B11]/90 backdrop-blur-md sticky top-[41px] z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3.5">
-          <div className="flex items-center gap-1 bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 px-3 py-1.5 rounded-xl font-mono font-black text-sm tracking-widest shadow-inner">
-            <span className="text-cyan-400">T</span>
-            <span className="text-amber-400">D</span>
-            <span className="text-emerald-400">T</span>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-sm sm:text-base tracking-tight text-white uppercase">
-                Vật Tư Cơ Điện M&E
+    <header className="border-b border-border bg-background/90 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Left: Mobile trigger & Brand */}
+        <div className="flex items-center gap-4 lg:gap-8">
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden p-2 -ml-2 rounded-md text-foreground hover:bg-surface transition"
+            aria-label={mobileOpen ? "Đóng menu" : "Mở menu"}
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+          
+          <a href="#" className="flex items-center gap-2 group select-none">
+            <div className="w-8 h-8 bg-accent-blue rounded flex items-center justify-center text-white font-bold font-display text-lg">
+              T
+            </div>
+            <div className="hidden sm:flex flex-col">
+              <span className="font-display font-bold text-base leading-none text-foreground tracking-tight group-hover:text-accent-blue transition-colors">
+                TDT Platform
               </span>
-              <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.06] text-slate-300 border border-white/10">
-                v1.0-scrum
+              <span className="text-[10px] text-muted font-sans font-medium uppercase tracking-wider">
+                M&E Intelligence
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 font-mono tracking-tighter">
-              Bình Minh • Cadivi • Panasonic Platform
-            </p>
-          </div>
+          </a>
+
+          {/* Desktop Nav */}
+          <nav className="hidden lg:flex items-center gap-8 ml-8">
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-[13px] font-medium text-muted hover:text-foreground transition-colors py-2 relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-accent-blue hover:after:w-full after:transition-all after:duration-300"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
         </div>
 
-        <nav className="flex items-center gap-6 text-xs font-medium text-slate-400">
-          <a href="#bom-estimator" className="hover:text-cyan-400 transition flex items-center gap-1.5">
-            <FileSpreadsheet className="h-3.5 w-3.5 text-cyan-400" />
-            <span>Bóc Tách BOM</span>
-          </a>
-          <a href="#orders-pipeline" className="hover:text-amber-400 transition flex items-center gap-1.5">
-            <Layers className="h-3.5 w-3.5 text-amber-400" />
-            <span>Pipeline Đơn Hàng</span>
-          </a>
-          <a href="#catalog" className="hover:text-white transition flex items-center gap-1.5">
-            <Package className="h-3.5 w-3.5 text-slate-300" />
-            <span>Vật Tư Chuẩn</span>
-          </a>
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
-            <Activity className="h-3 w-3 animate-pulse text-emerald-400" />
-            <span>Postgres & API Ready</span>
+        {/* Right: Auth, Theme + RFQ */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          <ThemeToggle />
+          
+          {user ? (
+            <div className="flex items-center gap-3 border-l border-border pl-3 sm:pl-4">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-xs font-semibold text-foreground tracking-wide truncate max-w-[120px]">
+                  {user.email.split("@")[0]}
+                </span>
+                <span className="text-[10px] text-accent-blue uppercase tracking-widest font-mono">{user.role}</span>
+              </div>
+              <button
+                onClick={() => { logout(); setUser(null); }}
+                title="Đăng xuất"
+                className="p-1.5 rounded-md text-muted hover:text-red-500 hover:bg-surface transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="border-l border-border pl-3 sm:pl-4 hidden sm:block">
+              <GoogleSignInButton className="border-border bg-surface hover:bg-border/50 text-foreground" />
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 border-l border-border pl-2 sm:pl-4">
+            <button
+              onClick={onOpenRFQ}
+              className="p-2 rounded-md hover:bg-surface text-foreground transition-colors relative"
+              title="Đơn hàng & Dự án"
+            >
+              <ShoppingBag className="w-5 h-5 stroke-[1.5]" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent-blue border-[1.5px] border-background" />
+            </button>
+            
+            <button
+              onClick={onOpenRFQ}
+              className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-md bg-foreground hover:bg-foreground/90 text-background text-xs font-semibold transition-all shadow-sm"
+            >
+              <span>Dashboard</span>
+            </button>
           </div>
-        </nav>
+        </div>
       </div>
+
+      {/* Mobile Drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden border-t border-border bg-background p-4 space-y-4 animate-fade-in shadow-xl">
+          <nav className="flex flex-col gap-1">
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium text-muted hover:text-foreground hover:bg-surface transition-colors"
+              >
+                <link.icon className="h-4 w-4 text-accent-blue" />
+                <span>{link.label}</span>
+              </a>
+            ))}
+          </nav>
+          <div className="pt-4 border-t border-border">
+            <button
+              onClick={() => { setMobileOpen(false); onOpenRFQ?.(); }}
+              className="w-full py-2.5 rounded-md bg-foreground text-background font-semibold text-sm flex items-center justify-center gap-2"
+            >
+              YÊU CẦU BÁO GIÁ
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

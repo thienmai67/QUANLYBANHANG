@@ -29,6 +29,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
                 p.category_id AS p_category_id,
                 p.base_price,
                 p.diameter_mm,
+                p.pressure_class,
                 p.cross_section_mm2,
                 p.amp_rating,
                 p.specifications,
@@ -69,7 +70,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
 
 		err := rows.Scan(
 			&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID,
-			&p.BasePrice, &p.DiameterMM, &p.CrossSectionMM2, &p.AmpRating,
+			&p.BasePrice, &p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating,
 			&specs, &p.CreatedAt, &p.UpdatedAt,
 			&brand.ID, &brand.Code, &brand.Name, &brand.DiscountRate, &brand.CreatedAt, &brand.UpdatedAt,
 			&cat.ID, &cat.Code, &cat.Name, &parentID, &cat.Type, &cat.CreatedAt, &cat.UpdatedAt,
@@ -94,13 +95,17 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
 		products = append(products, p)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate products error: %w", err)
+	}
+
 	return products, nil
 }
 
 func (r *productRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
 	query := `
         SELECT  p.id, p.sku, p.name, p.brand_id, p.category_id, p.base_price,
-                p.diameter_mm, p.cross_section_mm2, p.amp_rating, p.specifications,
+                p.diameter_mm, p.pressure_class, p.cross_section_mm2, p.amp_rating, p.specifications,
                 p.created_at, p.updated_at
         FROM products p
         WHERE p.id = $1
@@ -142,7 +147,7 @@ func (r *productRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
 func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*domain.Product, error) {
 	query := `
         SELECT  p.id, p.sku, p.name, p.brand_id, p.category_id, p.base_price,
-                p.diameter_mm, p.cross_section_mm2, p.amp_rating, p.specifications,
+                p.diameter_mm, p.pressure_class, p.cross_section_mm2, p.amp_rating, p.specifications,
                 p.created_at, p.updated_at
         FROM products p
         WHERE p.sku = $1
@@ -185,6 +190,10 @@ func (r *productRepository) ListUnits(ctx context.Context) ([]domain.Unit, error
 		units = append(units, u)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate units error: %w", err)
+	}
+
 	return units, nil
 }
 
@@ -204,6 +213,10 @@ func (r *productRepository) ListBrands(ctx context.Context) ([]domain.Brand, err
 			return nil, fmt.Errorf("scan brand: %w", err)
 		}
 		brands = append(brands, b)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate brands error: %w", err)
 	}
 
 	return brands, nil
@@ -231,6 +244,10 @@ func (r *productRepository) ListCategories(ctx context.Context) ([]domain.Catego
 		categories = append(categories, c)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate categories error: %w", err)
+	}
+
 	return categories, nil
 }
 
@@ -255,6 +272,10 @@ func (r *productRepository) ListOrders(ctx context.Context, limit, offset int) (
 			return nil, fmt.Errorf("scan order: %w", err)
 		}
 		orders = append(orders, o)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate orders error: %w", err)
 	}
 
 	return orders, nil

@@ -86,6 +86,7 @@ type Product struct {
 	CategoryID      uuid.UUID          `json:"categoryId" db:"category_id"`
 	BasePrice       float64            `json:"basePrice" db:"base_price"`
 	DiameterMM      *float64           `json:"diameterMm,omitempty" db:"diameter_mm"`
+	PressureClass   *string            `json:"pressureClass,omitempty" db:"pressure_class"`
 	CrossSectionMM2 *float64           `json:"crossSectionMm2,omitempty" db:"cross_section_mm2"`
 	AmpRating       *float64           `json:"ampRating,omitempty" db:"amp_rating"`
 	Specifications  map[string]any     `json:"specifications,omitempty" db:"specifications"`
