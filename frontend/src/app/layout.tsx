@@ -15,8 +15,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "TDT M&E Platform | Thiết Kế & Thi Công Cơ Điện Chuyên Nghiệp",
-  description: "Dịch vụ B2B cung ứng vật tư thi công cơ điện M&E.",
+  title: "VLXD TDT | Tổng Kho Vật Liệu Xây Dựng & Thiết Bị Công Trình",
+  description: "Tổng kho phân phối vật liệu xây dựng TDT: thép xây dựng Hòa Phát, xi măng Vicem, gạch tuynel Viglacera, cát đá cốt liệu, gạch ốp lát và hóa chất chống thấm chính hãng chuẩn TCVN.",
 };
 
 export default function RootLayout({

@@ -3,53 +3,82 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Product } from "@/types/api";
-import { Droplets, Zap, Search, Plus, Check, ShoppingBag, ArrowRight, Sparkles, Filter } from "lucide-react";
+import {
+  Droplets,
+  Zap,
+  Search,
+  Plus,
+  Check,
+  ShoppingBag,
+  ArrowRight,
+  Sparkles,
+  Flame,
+  FileSpreadsheet,
+} from "lucide-react";
 import { useScrollReveal } from "@/lib/useScrollReveal";
 
 interface ProductCatalogProps {
   products: Product[];
   loading?: boolean;
+  onOpenRFQ?: () => void;
 }
 
-function SkeletonCard() {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="skeleton h-6 w-24 rounded-md" />
-        <div className="skeleton h-4 w-16 rounded-md" />
-      </div>
-      <div className="skeleton h-5 w-full rounded-md" />
-      <div className="skeleton h-4 w-3/4 rounded-md" />
-      <div className="flex gap-2">
-        <div className="skeleton h-6 w-16 rounded-md" />
-        <div className="skeleton h-6 w-16 rounded-md" />
-      </div>
-      <div className="skeleton h-10 w-full mt-4 rounded-md" />
-    </div>
-  );
-}
-
-export default function ProductCatalog({ products, loading }: ProductCatalogProps) {
+export default function ProductCatalog({
+  products,
+  loading,
+  onOpenRFQ,
+}: ProductCatalogProps) {
   const containerRef = useScrollReveal<HTMLDivElement>();
+  const [activeCategory, setActiveCategory] = useState<string>("ALL");
   const [activeBrand, setActiveBrand] = useState<string>("ALL");
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("" );
   const [addedSku, setAddedSku] = useState<string | null>(null);
+
+  const categories = [
+    { id: "ALL", label: "Tất Cả Danh Mục" },
+    { id: "PIPE", label: "Đường Ống & Bồn Bể" },
+    { id: "CABLE", label: "Dây Cáp Điện & Hạ Thế" },
+    { id: "DEVICE", label: "Thiết Bị Đóng Cắt & PCCC" },
+  ];
 
   const brands = ["ALL", "Bình Minh", "Cadivi", "Panasonic"];
 
   const filtered = products.filter((p) => {
-    // Normalizing brand match for Vietnamese diacritics
+    // Category match
+    const isWater =
+      p.category_name?.toLowerCase().includes("nuoc") ||
+      p.category_name?.toLowerCase().includes("nước") ||
+      p.brand_name.toLowerCase().includes("binh minh");
+
+    const isElectric =
+      p.category_name?.toLowerCase().includes("dien") ||
+      p.category_name?.toLowerCase().includes("điện") ||
+      p.brand_name.toLowerCase().includes("cadivi");
+
+    const isDevice =
+      p.brand_name.toLowerCase().includes("panasonic") ||
+      p.name.toLowerCase().includes("mcb") ||
+      p.name.toLowerCase().includes("mccb") ||
+      p.name.toLowerCase().includes("van");
+
+    let catMatch = true;
+    if (activeCategory === "PIPE") catMatch = isWater;
+    else if (activeCategory === "CABLE") catMatch = isElectric;
+    else if (activeCategory === "DEVICE") catMatch = isDevice;
+
+    // Brand match
     const brandMatch =
       activeBrand === "ALL" ||
       p.brand_name.toLowerCase().includes(activeBrand.toLowerCase()) ||
       (activeBrand === "Bình Minh" && p.brand_name.toLowerCase().includes("binh minh"));
 
+    // Search match
     const searchMatch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.brand_name.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return brandMatch && searchMatch;
+    return catMatch && brandMatch && searchMatch;
   });
 
   const handleAdd = (sku: string) => {
@@ -59,18 +88,18 @@ export default function ProductCatalog({ products, loading }: ProductCatalogProp
 
   return (
     <div ref={containerRef}>
-      <section id="catalog" className="reveal-on-scroll space-y-8">
+      <section id="catalog" className="reveal-on-scroll space-y-8 scroll-mt-24">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-accent-blue/10 border border-accent-blue/30 text-accent-blue text-xs font-bold font-mono tracking-widest uppercase mb-3">
-              <Sparkles className="w-4 h-4" /> BẢNG GIÁ & TỒN KHO THỜI GIAN THỰC
+              <Sparkles className="w-4 h-4" /> BẢNG GIÁ &amp; TỒN KHO THỜI GIAN THỰC
             </div>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-              Tra Cứu Bảng Giá & Danh Mục Vật Tư
+              Tra Cứu Bảng Giá &amp; Danh Mục Vật Tư
             </h2>
-            <p className="text-sm text-muted mt-3 max-w-2xl font-medium leading-relaxed">
-              Quy cách kỹ thuật đầy đủ: đường kính Ø, tiết diện ruột đồng mm², dòng định mức Ampe và tỷ lệ chiết khấu xuất xưởng.
+            <p className="text-sm text-muted mt-2 max-w-2xl font-medium leading-relaxed">
+              Quy cách kỹ thuật đầy đủ: đường kính Ø, tiết diện ruột đồng mm², dòng định mức Ampe và tỷ lệ chiết khấu xuất xưởng đại lý cấp 1.
             </p>
           </div>
 
@@ -82,29 +111,55 @@ export default function ProductCatalog({ products, loading }: ProductCatalogProp
               placeholder="Tìm mã SKU, tên vật tư..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-lg text-sm font-bold bg-surface border border-border text-foreground placeholder-muted focus:outline-none focus:border-accent-blue/50 transition-all shadow-sm focus:ring-1 focus:ring-accent-blue/30"
+              className="w-full pl-12 pr-4 py-3 rounded-xl text-sm font-semibold bg-surface border border-border text-foreground placeholder-muted focus:outline-none focus:border-accent-blue/50 transition-all shadow-sm focus:ring-1 focus:ring-accent-blue/30"
             />
           </div>
         </div>
 
-        {/* Brand filter tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {brands.map((b) => {
-            const isSelected = activeBrand === b;
-            return (
-              <button
-                key={b}
-                onClick={() => setActiveBrand(b)}
-                className={`px-4 py-2.5 rounded-md text-xs font-bold tracking-wider uppercase transition-all duration-200 whitespace-nowrap border ${
-                  isSelected
-                    ? "bg-foreground text-background shadow-[0_4px_15px_rgba(var(--foreground),0.2)] border-foreground"
-                    : "bg-surface text-muted hover:text-foreground hover:bg-border/50 border-border"
-                }`}
-              >
-                {b === "ALL" ? "Tất Cả Hãng" : b}
-              </button>
-            );
-          })}
+        {/* Filter Controls: Category Tabs + Brand Pills */}
+        <div className="space-y-3">
+          {/* Main Category Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-border/60 pb-3">
+            {categories.map((c) => {
+              const isSelected = activeCategory === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveCategory(c.id)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold tracking-wider transition-all duration-200 whitespace-nowrap ${
+                    isSelected
+                      ? "bg-accent-blue text-white shadow-md shadow-accent-blue/20"
+                      : "bg-surface text-muted hover:text-foreground hover:bg-border/40 border border-border"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sub-Brand Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <span className="text-[11px] font-mono text-muted uppercase font-bold shrink-0 mr-1">
+              Hãng sản xuất:
+            </span>
+            {brands.map((b) => {
+              const isSelected = activeBrand === b;
+              return (
+                <button
+                  key={b}
+                  onClick={() => setActiveBrand(b)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-all duration-200 whitespace-nowrap border ${
+                    isSelected
+                      ? "bg-foreground text-background border-foreground shadow-sm"
+                      : "bg-surface text-muted hover:text-foreground hover:bg-border/50 border-border"
+                  }`}
+                >
+                  {b === "ALL" ? "Tất Cả Hãng" : b}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Loading skeleton */}
@@ -119,21 +174,35 @@ export default function ProductCatalog({ products, loading }: ProductCatalogProp
           </div>
         ) : filtered.length === 0 ? (
           /* Empty state */
-          <div className="py-20 text-center rounded-xl border-2 border-dashed border-border bg-surface">
-            <ShoppingBag className="h-16 w-16 text-muted mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-display font-bold text-foreground">
-              {searchTerm
-                ? `Không tìm thấy vật tư khớp với "${searchTerm}"`
-                : "Không có sản phẩm nào trong danh mục đã chọn"}
-            </p>
-            <p className="text-sm text-muted mt-2 font-medium">
-              Vui lòng thử tìm kiếm mã khác hoặc gửi trực tiếp file bản vẽ/BOM cho chuyên viên bóc tách.
-            </p>
+          <div className="py-16 px-4 text-center rounded-2xl border-2 border-dashed border-border bg-surface max-w-2xl mx-auto space-y-4">
+            <div className="w-14 h-14 rounded-full bg-accent-blue/10 text-accent-blue flex items-center justify-center mx-auto">
+              <ShoppingBag className="h-7 w-7" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-display font-bold text-foreground">
+                {searchTerm
+                  ? `Không tìm thấy vật tư khớp với "${searchTerm}"`
+                  : "Không có sản phẩm nào trong danh mục đã chọn"}
+              </p>
+              <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
+                Vui lòng thử tìm kiếm mã khác hoặc gửi trực tiếp file bản vẽ/BOM cho chuyên viên bóc tách để nhận báo giá tức thì.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={onOpenRFQ}
+                type="button"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-xs tracking-wider uppercase transition-all shadow-md shadow-accent-blue/20"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Gửi Bản Vẽ / Yêu Cầu Báo Giá</span>
+              </button>
+            </div>
           </div>
         ) : (
           /* Product grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
-            {filtered.map((product) => {
+            {filtered.map((product, idx) => {
               const isWater =
                 product.category_name?.toLowerCase().includes("nuoc") ||
                 product.category_name?.toLowerCase().includes("nước") ||
@@ -153,17 +222,26 @@ export default function ProductCatalog({ products, loading }: ProductCatalogProp
               }).format(discountedPrice);
 
               const isAdded = addedSku === product.sku;
+              const isBestSeller = idx % 3 === 0 || product.discount_rate >= 30;
 
               return (
                 <motion.div
                   key={product.id}
                   layout
                   whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                  className="reveal-on-scroll group rounded-xl border border-border bg-surface p-6 flex flex-col justify-between hover:border-accent-blue/30 transition-all duration-300 relative overflow-hidden shadow-sm hover:shadow-md hover:bg-background"
+                  className="reveal-on-scroll group rounded-2xl border border-border bg-surface p-6 flex flex-col justify-between hover:border-accent-blue/30 transition-all duration-300 relative overflow-hidden shadow-sm hover:shadow-md hover:bg-background"
                 >
+                  {/* Best Seller Badge */}
+                  {isBestSeller && (
+                    <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-orange/15 border border-accent-orange/30 text-accent-orange text-[10px] font-mono font-bold uppercase tracking-wider">
+                      <Flame className="w-3 h-3 fill-accent-orange" />
+                      <span>Bán Chạy</span>
+                    </div>
+                  )}
+
                   <div>
                     {/* Brand badge + SKU */}
-                    <div className="flex items-center justify-between text-[10px] mb-4">
+                    <div className="flex items-center justify-between text-[10px] mb-4 pr-16">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-bold font-mono uppercase tracking-widest bg-accent-blue/10 text-accent-blue border border-accent-blue/20">
                         {isWater ? (
                           <Droplets className="h-3.5 w-3.5" />
@@ -172,9 +250,10 @@ export default function ProductCatalog({ products, loading }: ProductCatalogProp
                         )}
                         {product.brand_name}
                       </span>
-                      <span className="text-muted font-bold font-mono tracking-wider">
-                        {product.sku}
-                      </span>
+                    </div>
+
+                    <div className="text-[10px] font-mono text-muted font-bold tracking-wider mb-1">
+                      SKU: {product.sku}
                     </div>
 
                     {/* Product Name */}
@@ -241,9 +320,9 @@ export default function ProductCatalog({ products, loading }: ProductCatalogProp
                   <motion.button
                     onClick={() => handleAdd(product.sku)}
                     whileTap={{ scale: 0.96 }}
-                    className={`mt-5 w-full py-3 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-2 ${
+                    className={`mt-5 w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-2 ${
                       isAdded
-                        ? "bg-accent-green text-background shadow-md"
+                        ? "bg-accent-green text-white shadow-md shadow-accent-green/20"
                         : "bg-background hover:bg-foreground hover:text-background text-foreground border border-border"
                     }`}
                   >

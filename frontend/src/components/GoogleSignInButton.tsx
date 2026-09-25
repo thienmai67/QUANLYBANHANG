@@ -7,10 +7,10 @@ export default function GoogleSignInButton({ className = "" }: { className?: str
     <button
       id="google-signin-btn"
       onClick={() => { window.location.href = `${API_URL}/api/v1/auth/google/login`; }}
-      className={`group flex items-center gap-3 px-5 py-2.5 rounded-lg border border-white/10 bg-white/8 hover:bg-white/15 text-white text-sm font-medium transition-all duration-200 active:scale-95 ${className}`}
+      className={`group flex items-center gap-3 px-5 py-2.5 rounded-lg border border-border bg-surface hover:bg-border/50 text-foreground text-sm font-medium transition-all duration-200 active:scale-95 ${className}`}
     >
       <GoogleLogo />
-      <span>Đăng nhập với Google</span>
+      <span>Google</span>
     </button>
   );
 }

@@ -27,3 +27,4 @@ backend/tmp_bin
 sql_paths.txt
 *.tsbuildinfo
 .agents/
+.codegraph/
