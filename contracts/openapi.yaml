@@ -1,0 +1,297 @@
+openapi: 3.0.3
+info:
+  title: Construction Materials (VLXD) E-Commerce API
+  description: Core Backend API contract for VLXD platform
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local Development Server
+
+paths:
+  /health:
+    get:
+      summary: Root health check
+      operationId: getRootHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/health:
+    get:
+      summary: API health and database connectivity check
+      operationId: getApiHealth
+      responses:
+        '200':
+          description: Detailed health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/products:
+    get:
+      summary: List construction material products
+      operationId: listProducts
+      parameters:
+        - name: category_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of products with units and conversions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+
+  /api/v1/products/{id}:
+    get:
+      summary: Get product details by ID
+      operationId: getProductById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailResponse'
+        '404':
+          description: Product not found
+
+  /api/v1/orders:
+    post:
+      summary: Create quotation inquiry or order
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetailResponse'
+        '400':
+          description: Invalid request payload
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - database
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: UP
+        database:
+          type: string
+          example: CONNECTED
+        timestamp:
+          type: string
+          format: date-time
+
+    Unit:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - is_base
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          example: BAO
+        name:
+          type: string
+          example: Bao 50kg
+        is_base:
+          type: boolean
+
+    UnitConversion:
+      type: object
+      required:
+        - id
+        - product_id
+        - from_unit_id
+        - from_unit_name
+        - to_unit_id
+        - to_unit_name
+        - conversion_factor
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        from_unit_id:
+          type: string
+          format: uuid
+        from_unit_name:
+          type: string
+          example: Tấn
+        to_unit_id:
+          type: string
+          format: uuid
+        to_unit_name:
+          type: string
+          example: Bao 50kg
+        conversion_factor:
+          type: number
+          example: 20
+
+    Product:
+      type: object
+      required:
+        - id
+        - sku
+        - name
+        - category_id
+        - category_name
+        - base_unit_id
+        - base_unit_name
+        - base_price
+        - stock_quantity
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          example: XM-HT-01
+        name:
+          type: string
+          example: Xi măng Hà Tiên PCB40
+        category_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+          example: Vật liệu thô
+        base_unit_id:
+          type: string
+          format: uuid
+        base_unit_name:
+          type: string
+          example: Bao
+        base_price:
+          type: number
+          example: 95000
+        stock_quantity:
+          type: number
+          example: 500
+        conversions:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitConversion'
+
+    ProductListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+
+    ProductDetailResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Product'
+
+    CreateOrderItemRequest:
+      type: object
+      required:
+        - product_id
+        - unit_id
+        - quantity
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        unit_id:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          example: 50
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customer_name
+        - customer_phone
+        - delivery_address
+        - items
+      properties:
+        customer_name:
+          type: string
+          example: Nguyen Van A
+        customer_phone:
+          type: string
+          example: "0901234567"
+        delivery_address:
+          type: string
+          example: 123 Cong Truong Xay Dung, Q9, TP.HCM
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateOrderItemRequest'
+
+    OrderDetailResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            order_id:
+              type: string
+              format: uuid
+            order_code:
+              type: string
+              example: ORD-202609-001
+            total_amount:
+              type: number
+              example: 4750000
+            status:
+              type: string
+              example: PENDING
