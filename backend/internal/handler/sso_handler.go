@@ -43,6 +43,12 @@ func NewSSOHandler(userRepo domain.UserRepository, jwtService *auth.JWTService) 
 // HandleGoogleLogin tạo state CSRF, lưu cookie và redirect sang Google Consent Screen.
 func (h *SSOHandler) HandleGoogleLogin(w http.ResponseWriter, r *http.Request) {
 	if h.cfg.ClientID == "" {
+		h.cfg.ClientID = os.Getenv("GOOGLE_CLIENT_ID")
+		h.cfg.ClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
+		h.cfg.RedirectURL = os.Getenv("GOOGLE_REDIRECT_URI")
+	}
+
+	if h.cfg.ClientID == "" {
 		h.errRedirect(w, r, "missing_google_client_id")
 		return
 	}
