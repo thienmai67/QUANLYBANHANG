@@ -16,14 +16,14 @@
 
 .dark {
   color-scheme: dark;
-  --background: #060810;
-  --foreground: #F0F4FF;
-  --surface: #0D1117;
-  --border: rgba(255, 255, 255, 0.08); /* #27272A; */
-  --accent-blue: #3B82F6;
-  --accent-orange: #FB923C;
-  --accent-green: #34D399;
-  --muted: #7B8BA4;
+  --background: #070b14;
+  --foreground: #f8fafc;
+  --surface: #0c1322;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent-blue: #2563eb;
+  --accent-orange: #f97316;
+  --accent-green: #22c55e;
+  --muted: #94a3b8;
 }
 
 body {

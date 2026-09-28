@@ -61,14 +61,16 @@ export default function RegisterPage() {
       }
 
       const data = await res.json();
-      if (data.access_token) {
-        saveTokens(data.access_token, data.refresh_token || "");
+      const accessToken = data.accessToken || data.access_token;
+      const refreshToken = data.refreshToken || data.refresh_token || "";
+      if (accessToken) {
+        saveTokens(accessToken, refreshToken);
         setSuccessMsg("Đăng ký thành công! Đang chuyển hướng...");
         setTimeout(() => {
           window.location.href = "/";
         }, 1200);
       } else {
-        setSuccessMsg("Tạo tài khoản thành công! Vui lòng đăng nhập.");
+        setSuccessMsg("Đăng ký thành công! Vui lòng đăng nhập.");
         setTimeout(() => {
           window.location.href = "/login";
         }, 1500);

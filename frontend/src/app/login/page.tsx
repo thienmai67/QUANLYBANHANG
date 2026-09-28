@@ -38,8 +38,10 @@ export default function LoginPage() {
       }
 
       const data = await res.json();
-      if (data.access_token) {
-        saveTokens(data.access_token, data.refresh_token || "");
+      const accessToken = data.accessToken || data.access_token;
+      const refreshToken = data.refreshToken || data.refresh_token || "";
+      if (accessToken) {
+        saveTokens(accessToken, refreshToken);
         window.location.href = "/";
       } else {
         throw new Error("Phản hồi xác thực không hợp lệ.");

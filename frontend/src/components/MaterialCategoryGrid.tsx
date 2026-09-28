@@ -1,73 +1,71 @@
 "use client";
 
-import React from "react";
-import { ArrowRight, Layers, ChevronRight } from "lucide-react";
+import React, { useRef } from "react";
 import { MATERIAL_CATEGORIES } from "@/data/materialData";
+import { ChevronRight, ChevronLeft } from "lucide-react";
+import * as motion from "motion/react-client";
 
-interface MaterialCategoryGridProps {
-  onSelectCategory?: (categoryId: string) => void;
-}
+export default function MaterialCategoryGrid({ onSelectCategory }: { onSelectCategory?: (id: string) => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-export default function MaterialCategoryGrid({ onSelectCategory }: MaterialCategoryGridProps) {
-  const handleCategoryClick = (catId: string) => {
-    if (onSelectCategory) {
-      onSelectCategory(catId);
-    }
-    const el = document.getElementById(`showcase-${catId}`) || document.getElementById("product-showcases");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
+  const scrollLeft = () => {
+    if (scrollRef.current) scrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
+  };
+  const scrollRight = () => {
+    if (scrollRef.current) scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
   };
 
   return (
-    <section id="category-grid" className="w-full space-y-6 pt-4">
-      {/* Section Header matching xangdauhanoi.com.vn: title with lines and 'Xem Tất Cả' */}
-      <div className="flex items-center justify-between border-b-2 border-amber-600 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-6 bg-gradient-to-b from-amber-600 to-orange-600 rounded-sm" />
-          <h2 className="font-display font-black text-xl sm:text-2xl uppercase tracking-tight text-slate-900 dark:text-white">
-            DANH MỤC SẢN PHẨM
-          </h2>
+    <section className="relative w-full overflow-hidden">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight text-slate-900 dark:text-white uppercase">
+          M&E <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">Categories</span>
+        </h2>
+        
+        <div className="flex items-center gap-2">
+          <button onClick={scrollLeft} className="p-2 rounded-full border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+          </button>
+          <button onClick={scrollRight} className="p-2 rounded-full border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+          </button>
         </div>
-        <a
-          href="#product-showcases"
-          className="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400 hover:text-orange-600 flex items-center gap-1 transition-colors"
-        >
-          <span>Xem Tất Cả</span>
-          <ChevronRight className="w-4 h-4" />
-        </a>
       </div>
 
-      {/* 7 Category Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
-        {MATERIAL_CATEGORIES.map((cat) => (
-          <div
+      <div 
+        ref={scrollRef}
+        className="flex gap-4 sm:gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {MATERIAL_CATEGORIES.map((cat, idx) => (
+          <motion.div
             key={cat.id}
-            onClick={() => handleCategoryClick(cat.id)}
-            className="group cursor-pointer rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 shadow-sm hover:shadow-xl hover:border-amber-500/60 dark:hover:border-amber-500/60 transition-all duration-300 flex flex-col justify-between"
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ delay: idx * 0.05 }}
+            viewport={{ once: true }}
+            className="shrink-0 w-64 sm:w-72 snap-start group cursor-pointer"
+            onClick={() => onSelectCategory && onSelectCategory(cat.id)}
           >
-            {/* Image with zoom on hover */}
-            <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-3">
-              <img
-                src={cat.image}
-                alt={cat.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            <div className="relative w-full aspect-[4/3] rounded-2xl sm:rounded-3xl overflow-hidden mb-4 bg-slate-100 dark:bg-slate-800">
+              <img 
+                src={cat.image} 
+                alt={cat.name} 
+                className="w-full h-full object-cover mix-blend-multiply dark:mix-blend-normal group-hover:scale-105 transition-transform duration-500"
               />
-              <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-[10px] font-mono font-bold">
-                {cat.count}+ SP
-              </span>
+              <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                <span className="inline-block px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold text-white border border-white/20 uppercase tracking-wider">
+                  {cat.count}+ Items
+                </span>
+              </div>
             </div>
-
-            {/* Category Title */}
-            <div className="text-center space-y-1">
-              <h3 className="font-bold text-xs uppercase text-slate-800 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-tight min-h-[32px] flex items-center justify-center">
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center justify-between">
                 {cat.name}
               </h3>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 font-sans">
-                {cat.subcategories[0]}
-              </p>
+              <p className="text-xs text-slate-500 mt-1 line-clamp-1">{cat.subcategories.join(" • ")}</p>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </section>

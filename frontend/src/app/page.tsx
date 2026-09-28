@@ -27,7 +27,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 transition-colors duration-300 relative font-sans selection:bg-amber-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-[#070b14] text-slate-900 dark:text-slate-100 transition-colors duration-300 relative font-sans selection:bg-blue-500 selection:text-white">
       {/* 1. Header (Top Bar + Main Bar with Live Search + Category Mega Menu) */}
       <MaterialHeader onOpenRFQ={handleOpenRFQ} />
 

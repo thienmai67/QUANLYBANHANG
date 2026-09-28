@@ -9,6 +9,7 @@ export interface MaterialProduct {
   price: string;
   rawPrice?: number;
   image: string;
+  images?: string[];
   badge?: "HOT" | "NEW" | "SALE" | "CHÍNH HÃNG";
   specs: string[];
   description: string;
@@ -120,6 +121,11 @@ export const MATERIAL_PRODUCTS: MaterialProduct[] = [
     price: "85.000đ",
     rawPrice: 85000,
     image: "https://images.unsplash.com/photo-1581091228480-9337af036f3b?q=80&w=400&h=400",
+    images: [
+      "https://images.unsplash.com/photo-1581091228480-9337af036f3b?q=80&w=600&h=600",
+      "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&h=600",
+      "https://images.unsplash.com/photo-1594958137357-1bfcc540878e?q=80&w=600&h=600"
+    ],
     badge: "HOT",
     specs: ["Đường kính: Φ42mm", "Cấp áp lực: C1 (PN10)", "Quy cách: Cây 4 mét tiêu chuẩn"],
     description: "Ống uPVC Bình Minh Phi 42mm C1 chất lượng cao dùng cho hệ thống cấp thoát nước công trình dân dụng & công nghiệp.",
@@ -138,6 +144,10 @@ export const MATERIAL_PRODUCTS: MaterialProduct[] = [
     price: "890.000đ",
     rawPrice: 890000,
     image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=400&h=400",
+    images: [
+      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&h=600",
+      "https://images.unsplash.com/photo-1520694478166-daaaaaec74b4?q=80&w=600&h=600"
+    ],
     badge: "CHÍNH HÃNG",
     specs: ["Tiết diện: 2.5mm²", "Lõi: Đồng tinh chất 99.99%", "Điện áp: 0.6/1kV TCVN 6610"],
     description: "Dây điện đơn Cadivi CV 2.5mm² lõi đồng ruột dẫn cấp 2, vỏ PVC chống cháy an toàn cho hệ thống điện âm tường.",
@@ -156,6 +166,7 @@ export const MATERIAL_PRODUCTS: MaterialProduct[] = [
     price: "345.000đ",
     rawPrice: 345000,
     image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=400&h=400",
+    images: ["https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=600&h=600", "https://plus.unsplash.com/premium_photo-1661963836374-219eeea142ee?q=80&w=600&h=600"],
     badge: "CHÍNH HÃNG",
     specs: ["Dòng định mức: 32A", "Dòng rò ngắt: 30mA", "Dòng cắt ngắn mạch: 6kA"],
     description: "Aptomat chống rò điện RCBO Panasonic 2P 32A bảo vệ tối đa cho mạng điện dân dụng khỏi sự cố quá tải và giật điện.",
@@ -174,6 +185,7 @@ export const MATERIAL_PRODUCTS: MaterialProduct[] = [
     price: "165.000đ",
     rawPrice: 165000,
     image: "https://images.unsplash.com/photo-1581092335878-2d9ff86ca2bf?q=80&w=400&h=400",
+    images: ["https://images.unsplash.com/photo-1581092335878-2d9ff86ca2bf?q=80&w=600&h=600", "https://images.unsplash.com/photo-1585860715367-15d9095642e5?q=80&w=600&h=600"],
     badge: "NEW",
     specs: ["Đường kính: Φ32mm", "Áp lực: PN20 (Chịu nhiệt 95°C)", "Chất liệu: Nhựa PPR nguyên sinh"],
     description: "Ống PPR Tiền Phong PN20 dùng dẫn nước nóng năng lượng mặt trời và hệ thống cấp nước nóng trung tâm.",
@@ -192,6 +204,7 @@ export const MATERIAL_PRODUCTS: MaterialProduct[] = [
     price: "28.000đ",
     rawPrice: 28000,
     image: "https://images.unsplash.com/photo-1545459720-aac8509eb02c?q=80&w=400&h=400",
+    images: ["https://images.unsplash.com/photo-1545459720-aac8509eb02c?q=80&w=600&h=600", "https://images.unsplash.com/photo-1601614741362-e1966a4bc2ed?q=80&w=600&h=600"],
     badge: "SALE",
     specs: ["Đường kính: Φ20mm", "Khả năng chịu lực: 750N", "Tính năng: Tự tắt khi cháy"],
     description: "Ống luồn dây điện Nano chống cháy cao cấp bảo vệ dây cáp điện âm sàn, âm tường an toàn tuyệt đối.",
@@ -210,6 +223,7 @@ export const MATERIAL_PRODUCTS: MaterialProduct[] = [
     price: "145.000đ",
     rawPrice: 145000,
     image: "https://images.unsplash.com/photo-1618042164219-62c820f10723?q=80&w=400&h=400",
+    images: ["https://images.unsplash.com/photo-1618042164219-62c820f10723?q=80&w=600&h=600", "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600&h=600"],
     badge: "HOT",
     specs: ["Kích thước: DN20 (3/4 inch)", "Chất liệu: Đồng thau đúc mạ crom", "Áp lực làm việc: 16 bar"],
     description: "Van cửa đồng Minh Hòa chất lượng cao chuyên dùng cho hệ thống khóa cấp nước đầu vào căn hộ, nhà phố.",
@@ -228,6 +242,7 @@ export const MATERIAL_PRODUCTS: MaterialProduct[] = [
     price: "125.000đ",
     rawPrice: 125000,
     image: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=400&h=400",
+    images: ["https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=600&h=600", "https://images.unsplash.com/photo-1510006851064-e6056cd0e3a8?q=80&w=600&h=600"],
     badge: "CHÍNH HÃNG",
     specs: ["Công suất: 12W", "Lỗ khoét: Φ110mm", "Ánh sáng: 3 Màu (Trắng/Vàng/Trung tính)"],
     description: "Đèn LED âm trần Rạng Đông tiết kiệm điện 85%, chíp LED Hàn Quốc siêu bền bảo hành 2 năm.",

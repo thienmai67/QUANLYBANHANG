@@ -8,8 +8,9 @@ export async function fetchHealth(): Promise<HealthStatus | null> {
       cache: "no-store",
     });
     if (!res.ok) return null;
-    const json: ApiResponse<HealthStatus> = await res.json();
-    return json.data;
+    const json = await res.json();
+    // Handle both wrapped ({success, data}) and raw ({status, database}) responses
+    return (json.data as HealthStatus) || (json as HealthStatus);
   } catch {
     return null;
   }
@@ -21,8 +22,11 @@ export async function fetchProducts(): Promise<Product[]> {
       next: { revalidate: 10 },
     });
     if (!res.ok) return getFallbackProducts();
-    const json: ApiResponse<Product[]> = await res.json();
-    return json.data || [];
+    const json = await res.json();
+    // Handle both wrapped ({success, data}) and raw array responses
+    const data = json.data || json;
+    if (Array.isArray(data)) return data as Product[];
+    return getFallbackProducts();
   } catch {
     return getFallbackProducts();
   }

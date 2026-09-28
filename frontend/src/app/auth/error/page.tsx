@@ -6,6 +6,7 @@ import Link from "next/link";
 import { XCircle } from "lucide-react";
 
 const ERROR_MAP: Record<string, string> = {
+  missing_google_client_id: "Hệ thống chưa cấu hình GOOGLE_CLIENT_ID trong file môi trường (.env). Vui lòng sử dụng Đăng nhập bằng Email/Mật khẩu hoặc chọn Vai trò ở thanh trên cùng.",
   invalid_state:           "Phiên xác thực không hợp lệ (CSRF mismatch). Vui lòng thử lại.",
   access_denied:           "Bạn đã huỷ đăng nhập qua Google.",
   token_exchange_failed:   "Không thể lấy token từ Google. Vui lòng thử lại.",
