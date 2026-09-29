@@ -18,12 +18,12 @@ export default function FacebookSignInButton({
       id="facebook-signin-btn"
       type="button"
       onClick={() => {
-        window.location.href = `${API_URL}/api/v1/auth/facebook/login`;
+        window.location.href = "/auth/error?reason=facebook_sso_unavailable";
       }}
-      className={`group flex items-center gap-3 px-5 py-2.5 rounded-lg border border-border bg-surface hover:bg-border/50 text-foreground text-sm font-medium transition-all duration-200 active:scale-95 ${className}`}
+      className={`group flex items-center gap-3 px-5 py-2.5 rounded-lg border border-border bg-surface/50 text-muted cursor-not-allowed text-sm font-medium ${className}`}
     >
       <FacebookLogo />
-      <span>{label}</span>
+      <span>{label} (Sắp ra mắt)</span>
     </button>
   );
 }

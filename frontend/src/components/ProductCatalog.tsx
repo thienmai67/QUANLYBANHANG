@@ -45,18 +45,19 @@ export default function ProductCatalog({
 
   const filtered = products.filter((p) => {
     // Category match
+    const bName = (p.brand_name ?? "").toLowerCase();
     const isWater =
       p.category_name?.toLowerCase().includes("nuoc") ||
       p.category_name?.toLowerCase().includes("nước") ||
-      p.brand_name.toLowerCase().includes("binh minh");
+      bName.includes("binh minh");
 
     const isElectric =
       p.category_name?.toLowerCase().includes("dien") ||
       p.category_name?.toLowerCase().includes("điện") ||
-      p.brand_name.toLowerCase().includes("cadivi");
+      bName.includes("cadivi");
 
     const isDevice =
-      p.brand_name.toLowerCase().includes("panasonic") ||
+      bName.includes("panasonic") ||
       p.name.toLowerCase().includes("mcb") ||
       p.name.toLowerCase().includes("mccb") ||
       p.name.toLowerCase().includes("van");
@@ -67,16 +68,19 @@ export default function ProductCatalog({
     else if (activeCategory === "DEVICE") catMatch = isDevice;
 
     // Brand match
+    // Brand match
+    const brandName = p.brand_name ?? "";
     const brandMatch =
       activeBrand === "ALL" ||
-      p.brand_name.toLowerCase().includes(activeBrand.toLowerCase()) ||
-      (activeBrand === "Bình Minh" && p.brand_name.toLowerCase().includes("binh minh"));
+      brandName.toLowerCase().includes(activeBrand.toLowerCase()) ||
+      (activeBrand === "Bình Minh" && brandName.toLowerCase().includes("binh minh"));
 
     // Search match
+    const skuStr = p.sku ?? "";
     const searchMatch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.brand_name.toLowerCase().includes(searchTerm.toLowerCase());
+      skuStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      brandName.toLowerCase().includes(searchTerm.toLowerCase());
 
     return catMatch && brandMatch && searchMatch;
   });
@@ -203,18 +207,20 @@ export default function ProductCatalog({
           /* Product grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
             {filtered.map((product, idx) => {
+              const bName = product.brand_name ?? "";
+              const basePrice = product.base_price ?? 0;
+              const discountRate = product.discount_rate ?? 0;
               const isWater =
                 product.category_name?.toLowerCase().includes("nuoc") ||
                 product.category_name?.toLowerCase().includes("nước") ||
-                product.brand_name.toLowerCase().includes("binh minh");
+                bName.toLowerCase().includes("binh minh");
 
-              const discountedPrice =
-                product.base_price * (1 - product.discount_rate / 100);
+              const discountedPrice = basePrice * (1 - discountRate / 100);
 
               const formattedBase = new Intl.NumberFormat("vi-VN", {
                 style: "currency",
                 currency: "VND",
-              }).format(product.base_price);
+              }).format(basePrice);
 
               const formattedDiscounted = new Intl.NumberFormat("vi-VN", {
                 style: "currency",
@@ -222,7 +228,7 @@ export default function ProductCatalog({
               }).format(discountedPrice);
 
               const isAdded = addedSku === product.sku;
-              const isBestSeller = idx % 3 === 0 || product.discount_rate >= 30;
+              const isBestSeller = idx % 3 === 0 || discountRate >= 30;
 
               return (
                 <motion.div
@@ -318,7 +324,7 @@ export default function ProductCatalog({
 
                   {/* Add button */}
                   <motion.button
-                    onClick={() => handleAdd(product.sku)}
+                    onClick={() => handleAdd(product.sku ?? "")}
                     whileTap={{ scale: 0.96 }}
                     className={`mt-5 w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-2 ${
                       isAdded

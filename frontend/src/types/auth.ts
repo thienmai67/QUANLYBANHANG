@@ -1,21 +1,12 @@
-export type Role = "ADMIN" | "MANAGER" | "SALE" | "CUSTOMER" | "SHIPPER";
+export type Role = "CUSTOMER" | "SALE" | "MANAGER" | "SHIPPER" | "ADMIN";
 
 export interface UserSession {
   id: string;
+  email?: string;
   name: string;
-  phone: string;
-  role: Role;
+  phone?: string;
+  fullName?: string;
   company?: string;
-}
-
-export interface BomItem {
-  productId: string;
-  sku: string;
-  name: string;
-  brand: string;
-  discountRate: number;
-  basePrice: number;
-  unit: string;
-  quantity: number;
-  conversionFactor: number;
+  role: Role;
+  avatarUrl?: string;
 }

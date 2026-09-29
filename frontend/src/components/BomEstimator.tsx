@@ -36,11 +36,11 @@ export default function BomEstimator({ products }: BomEstimatorProps) {
     : quantity;
 
   const rawTotal = activeProduct
-    ? convertedQuantity * activeProduct.base_price
+    ? convertedQuantity * (activeProduct.base_price ?? 0)
     : 0;
 
   const discountAmount = activeProduct
-    ? rawTotal * (activeProduct.discount_rate / 100)
+    ? rawTotal * ((activeProduct.discount_rate ?? 0) / 100)
     : 0;
 
   const finalTotal = rawTotal - discountAmount;

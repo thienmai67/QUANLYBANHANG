@@ -15,6 +15,7 @@ const ERROR_MAP: Record<string, string> = {
   db_error:                "Lỗi hệ thống khi lưu tài khoản. Vui lòng liên hệ hỗ trợ.",
   token_generation_failed: "Lỗi tạo phiên đăng nhập. Vui lòng thử lại.",
   no_token:                "Không nhận được token xác thực.",
+  facebook_sso_unavailable: "Đăng nhập Facebook chưa khả dụng. Vui lòng dùng Google hoặc đăng nhập bằng email.",
 };
 
 function ErrorContent() {
