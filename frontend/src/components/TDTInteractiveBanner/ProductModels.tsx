@@ -1,197 +1,271 @@
-"use client";
+'use client';
 
-import React, { useRef } from "react";
-import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
-import { Float, Html } from "@react-three/drei";
-import { Group } from "three";
+import React, { useRef, useMemo, useState, useEffect } from 'react';
+import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 
-// Cadivi Cable Coil Model
-const CadviCableCoil = ({ active = false }: { active?: boolean }) => {
-  const groupRef = useRef<Group>(new Group());
-  const coilRef = useRef<THREE.Mesh>(new THREE.Mesh());
+export type BrandId = 'binhminh' | 'cadivi' | 'schneider';
 
-  useFrame((state) => {
-    if (groupRef.current && coilRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.2;
-      groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
-      coilRef.current.rotation.z = state.clock.elapsedTime * 1.5 + (active ? 2 : 0);
-    }
-  });
-
-  // Coiled cable using torus geometry
-  return (
-    <group ref={groupRef} position={[-4, -1, 0]}>
-      <mesh ref={coilRef} position={[0, 0, 0]}>
-        <torusGeometry args={[1.2, 0.35, 12, 60, Math.PI * 2]} />
-        <meshStandardMaterial color={active ? "#FCD34D" : "#1e3a8a"} metalness={0.8} roughness={0.2} />
-      </mesh>
-      {/* Cable end wire */}
-      <mesh position={[1.2, 0, 0]} rotation={[0, 0, Math.PI / 4]}>
-        <cylinderGeometry args={[0.08, 0.08, 2, 8]} />
-        <meshStandardMaterial color="#FEF3C7" metalness={0.6} roughness={0.3} />
-      </mesh>
-      <mesh position={[-1.2, 0, 0]} rotation={[0, 0, -Math.PI / 4]}>
-        <cylinderGeometry args={[0.08, 0.08, 2, 8]} />
-        <meshStandardMaterial color="#FEF3C7" metalness={0.6} roughness={0.3} />
-      </mesh>
-    </group>
-  );
+type ProductModelsProps = {
+  selected: BrandId | null;
+  onSelect: (id: BrandId | null) => void;
 };
 
-// Bình Minh Pipe Model (orbiting)
-const BinhMinhPipes = () => {
-  const groupRef = useRef<Group>(new Group());
+type Vec3 = [number, number, number];
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.3;
-      groupRef.current.children.forEach((child, i) => {
-        child.rotation.y = state.clock.elapsedTime * (1 + i * 0.5);
-      });
-    }
-  });
+// ─── Part (geometry + toon material + wireframe edges) ────────────────────────
 
-  const pipes = [
-    { color: "#06B6D4", length: 3, pos: [0, 0, 0] as [number, number, number] },
-    { color: "#38BDF8", length: 2.5, pos: [0, 0.5, 2] as [number, number, number] },
-    { color: "#7DD3FC", length: 2, pos: [0, -0.5, -2] as [number, number, number] },
-    { color: "#0EA5E9", length: 2.8, pos: [0, 1, -1] as [number, number, number] },
+type PartProps = {
+  geometry: THREE.BufferGeometry;
+  color: string;
+  position?: Vec3;
+  rotation?: Vec3;
+};
+
+function Part({ geometry, color, position, rotation }: PartProps) {
+  const edges = useMemo(() => new THREE.EdgesGeometry(geometry), [geometry]);
+  return (
+    <mesh geometry={geometry} position={position} rotation={rotation}>
+      <meshToonMaterial color={color} transparent />
+      <lineSegments geometry={edges} raycast={() => null}>
+        <lineBasicMaterial color="#0891B2" transparent opacity={0.3} />
+      </lineSegments>
+    </mesh>
+  );
+}
+
+// ─── Shared Geometries ────────────────────────────────────────────────────────
+
+const torusGeo          = new THREE.TorusGeometry(0.8, 0.2, 6, 10);
+const cylHGeo           = new THREE.CylinderGeometry(0.15, 0.15, 1.6, 6);
+const cylVGeo           = new THREE.CylinderGeometry(0.15, 0.15, 0.9, 6);
+const cylJointGeo       = new THREE.CylinderGeometry(0.22, 0.22, 0.4, 6);
+const cylCapGeo         = new THREE.CylinderGeometry(0.2, 0.2, 0.1, 6);
+const boxBodyGeo        = new THREE.BoxGeometry(1.0, 1.4, 0.3);
+const boxDoorGeo        = new THREE.BoxGeometry(0.85, 1.2, 0.05);
+const boxBreakerGeo     = new THREE.BoxGeometry(0.12, 0.3, 0.05);
+
+// ─── 3D Shapes ────────────────────────────────────────────────────────────────
+
+function CadviShape() {
+  return (
+    <group rotation={[0.5, -0.5, 0]}>
+      <Part geometry={torusGeo} color="#DC2626" position={[0, 0, -0.35]} />
+      <Part geometry={torusGeo} color="#CA8A04" position={[0, 0, 0]} />
+      <Part geometry={torusGeo} color="#DC2626" position={[0, 0, 0.35]} />
+    </group>
+  );
+}
+
+function BinhMinhShape() {
+  return (
+    <group position={[0, -0.4, 0]}>
+      <Part geometry={cylHGeo}     color="#1D4ED8" rotation={[0, 0, Math.PI / 2]} />
+      <Part geometry={cylVGeo}     color="#3B82F6" position={[0, 0.45, 0]} />
+      <Part geometry={cylJointGeo} color="#1E3A8A" rotation={[0, 0, Math.PI / 2]} />
+      <Part geometry={cylCapGeo}   color="#1E3A8A" rotation={[0, 0, Math.PI / 2]} position={[-0.85, 0, 0]} />
+      <Part geometry={cylCapGeo}   color="#1E3A8A" rotation={[0, 0, Math.PI / 2]} position={[0.85, 0, 0]} />
+      <Part geometry={cylCapGeo}   color="#1E3A8A" position={[0, 0.95, 0]} />
+    </group>
+  );
+}
+
+function SchneiderShape() {
+  const breakers: Array<{ x: number; y: number }> = [
+    { x: -0.2, y: 0.25 }, { x: 0, y: 0.25 }, { x: 0.2, y: 0.25 },
+    { x: -0.2, y: -0.15 }, { x: 0, y: -0.15 }, { x: 0.2, y: -0.15 },
   ];
-
   return (
-    <group ref={groupRef} position={[4, 0, 0]}>
-      {pipes.map((p, i) => (
-        <mesh key={i} position={p.pos}>
-          <cylinderGeometry args={[0.3, 0.3, p.length, 16]} />
-          <meshStandardMaterial color={p.color} metalness={0.7} roughness={0.2} />
-        </mesh>
+    <group>
+      <Part geometry={boxBodyGeo} color="#166534" />
+      <Part geometry={boxDoorGeo} color="#15803D" position={[0, 0, 0.18]} />
+      {breakers.map((b, i) => (
+        <Part key={i} geometry={boxBreakerGeo} color="#0891B2" position={[b.x, b.y, 0.22]} />
       ))}
     </group>
   );
+}
+
+// ─── Brand Configs ────────────────────────────────────────────────────────────
+
+const BRANDS: Array<{
+  id: BrandId;
+  slot: number;          // 0=Bình Minh, 1=Cadivi, 2=Schneider
+  baseScale: number;
+  labelY: number;
+  title: string;
+  line2: string;
+  line3: string;
+}> = [
+  { id: 'binhminh',  slot: 0, baseScale: 1.0, labelY: 2.2, title: 'Bình Minh',  line2: 'Ống & Phụ kiện nhựa',          line3: 'Chính hãng 100%' },
+  { id: 'cadivi',    slot: 1, baseScale: 1.2, labelY: 2.4, title: 'Cadivi',      line2: 'Dây & Cáp điện',               line3: 'Chính hãng 100%' },
+  { id: 'schneider', slot: 2, baseScale: 1.0, labelY: 2.2, title: 'Schneider',   line2: 'Tủ điện & Thiết bị đóng cắt', line3: 'Chính hãng 100%' },
+];
+
+// Standby row positions — wider spacing (distance = 3.0 units)
+const STANDBY_POS: Vec3[] = [
+  [0.2, 0, 0],   // slot 0 (Bình Minh - left edge of right area)
+  [3.2, 0, 0],   // slot 1 (Cadivi - Center)
+  [6.2, 0, 0],   // slot 2 (Schneider - right edge)
+];
+
+const CENTER_TARGET: Vec3 = [3.2, 0, 0];
+const SIDE_POSITIONS: Vec3[] = [[0.0, 0, 0], [6.4, 0, 0]];
+
+// ─── ModelShell ───────────────────────────────────────────────────────────────
+
+type ModelShellProps = {
+  id: BrandId;
+  slot: number;
+  baseScale: number;
+  labelY: number;
+  title: string;
+  line2: string;
+  line3: string;
+  selected: BrandId | null;
+  onSelect: (id: BrandId | null) => void;
+  children: React.ReactNode;
 };
 
-// Schneider/Panasonic Panel Model
-const SchneiderPanel = ({ active = false }: { active?: boolean }) => {
-  const groupRef = useRef<Group>(new Group());
+function ModelShell({
+  id,
+  slot,
+  baseScale,
+  labelY,
+  title,
+  line2,
+  line3,
+  selected,
+  onSelect,
+  children,
+}: ModelShellProps) {
+  const outerRef = useRef<THREE.Group>(null);
+  const innerRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
+  const fade = useRef(1);
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.3;
+  // Compute target world position
+  const targetPos = useMemo<Vec3>(() => {
+    if (!selected) return STANDBY_POS[slot];
+    if (selected === id) return CENTER_TARGET;
+    const others = BRANDS.filter((b) => b.id !== selected).sort((a, b) => a.slot - b.slot);
+    const myIndex = others.findIndex((b) => b.id === id);
+    return SIDE_POSITIONS[myIndex] ?? STANDBY_POS[slot];
+  }, [selected, id, slot]);
+
+  useEffect(() => {
+    document.body.style.cursor = hovered ? 'pointer' : 'auto';
+    return () => {
+      document.body.style.cursor = 'auto';
+    };
+  }, [hovered]);
+
+  useFrame((state, delta) => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+
+    const isSelected = selected === id;
+
+    // 1. Position lerp
+    outer.position.x = THREE.MathUtils.lerp(outer.position.x, targetPos[0], 0.08);
+    outer.position.z = THREE.MathUtils.lerp(outer.position.z, targetPos[2], 0.08);
+
+    if (isSelected) {
+      outer.position.y = THREE.MathUtils.lerp(outer.position.y, 0, 0.08);
+    } else {
+      const floatY = Math.sin(state.clock.elapsedTime * 0.8 + slot * 1.5) * 0.1;
+      outer.position.y = THREE.MathUtils.lerp(outer.position.y, targetPos[1] + floatY, 0.08);
     }
+
+    // 2. Scale lerp
+    const targetScale = baseScale * (isSelected ? 1.4 : selected !== null ? 0.65 : 1.0);
+    inner.scale.setScalar(THREE.MathUtils.lerp(inner.scale.x, targetScale, 0.08));
+
+    // 3. Rotation logic: ONLY selected model rotates Y axis
+    if (isSelected) {
+      inner.rotation.y += delta * 1.2;
+    } else {
+      inner.rotation.y = THREE.MathUtils.lerp(inner.rotation.y, 0, 0.1);
+    }
+
+    // 4. Fade opacity lerp
+    const targetFade = selected === null || isSelected ? 1.0 : 0.35;
+    fade.current = THREE.MathUtils.lerp(fade.current, targetFade, 0.1);
+    inner.traverse((obj) => {
+      if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
+        const mat = obj.material;
+        if (Array.isArray(mat)) return;
+        if (mat.userData.baseOpacity === undefined) {
+          mat.userData.baseOpacity = (mat as THREE.Material & { opacity?: number }).opacity ?? 1;
+        }
+        (mat as THREE.Material & { opacity: number }).opacity =
+          (mat.userData.baseOpacity as number) * fade.current;
+      }
+    });
   });
 
-  return (
-    <group ref={groupRef} position={[0, -2, -3]}>
-      {/* Panel housing */}
-      <mesh>
-        <boxGeometry args={[3, 2, 0.5]} />
-        <meshStandardMaterial color={active ? "#38BDF8" : "#1e293b"} metalness={0.6} roughness={0.4} />
-      </mesh>
-      {/* Door handle */}
-      <mesh position={[1.2, 0.5, 0.35]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.1, 0.1, 0.6, 12]} />
-        <meshStandardMaterial color="#94a3b8" metalness={0.9} />
-      </mesh>
-      {/* LED indicators */}
-      {[0, 1, 2].map((i) => (
-        <mesh key={i} position={[-0.8 + i * 0.6, 0.6, 0.31]}>
-          <cylinderGeometry args={[0.08, 0.08, 0.1, 8]} />
-          <meshStandardMaterial
-            color={i === (active ? 1 : 0) ? "#10B981" : "#1e293b"}
-            emissive={i === (active ? 1 : 0) ? "#10B981" : "#000000"}
-            emissiveIntensity={i === (active ? 1 : 0) ? 1 : 0}
-          />
-        </mesh>
-      ))}
-      {/* Label */}
-      <mesh position={[0, -0.6, 0.31]}>
-        <planeGeometry args={[1.5, 0.3]} />
-        <meshBasicMaterial color="#0F1E3D" transparent opacity={0.8} />
-      </mesh>
-    </group>
-  );
-};
-
-// Minh Hòa Valve Model
-const MinhHoaValve = ({ active = false }: { active?: boolean }) => {
-  const groupRef = useRef<Group>(new Group());
-  const wheelRef = useRef<THREE.Mesh>(new THREE.Mesh());
-
-  useFrame((state) => {
-    if (groupRef.current && wheelRef.current) {
-      wheelRef.current.rotation.z = state.clock.elapsedTime * (active ? 2 : 0.5);
-      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.2;
-    }
-  });
+  const isSelected = selected === id;
 
   return (
-    <group ref={groupRef} position={[0, 1, -4]}>
-      {/* Valve body */}
-      <mesh>
-        <cylinderGeometry args={[0.5, 0.6, 1.2, 16]} />
-        <meshStandardMaterial color="#B45309" metalness={0.7} roughness={0.3} />
-      </mesh>
-      {/* Valve wheel */}
-      <mesh ref={wheelRef} position={[0, 0.8, 0]}>
-        <torusGeometry args={[0.4, 0.1, 8, 16]} />
-        <meshStandardMaterial color={active ? "#FCD34D" : "#92400E"} metalness={0.9} roughness={0.2} />
-      </mesh>
-      {/* Outflow pipe */}
-      <mesh position={[0, -0.8, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.2, 0.2, 1, 12]} />
-        <meshStandardMaterial color="#475569" metalness={0.5} roughness={0.4} />
-      </mesh>
-    </group>
-  );
-};
-
-// Label Hover Component
-const ProductLabel = ({ name, position, active }: any) => {
-  return (
-    <Html position={position} distanceFactor={10} style={{ pointerEvents: "none" }}>
-      <div
-        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-          active
-            ? "bg-blue-500 text-white scale-105 shadow-lg shadow-blue-500/30"
-            : "bg-slate-800/80 text-slate-300 backdrop-blur-sm border border-slate-700"
-        }`}
+    <group ref={outerRef} position={STANDBY_POS[slot]}>
+      {/* 3D Model group */}
+      <group
+        ref={innerRef}
+        scale={baseScale}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(isSelected ? null : id);
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+        }}
+        onPointerOut={() => setHovered(false)}
       >
-        {name}
-      </div>
-    </Html>
-  );
-};
+        {children}
+      </group>
 
-export const ProductModels = ({ activeProduct, onProductSelect }: any) => {
+      {/* Selected Detail Glassmorphism Card */}
+      {isSelected && (
+        <Html position={[0, labelY, 0]} center zIndexRange={[10, 0]}>
+          <div className="pointer-events-none select-none whitespace-nowrap bg-white/90 backdrop-blur-md text-cyan-700 font-bold px-4 py-3 rounded-xl shadow-xl border border-cyan-200 text-center min-w-32">
+            <p className="text-xs font-bold text-cyan-700 uppercase tracking-wider">{title}</p>
+            <p className="text-xs text-slate-600 font-normal mt-1">{line2}</p>
+            <p className="text-xs text-slate-400 font-normal">{line3}</p>
+          </div>
+        </Html>
+      )}
+
+      {/* Always-visible Name Tag */}
+      <Html position={[0, -1.8, 0]} center zIndexRange={[5, 0]}>
+        <div
+          className={`pointer-events-none select-none whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+            isSelected
+              ? 'bg-cyan-100 text-cyan-700 border-cyan-300 shadow-md scale-105'
+              : 'bg-white/80 text-slate-700 border-slate-200 shadow-sm'
+          }`}
+        >
+          {title}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+// ─── Main Export ──────────────────────────────────────────────────────────────
+
+export function ProductModels({ selected, onSelect }: ProductModelsProps) {
   return (
     <>
-      <CadviCableCoil active={activeProduct === "cable"} />
-      <BinhMinhPipes />
-      <SchneiderPanel active={activeProduct === "panel"} />
-      <MinhHoaValve active={activeProduct === "valve"} />
-    </>
-  );
-};
-
-export const ProductLabels = ({ activeProduct, onProductSelect }: any) => {
-  const labels = [
-    { name: "Cáp Cadivi", product: "cable", position: [-4, -1.8, 0] as [number, number, number] },
-    { name: "Ống Bình Minh", product: "pipe", position: [4, -1.2, 0] as [number, number, number] },
-    { name: "Thiết bị Schneider", product: "panel", position: [0, -2.8, -3] as [number, number, number] },
-    { name: "Van Minh Hòa", product: "valve", position: [0, 0.5, -4] as [number, number, number] },
-  ];
-
-  return (
-    <>
-      {labels.map((label) => (
-        <ProductLabel
-          key={label.product}
-          name={label.name}
-          position={label.position}
-          active={activeProduct === label.product}
-        />
+      {BRANDS.map((brand) => (
+        <ModelShell key={brand.id} {...brand} selected={selected} onSelect={onSelect}>
+          {brand.id === 'cadivi'    && <CadviShape />}
+          {brand.id === 'binhminh' && <BinhMinhShape />}
+          {brand.id === 'schneider' && <SchneiderShape />}
+        </ModelShell>
       ))}
     </>
   );
-};
+}

@@ -18,9 +18,9 @@ export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductSh
       <div className="flex items-end justify-between mb-8">
         <div>
           <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight text-slate-900 dark:text-white uppercase mb-2">
-            Trending <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">Supplies</span>
+            VẬT TƯ <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">NỔI BẬT KHUYÊN DÙNG</span>
           </h2>
-          <p className="text-slate-500 text-sm">Most requested items by M&E contractors this month.</p>
+          <p className="text-slate-500 text-sm">Sản phẩm vật tư điện nước được các nhà thầu M&amp;E tìm kiếm và đặt hàng nhiều nhất tháng này.</p>
         </div>
       </div>
 

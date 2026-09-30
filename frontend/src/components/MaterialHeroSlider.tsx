@@ -28,7 +28,7 @@ export default function MaterialHeroSlider({ onOpenRFQ }: MaterialHeroSliderProp
           className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-widest uppercase mb-6"
         >
           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          The future of M&E Supply
+          NHÀ PHÂN PHỐI VẬT TƯ ĐIỆN NƯỚC M&amp;E HÀNG ĐẦU
         </motion.span>
 
         <motion.h1
@@ -37,7 +37,7 @@ export default function MaterialHeroSlider({ onOpenRFQ }: MaterialHeroSliderProp
           transition={{ delay: 0.1 }}
           className="text-4xl sm:text-5xl lg:text-6xl font-display font-black text-white leading-[1.1] tracking-tight mb-6"
         >
-          Sustainable Projects Built with <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">Authentic M&E Supplies</span>
+          Vật Tư Cơ Điện M&amp;E Chính Hãng <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">Chiết Khấu Cao Cho Nhà Thầu</span>
         </motion.h1>
 
         <motion.p
@@ -46,7 +46,7 @@ export default function MaterialHeroSlider({ onOpenRFQ }: MaterialHeroSliderProp
           transition={{ delay: 0.2 }}
           className="text-slate-400 text-base sm:text-lg mb-10 max-w-xl leading-relaxed"
         >
-          Direct wholesale distribution for contractors. Fast quotes, massive volume discounts, and 2H delivery directly to your construction site.
+          Phân phối trực tiếp ống nước Bình Minh, cáp điện Cadivi, thiết bị Schneider/Panasonic, van Minh Hòa. Báo giá tự động BOM, giao hàng 2H cẩu tận chân công trình.
         </motion.p>
 
         <motion.div
@@ -59,11 +59,17 @@ export default function MaterialHeroSlider({ onOpenRFQ }: MaterialHeroSliderProp
             onClick={() => { if (onOpenRFQ) onOpenRFQ(); }}
             className="flex items-center gap-2 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-lg shadow-blue-600/20 hover:scale-105"
           >
-            <Calculator className="w-5 h-5" /> Calculate BOM & Get Quote
+            <Calculator className="w-5 h-5" /> Báo Giá Nhanh (BOM)
           </button>
           
-          <button className="flex items-center gap-2 px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all border border-white/10 hover:border-white/30 backdrop-blur-md">
-            Explore Catalog <ArrowRight className="w-4 h-4 text-slate-400" />
+          <button
+            onClick={() => {
+              const el = document.getElementById("catalog");
+              el?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="flex items-center gap-2 px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all border border-white/10 hover:border-white/30 backdrop-blur-md"
+          >
+            Tra Cứu Bảng Giá <ArrowRight className="w-4 h-4 text-slate-400" />
           </button>
         </motion.div>
       </div>
@@ -73,19 +79,19 @@ export default function MaterialHeroSlider({ onOpenRFQ }: MaterialHeroSliderProp
         <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
           <div className="flex items-center gap-3 p-4 justify-center group">
             <ShieldCheck className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="text-white text-xs font-semibold">100% CO/CQ Certified</span>
+            <span className="text-white text-xs font-semibold">100% Cam Kết CO/CQ</span>
           </div>
           <div className="flex items-center gap-3 p-4 justify-center group">
             <Truck className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-            <span className="text-white text-xs font-semibold">2H SLA Crane Delivery</span>
+            <span className="text-white text-xs font-semibold">Giao 2H Chân Công Trình</span>
           </div>
           <div className="flex items-center gap-3 p-4 justify-center group">
             <CheckCircle2 className="w-5 h-5 text-green-500 group-hover:scale-110 transition-transform" />
-            <span className="text-white text-xs font-semibold">Engineering BOM Estimation</span>
+            <span className="text-white text-xs font-semibold">Tự Động Hóa BOM M&amp;E</span>
           </div>
           <div className="flex items-center gap-3 p-4 justify-center group">
             <Percent className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
-            <span className="text-white text-xs font-semibold">Tier-1 Wholesale Discounts</span>
+            <span className="text-white text-xs font-semibold">Chiết Khấu Đại Lý Cấp 1</span>
           </div>
         </div>
       </div>

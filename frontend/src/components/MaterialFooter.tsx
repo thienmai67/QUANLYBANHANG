@@ -34,39 +34,39 @@ export default function MaterialFooter() {
               </span>
             </div>
             <p className="text-slate-500 font-medium text-sm leading-relaxed max-w-xs">
-              Pure Quality. Pure Trust.<br />
-              The leading wholesale platform for genuine electrical and plumbing materials in Vietnam.
+              Chất Lượng Thật. Uy Tín Thật.<br />
+              Nền tảng phân phối sỉ vật tư điện nước cơ điện M&amp;E chính hãng hàng đầu Việt Nam.
             </p>
           </div>
 
           {/* Links Col 1 */}
           <div className="space-y-6">
-            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Commerce</h4>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Danh Mục Vật Tư</h4>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400 font-medium">
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Products Catalog</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Project Packages</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">M&E Estimation Tools</a></li>
+              <li><a href="#catalog" className="hover:text-blue-600 transition-colors">Tra Cứu Bảng Giá Vật Tư</a></li>
+              <li><a href="/cong-trinh" className="hover:text-blue-600 transition-colors">Gói Vật Tư Công Trình</a></li>
+              <li><a href="/cong-cu" className="hover:text-blue-600 transition-colors">Công Cụ Tính Dự Toán BOM</a></li>
             </ul>
           </div>
 
           {/* Links Col 2 */}
           <div className="space-y-6">
-            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Compliance</h4>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Tiêu Chuẩn &amp; Pháp Lý</h4>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400 font-medium">
-              <li><a href="#" className="hover:text-blue-600 transition-colors flex items-center gap-2"><ShieldCheck className="w-4 h-4"/> CO/CQ Certification</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">VAT Invoicing</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">TCVN Standards</a></li>
-              <li><a href="#" className="hover:text-blue-600 transition-colors">Contractor Credit Terms</a></li>
+              <li><a href="#" className="hover:text-blue-600 transition-colors flex items-center gap-2"><ShieldCheck className="w-4 h-4"/> Chứng Nhận CO/CQ Chính Hãng</a></li>
+              <li><a href="#" className="hover:text-blue-600 transition-colors">Hóa Đơn GTGT (VAT) Hợp Lệ</a></li>
+              <li><a href="#" className="hover:text-blue-600 transition-colors">Tiêu Chuẩn TCVN / IEC</a></li>
+              <li><a href="#" className="hover:text-blue-600 transition-colors">Chính Sách Công Nợ Nhà Thầu</a></li>
             </ul>
           </div>
 
           {/* Contact Col */}
           <div className="space-y-6">
-            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Contact</h4>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Liên Hệ Trực Tiếp</h4>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400 font-medium">
               <li className="flex items-center gap-3">
                 <MapPin className="w-4 h-4 shrink-0" />
-                <span>Icon 4 Building, Hanoi, Vietnam</span>
+                <span>Tòa nhà Icon 4, Đống Đa, Hà Nội, Việt Nam</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-4 h-4 shrink-0" />
@@ -79,7 +79,7 @@ export default function MaterialFooter() {
       
       {/* 3. Bottom Bar */}
       <div className="border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 font-medium">
-        <p>© 2026 TDT M&E Platform. All rights reserved.</p>
+        <p>© 2026 Hệ Thống Vật Tư Điện Nước TDT M&amp;E. Bản quyền được bảo hộ.</p>
       </div>
     </footer>
   );

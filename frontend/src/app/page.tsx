@@ -1,8 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import MaterialHeader from "@/components/MaterialHeader";
 import MaterialHeroSlider from "@/components/MaterialHeroSlider";
+
+const TDTInteractiveBanner = dynamic(
+  () => import("@/components/TDTInteractiveBanner"),
+  { ssr: false }
+);
 import MaterialCategoryGrid from "@/components/MaterialCategoryGrid";
 import MaterialProductShowcase from "@/components/MaterialProductShowcase";
 import MaterialWhyUs from "@/components/MaterialWhyUs";
@@ -33,8 +39,8 @@ export default function HomePage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-14 sm:space-y-16">
-        {/* 2. Hero Banner Slider & 4-Item Guarantee Strip */}
-        <MaterialHeroSlider onOpenRFQ={handleOpenRFQ} />
+        {/* 2. Hero Banner 3D Interactive */}
+        <TDTInteractiveBanner onOpenRFQ={handleOpenRFQ} />
 
         {/* 3. Product Category Showcase Grid (7 Danh Mục Vật Tư Điện Nước M&E) */}
         <MaterialCategoryGrid onSelectCategory={(catId) => {
