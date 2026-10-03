@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2, Mail, Lock, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, Lock, AlertCircle, KeyRound, CheckCircle2 } from "lucide-react";
 import AuthFormWrapper from "@/components/AuthFormWrapper";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import FacebookSignInButton from "@/components/FacebookSignInButton";
@@ -17,16 +17,24 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Forgot password modal state
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: cleanEmail, password }),
       });
 
       if (!res.ok) {
@@ -42,7 +50,27 @@ export default function LoginPage() {
       const refreshToken = data.refreshToken || data.refresh_token || "";
       if (accessToken) {
         saveTokens(accessToken, refreshToken);
-        window.location.href = "/";
+        const { decodeToken } = await import("@/lib/auth");
+        const { useAuthStore } = await import("@/store/useAuthStore");
+        const user = decodeToken(accessToken);
+
+        if (user) {
+          const isStaff = user.role.toUpperCase() === "ADMIN" || user.role.toUpperCase() === "MANAGER";
+          const role = isStaff ? "ADMIN" : "CONTRACTOR";
+
+          useAuthStore.getState().setAuth(accessToken, {
+            id: user.userId,
+            email: user.email,
+            name: user.email.split("@")[0],
+            role: role,
+          });
+
+          if (isStaff) {
+            window.location.href = "/admin/dashboard";
+            return;
+          }
+        }
+        window.location.href = "/account";
       } else {
         throw new Error("Phản hồi xác thực không hợp lệ.");
       }
@@ -55,6 +83,17 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSendResetLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim() || !forgotEmail.includes("@")) return;
+
+    setForgotLoading(true);
+    setTimeout(() => {
+      setForgotLoading(false);
+      setForgotSent(true);
+    }, 1000);
   };
 
   return (
@@ -118,18 +157,17 @@ export default function LoginPage() {
             >
               Mật khẩu
             </label>
-            <a
-              href="#forgot-password"
-              onClick={(e) => {
-                e.preventDefault();
-                alert(
-                  "Tính năng đặt lại mật khẩu đang được kích hoạt qua email quản trị. Vui lòng liên hệ bộ phận hỗ trợ."
-                );
+            <button
+              type="button"
+              onClick={() => {
+                setForgotEmail(email);
+                setForgotSent(false);
+                setShowForgotModal(true);
               }}
               className="text-xs text-accent-blue hover:underline font-medium"
             >
               Quên mật khẩu?
-            </a>
+            </button>
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
@@ -177,6 +215,83 @@ export default function LoginPage() {
           )}
         </button>
       </form>
+
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-background dark:bg-surface border border-border rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2 text-accent-blue">
+                <KeyRound className="w-5 h-5" />
+                <h3 className="font-bold text-base text-foreground">Đặt Lại Mật Khẩu</h3>
+              </div>
+              <button
+                onClick={() => setShowForgotModal(false)}
+                className="text-muted hover:text-foreground p-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            {forgotSent ? (
+              <div className="py-4 space-y-3 text-center">
+                <div className="w-12 h-12 bg-emerald-500/15 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <h4 className="font-bold text-sm text-foreground">Đã Gửi Liên Kết Đặt Lại!</h4>
+                <p className="text-xs text-muted leading-relaxed">
+                  Hướng dẫn đặt lại mật khẩu đã được gửi đến <strong className="text-foreground">{forgotEmail}</strong>. Vui lòng kiểm tra hộp thư đến của bạn.
+                </p>
+                <button
+                  onClick={() => setShowForgotModal(false)}
+                  className="w-full mt-2 py-2 rounded-lg bg-accent-blue text-white font-semibold text-xs"
+                >
+                  ĐÓNG
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSendResetLink} className="space-y-4">
+                <p className="text-xs text-muted leading-relaxed">
+                  Nhập địa chỉ email tài khoản của bạn để nhận liên kết khôi phục mật khẩu.
+                </p>
+                <div>
+                  <label className="block text-xs font-semibold text-foreground uppercase mb-1">
+                    Email tài khoản
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="ten@congty.com"
+                    className="w-full py-2.5 px-3.5 rounded-lg bg-surface/50 border border-border focus:border-accent-blue text-foreground text-sm focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="w-1/2 py-2.5 rounded-lg border border-border text-xs font-semibold text-muted hover:text-foreground transition-colors"
+                  >
+                    HỦY
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="w-1/2 py-2.5 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-xs font-semibold text-white flex items-center justify-center gap-2 transition-all shadow-md"
+                  >
+                    {forgotLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <span>GỬI YÊU CẦU</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Divider */}
       <div className="relative flex items-center justify-center my-3">

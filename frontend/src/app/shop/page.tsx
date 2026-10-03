@@ -1,152 +1,202 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { Filter, X, Zap, ChevronDown, Package } from "lucide-react";
-import MaterialHeader from "@/components/MaterialHeader";
-import MaterialFooter from "@/components/MaterialFooter";
-import { MAndE_PRODUCTS } from "@/data/materialData";
-import * as motion from "motion/react-client";
+import React, { useState, useMemo } from 'react';
+import MaterialHeader from '@/components/MaterialHeader';
+import MaterialFooter from '@/components/MaterialFooter';
+import RFQModal from '@/components/RFQModal';
+import { MATERIAL_PRODUCTS, MaterialProduct } from '@/data/materialData';
+import { useCartStore } from '@/store/useCartStore';
+import { Search, Filter, ShoppingCart, ShieldCheck, Truck, Zap, ShoppingBag, Check } from 'lucide-react';
 
 export default function ShopPage() {
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
+  const [selectedCat, setSelectedCat] = useState<string>('ALL');
+  const [search, setSearch] = useState<string>('');
+  const [isRFQOpen, setIsRFQOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
+  const [addedItemMap, setAddedItemMap] = useState<Record<string, boolean>>({});
 
-  // Simulated filtering for Skeletons
-  const handleFilterToggle = () => {
-    setIsFilterOpen(!isFilterOpen);
+  const { addItem } = useCartStore();
+
+  const filteredProducts = useMemo(() => {
+    return MATERIAL_PRODUCTS.filter((p) => {
+      const matchesSearch =
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.sku.toLowerCase().includes(search.toLowerCase());
+      const matchesBrand = selectedBrand === 'ALL' || p.brand === selectedBrand;
+      const matchesCat = selectedCat === 'ALL' || p.category === selectedCat;
+      return matchesSearch && matchesBrand && matchesCat;
+    });
+  }, [search, selectedBrand, selectedCat]);
+
+  const handleOpenRFQ = (name?: string) => {
+    setSelectedProduct(name);
+    setIsRFQOpen(true);
   };
 
-  const applyFakeFilter = () => {
-    setIsFilterOpen(false);
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1200);
+  const handleAddToCart = (prod: MaterialProduct) => {
+    // Convert price string to raw number (e.g. "850.000₫" -> 850000)
+    const rawPrice = parseInt(prod.price.replace(/[^\d]/g, ''), 10) || 100000;
+
+    addItem({
+      id: prod.id,
+      sku: prod.sku,
+      name: prod.name,
+      price: prod.price,
+      unitPrice: rawPrice,
+      image: prod.image,
+    });
+
+    setAddedItemMap((prev) => ({ ...prev, [prod.id]: true }));
+    setTimeout(() => {
+      setAddedItemMap((prev) => ({ ...prev, [prod.id]: false }));
+    }, 2000);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-500 selection:text-white">
-      <MaterialHeader />
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 transition-colors">
+      <MaterialHeader onOpenRFQ={handleOpenRFQ} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Banner header */}
+        <div className="p-8 bg-gradient-to-r from-blue-900 via-cyan-900 to-slate-900 text-white rounded-3xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 border border-cyan-800">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-black tracking-tight text-slate-900 dark:text-white uppercase mb-2">
-              All M&E <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">Products</span>
-            </h1>
-            <p className="text-slate-500 text-sm">Browse our full catalog of TCVN compliant electrical and plumbing supplies.</p>
+            <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-bold border border-cyan-500/30 uppercase tracking-wider">
+              Cửa Hàng Vật Tư M&E — Mua Lẻ & Mua Công Trình
+            </span>
+            <h1 className="text-3xl font-black mt-3">Tất Cả Sản Phẩm &amp; Vật Tư M&E</h1>
+            <p className="text-sm text-slate-300 mt-1 max-w-xl">
+              Phục vụ mua hàng bán lẻ giao tận nơi (COD) và chiết khấu sỉ bóc tách BOM cho nhà thầu.
+            </p>
           </div>
-          <button
-            onClick={handleFilterToggle}
-            className="flex items-center gap-2 px-6 py-3 rounded-full border-2 border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-blue-600 transition-colors font-bold text-sm bg-white dark:bg-[#0c1322]"
-          >
-            <Filter className="w-4 h-4" /> Filter Supplies
-          </button>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => handleOpenRFQ()}
+              className="px-5 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-2xl text-xs shadow-lg transition-all shrink-0 flex items-center gap-2"
+            >
+              <Zap className="w-4 h-4" /> Xin Báo Giá Sỉ / BOM
+            </button>
+          </div>
+        </div>
+
+        {/* Search & Filter bar */}
+        <div className="p-4 bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="relative w-full md:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm theo tên sản phẩm, mã SKU..."
+              className="w-full pl-10 pr-4 py-2 text-xs bg-slate-100 dark:bg-slate-900 border border-transparent focus:border-cyan-500 rounded-xl text-slate-900 dark:text-slate-100 font-medium outline-none"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto text-xs">
+            <div className="flex items-center gap-2 font-semibold text-slate-500">
+              <Filter className="w-4 h-4" /> Thương hiệu:
+            </div>
+            <select
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
+            >
+              <option value="ALL">Tất cả thương hiệu</option>
+              <option value="Cadivi">Cadivi</option>
+              <option value="Bình Minh">Bình Minh</option>
+              <option value="Schneider">Schneider</option>
+              <option value="Minh Hòa">Minh Hòa</option>
+              <option value="Panasonic">Panasonic</option>
+            </select>
+          </div>
         </div>
 
         {/* Product Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {isLoading
-            ? Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="animate-pulse bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl aspect-[3/4]">
-                  <div className="w-full h-[55%] bg-slate-100 dark:bg-slate-900 mb-4 rounded-t-2xl"></div>
-                  <div className="p-4 space-y-3">
-                    <div className="h-3 w-1/4 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                    <div className="h-4 w-3/4 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                    <div className="h-4 w-1/2 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                    <div className="h-6 w-1/3 bg-slate-200 dark:bg-slate-800 rounded mt-4"></div>
-                  </div>
+          {filteredProducts.map((prod) => (
+            <div
+              key={prod.id}
+              className="bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="relative h-48 overflow-hidden bg-slate-100 dark:bg-slate-900">
+                  <img
+                    src={prod.image}
+                    alt={prod.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <span className="absolute top-3 left-3 px-2.5 py-1 bg-slate-900/80 backdrop-blur-md text-white font-bold text-[10px] rounded-lg">
+                    {prod.brand}
+                  </span>
                 </div>
-              ))
-            : MAndE_PRODUCTS.map((prod, idx) => (
-                <motion.a
-                  href={`/produkt/${prod.id}`}
-                  key={prod.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="group block relative bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:shadow-xl hover:shadow-blue-900/5 transition-all"
-                >
-                  <div className="w-full aspect-[4/3] relative bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 overflow-hidden">
-                    <img src={prod.image} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+
+                <div className="p-4 space-y-2">
+                  <span className="font-mono text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">
+                    SKU: {prod.sku}
+                  </span>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-2">
+                    {prod.name}
+                  </h3>
+                  <p className="text-xs text-slate-500 line-clamp-2">{prod.specs}</p>
+                </div>
+              </div>
+
+              {/* Pricing & Double CTAs: Retail Add to Cart vs Wholesale Quote */}
+              <div className="p-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400">Giá bán lẻ</span>
+                    <p className="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">
+                      {prod.price}
+                    </p>
                   </div>
-                  <div className="p-5">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">{prod.brand}</span>
-                    <h3 className="font-semibold text-sm line-clamp-2 min-h-[40px] group-hover:text-blue-600 transition-colors">
-                      {prod.name}
-                    </h3>
-                    <div className="mt-4 flex gap-1">
-                      {/* Fake Size Variants */}
-                      {["S", "M", "L"].map(size => (
-                        <div key={size} className="w-6 h-6 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] font-mono text-slate-500 bg-slate-50 dark:bg-slate-800">
-                          {size}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <span className="font-bold text-orange-500 text-lg">{prod.price}</span>
-                      <Package className="w-5 h-5 text-slate-300" />
-                    </div>
-                  </div>
-                </motion.a>
-              ))}
+
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-900">
+                    Sẵn kho
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleAddToCart(prod)}
+                    className={`py-2 px-2.5 rounded-xl font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all ${
+                      addedItemMap[prod.id]
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    {addedItemMap[prod.id] ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" /> Đã Thêm!
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-3.5 h-3.5" /> Thêm Vào Giỏ
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenRFQ(prod.name)}
+                    className="py-2 px-2 rounded-xl font-bold text-xs text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-center"
+                  >
+                    Báo Giá Sỉ
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </main>
 
       <MaterialFooter />
 
-      {/* Slide-Over Filter Drawer */}
-      {isFilterOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={handleFilterToggle} />
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="relative w-full max-w-sm bg-white dark:bg-[#0c1322] h-full shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800"
-          >
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="text-xl font-display font-black uppercase text-slate-900 dark:text-white">Filters</h3>
-              <button onClick={handleFilterToggle} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">Brands</h4>
-                <div className="space-y-3">
-                  {["Cadivi", "Bình Minh", "Panasonic", "Tiền Phong"].map(brand => (
-                    <label key={brand} className="flex items-center gap-3">
-                      <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                      <span className="text-sm font-medium">{brand}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="h-px bg-slate-200 dark:bg-slate-800" />
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">Specs (Pressure / Gauge)</h4>
-                <div className="space-y-3">
-                  {["PN10", "PN16", "1.5mm² - 6.0mm²", "10mm² - 25mm²"].map(spec => (
-                    <label key={spec} className="flex items-center gap-3">
-                      <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                      <span className="text-sm font-medium">{spec}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
-              <button
-                onClick={applyFakeFilter}
-                className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors shadow-lg shadow-blue-500/20"
-              >
-                Apply Filters
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      <RFQModal
+        isOpen={isRFQOpen}
+        onClose={() => setIsRFQOpen(false)}
+        initialProductName={selectedProduct}
+      />
     </div>
   );
 }

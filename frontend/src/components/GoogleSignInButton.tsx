@@ -1,16 +1,29 @@
 "use client";
 
+import React from "react";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
-export default function GoogleSignInButton({ className = "" }: { className?: string }) {
+interface GoogleSignInButtonProps {
+  className?: string;
+  label?: string;
+}
+
+export default function GoogleSignInButton({
+  className = "",
+  label = "Google",
+}: GoogleSignInButtonProps) {
   return (
     <button
       id="google-signin-btn"
-      onClick={() => { window.location.href = `${API_URL}/api/v1/auth/google/login`; }}
-      className={`group flex items-center gap-3 px-5 py-2.5 rounded-lg border border-border bg-surface hover:bg-border/50 text-foreground text-sm font-medium transition-all duration-200 active:scale-95 ${className}`}
+      type="button"
+      onClick={() => {
+        window.location.href = `${API_URL}/api/v1/auth/google/login`;
+      }}
+      className={`group flex items-center justify-center gap-3 w-full px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all shadow-sm ${className}`}
     >
       <GoogleLogo />
-      <span>Google</span>
+      <span>{label}</span>
     </button>
   );
 }
