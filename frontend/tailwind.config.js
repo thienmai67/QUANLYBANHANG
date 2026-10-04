@@ -20,10 +20,11 @@ module.exports = {
         muted: "var(--muted)",
       },
       fontFamily: {
+        display: ["var(--font-display)", "Inter", "sans-serif"],
         serif: ["var(--font-serif)", "Georgia", "serif"],
         editorial: ["var(--font-editorial)", "Georgia", "serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
+        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {
         "glow-gold": "0 0 30px -5px rgba(197, 168, 128, 0.25)",
