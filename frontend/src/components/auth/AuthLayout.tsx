@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import AuthShowcase from "./AuthShowcase";
+import Image from "next/image";
+import AuthHeroWave from "./AuthHeroWave";
 import { AUTH_COPY } from "@/lib/auth/authCopy";
 
 export interface AuthLayoutProps {
@@ -13,99 +13,108 @@ export default function AuthLayout({ variant, children }: AuthLayoutProps) {
   const copy = AUTH_COPY[variant];
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#F1F1F2] flex items-center justify-center p-3 sm:p-5 lg:p-6 [color-scheme:light] antialiased">
-      {/* Outer Card Container - vertically & horizontally centered */}
-      <div className="w-full max-w-[1100px] h-[94vh] max-h-[640px] rounded-2xl sm:rounded-[28px] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.25)] flex flex-col lg:flex-row relative bg-white">
+    <div className="min-h-screen w-full bg-[#F1F4F9] flex items-center justify-center p-3 sm:p-5 lg:p-8 antialiased [color-scheme:light]">
+      {/* Outer Floating Card Container */}
+      <div className="w-full max-w-[1120px] min-h-[640px] lg:h-[88vh] lg:max-h-[730px] rounded-[28px] sm:rounded-[36px] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)] border border-slate-100/80 overflow-hidden relative flex flex-col">
         
-        {/* Left Panel: Dark Showcase (48% width on desktop) */}
-        <div className="w-full lg:w-[48%] shrink-0 h-[140px] sm:h-[180px] lg:h-full relative">
-          <AuthShowcase
-            eyebrow={copy.eyebrow}
-            headlineLine1={copy.headlineLine1}
-            headlineLine2={copy.headlineLine2}
-            badge={copy.badge}
+        {/* Full-height Right Hero Wave Panel (spans top to bottom on desktop) */}
+        <aside
+          className="hidden lg:block absolute top-0 right-0 bottom-0 w-[48%] xl:w-[50%] z-10 pointer-events-none"
+          aria-label="Hình ảnh vật tư xây dựng"
+        >
+          <AuthHeroWave
+            imageSrc="/images/auth/materials-hero.jpg"
             imageAlt={copy.imageAlt}
-            className="rounded-none sm:rounded-t-[28px] lg:rounded-t-none lg:rounded-l-[28px]"
+            className="h-full w-full"
           />
-        </div>
+        </aside>
 
-        {/* Right Panel: White Form (54% + overlapping 24px) */}
-        <div className="w-full lg:w-[54%] bg-white rounded-none sm:rounded-b-2xl lg:rounded-b-none lg:rounded-[28px] lg:-ml-6 lg:z-10 shadow-[-12px_0_35px_-15px_rgba(0,0,0,0.08)] flex flex-col justify-between px-6 py-5 sm:px-8 sm:py-5 lg:px-10 lg:py-6 h-full overflow-hidden">
-          
-          {/* Top Bar & Form Header */}
-          <div>
-            <div className="flex items-center justify-between pb-3 mb-2 border-b border-[#F0F0F2]">
-              <Link href="/" className="inline-flex items-center gap-2.5 group focus:outline-none">
-                <div className="w-8 h-8 rounded-[8px] bg-[#111] text-white flex items-center justify-center font-display font-bold text-base shadow-sm group-hover:scale-105 transition-transform">
-                  T
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="font-display font-bold text-[16px] leading-tight text-[#0B0B0C] tracking-tight group-hover:text-[#FF5A1F] transition-colors">
-                    TDT
-                  </span>
-                  <span className="text-[9px] uppercase tracking-[0.16em] text-[#8A8A92] font-semibold">
-                    M&E Platform
-                  </span>
-                </div>
-              </Link>
-
-              <Link
-                href="/"
-                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#111] hover:text-[#FF5A1F] transition-colors px-3 py-1.5 rounded-full hover:bg-[#F7F7F8] group"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 text-[#8A8A92] group-hover:text-[#FF5A1F] group-hover:-translate-x-0.5 transition-all" />
-                <span>Trang chủ</span>
-              </Link>
+        {/* Top Bar Header inside the Card */}
+        <header className="w-full px-6 sm:px-8 lg:px-10 py-5 sm:py-6 flex items-center justify-between shrink-0 z-30">
+          {/* Brand Logo & Name */}
+          <Link href="/" className="inline-flex items-center gap-3 group focus:outline-none">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#0B0F19] overflow-hidden flex items-center justify-center shadow-md p-1 group-hover:scale-105 transition-transform relative">
+              <Image
+                src="/images/auth/tdt-symbol.jpg"
+                alt="Logo TDT"
+                width={40}
+                height={40}
+                className="w-full h-full object-contain rounded-xl"
+              />
             </div>
+            <div className="flex flex-col text-left">
+              <span className="font-display font-extrabold text-[17px] sm:text-[19px] leading-tight text-[#0F172A] tracking-tight">
+                TDT Platform<span className="text-[#1E6BFF]">.</span>
+              </span>
+              <span className="text-[9px] uppercase tracking-[0.18em] text-[#8C93A3] font-bold">
+                Vật Liệu Xây Dựng & M&E
+              </span>
+            </div>
+          </Link>
 
-            {/* Form Title & Subtitle */}
-            <div className="mb-3">
-              <h1 className="font-display text-[22px] sm:text-[25px] xl:text-[28px] leading-tight tracking-[-0.02em] text-[#0B0B0C] font-bold">
+          {/* Quick Nav Links */}
+          <nav className="flex items-center gap-4 text-[13px] font-medium">
+            <Link
+              href="/"
+              className="text-[#475569] hover:text-[#0F172A] transition-colors hidden sm:inline-block bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-100/60 shadow-xs"
+            >
+              Trang chủ
+            </Link>
+            <Link
+              href={copy.topLinkHref}
+              className="text-[#1E6BFF] hover:text-[#0F56E8] font-semibold transition-colors px-3.5 py-1.5 rounded-full hover:bg-blue-50/80 bg-white/85 backdrop-blur-sm border border-slate-100/60 shadow-xs"
+            >
+              {copy.topLinkText}
+            </Link>
+          </nav>
+        </header>
+
+        {/* Card Main Body Grid: Left Form Panel */}
+        <div className="flex-1 flex flex-col lg:flex-row relative overflow-hidden z-20">
+          
+          {/* Left Panel: Form area (Scrollable on small screens) */}
+          <main className="w-full lg:w-[52%] xl:w-[50%] h-full flex flex-col justify-between px-6 sm:px-8 lg:px-12 pb-6 pt-1 overflow-y-auto custom-scrollbar">
+            <div>
+              {/* Eyebrow */}
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8C93A3] mb-2 select-none">
+                {copy.eyebrow}
+              </p>
+
+              {/* Main Heading with Blue Dot */}
+              <h1 className="text-[26px] sm:text-[30px] font-extrabold tracking-tight text-[#0F172A] mb-1.5 leading-snug">
                 {copy.formTitle}
               </h1>
-              <p className="text-[13px] text-[#6E6E76] mt-0.5 leading-snug">
-                {copy.formSubtitle}
+
+              {/* Member Switcher Link */}
+              <p className="text-[13px] text-[#64748B] mb-5">
+                {copy.formSubtitle}{" "}
+                <Link
+                  href={copy.footerActionHref}
+                  className="text-[#1E6BFF] font-semibold hover:underline ml-1"
+                >
+                  {copy.footerActionText}
+                </Link>
               </p>
+
+              {/* Injected Form Body */}
+              <div className="w-full">{children}</div>
             </div>
 
-            {/* Injected Form Body */}
-            <div>{children}</div>
-          </div>
-
-          {/* Footer Bar: strictly on 1 line with whitespace-nowrap */}
-          <div className="pt-3 mt-2 border-t border-[#ECECEE] flex items-center justify-between text-[11px] text-[#9A9AA2] whitespace-nowrap select-none">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="whitespace-nowrap">© 2026 TDT Platform</span>
-              <span>·</span>
-              <span className="whitespace-nowrap">Đăng nhập bảo mật</span>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <a href="mailto:support@tdt-platform.vn" className="hover:text-[#111] transition-colors whitespace-nowrap">
-                Liên hệ
-              </a>
-              <span>·</span>
-              <span className="text-[#6E6E76] cursor-default font-medium whitespace-nowrap">Tiếng Việt ▾</span>
-            </div>
-          </div>
+            {/* Bottom terms notice */}
+            <footer className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#94A3B8] select-none">
+              <span>© 2026 TDT Platform</span>
+              <div className="flex items-center gap-3">
+                <a href="mailto:support@tdt-platform.vn" className="hover:text-slate-600 transition-colors">
+                  Hỗ trợ
+                </a>
+                <span>·</span>
+                <span className="font-medium text-slate-500">Tiếng Việt</span>
+              </div>
+            </footer>
+          </main>
 
         </div>
 
-      </div>
-
-      {/* Mascot Animation: Engineer character at the bottom right corner */}
-      <div
-        className="fixed bottom-0 right-2 sm:right-6 lg:right-10 z-30 pointer-events-none select-none transition-all duration-300"
-        aria-hidden="true"
-      >
-        <picture>
-          <source srcSet="/images/auth/character-engineer.webp" type="image/webp" />
-          <img
-            src="/images/auth/character-engineer.gif"
-            alt="Kỹ sư TDT M&E Platform"
-            className="w-[110px] sm:w-[140px] lg:w-[165px] h-auto object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.12)]"
-          />
-        </picture>
       </div>
     </div>
   );

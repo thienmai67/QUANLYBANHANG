@@ -112,3 +112,13 @@ export function validateLoginForm(data: LoginFormData): ValidationError[] {
 
   return errors;
 }
+
+export function combineFullName(lastName: string, firstName: string): string {
+  const cleanLast = (lastName || "").trim();
+  const cleanFirst = (firstName || "").trim();
+  if (cleanLast && cleanFirst) {
+    return `${cleanLast} ${cleanFirst}`;
+  }
+  return cleanLast || cleanFirst || "";
+}
+

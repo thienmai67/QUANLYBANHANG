@@ -3,9 +3,27 @@ import {
   isFakeOrSpamEmail,
   validateRegisterForm,
   validateLoginForm,
+  combineFullName,
   type RegisterFormData,
   type LoginFormData,
 } from "./validators";
+
+describe("combineFullName", () => {
+  it("combines last name and first name correctly", () => {
+    expect(combineFullName("Nguyễn Văn", "An")).toBe("Nguyễn Văn An");
+  });
+
+  it("handles extra whitespace gracefully", () => {
+    expect(combineFullName("  Trần  ", "  Bình  ")).toBe("Trần Bình");
+  });
+
+  it("handles empty first or last name gracefully", () => {
+    expect(combineFullName("Lê", "")).toBe("Lê");
+    expect(combineFullName("", "Dũng")).toBe("Dũng");
+    expect(combineFullName("", "")).toBe("");
+  });
+});
+
 
 describe("isFakeOrSpamEmail", () => {
   it("detects spam / fake email prefixes", () => {

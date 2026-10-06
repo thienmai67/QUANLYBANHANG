@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <!-- Background Dark Industrial Slate -->
+  <rect width="200" height="200" rx="32" fill="#0B0F19"/>
+  <!-- Isometric Core Structure -->
+  <g transform="translate(100, 100)">
+    <!-- Outer Hexagon Frame -->
+    <path d="M0 -65 L56.29 -32.5 V32.5 L0 65 L-56.29 32.5 V-32.5 Z" 
+          fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+    <!-- Inner 3D Structural Lines -->
+    <path d="M0 -65 V0 M0 0 L56.29 32.5 M0 0 L-56.29 32.5" 
+          fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+    <!-- Blueprint Cyan Circuit & Mechanical Inner Ring -->
+    <path d="M0 -30 L25.98 -15 V15 L0 30 L-25.98 15 V-15 Z" 
+          fill="none" stroke="#0284C7" stroke-width="6" stroke-linejoin="round"/>
+    <circle cx="0" cy="0" r="5" fill="#0284C7"/>
+  </g>
+</svg>
