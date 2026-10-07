@@ -10,6 +10,8 @@ interface RFQModalProps {
   initialProductName?: string;
 }
 
+import { useAdminStore } from "@/store/useAdminStore";
+
 export default function RFQModal({ isOpen, onClose, initialProductName }: RFQModalProps) {
   const [submitted, setSubmitted] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -34,6 +36,26 @@ export default function RFQModal({ isOpen, onClose, initialProductName }: RFQMod
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    useAdminStore.getState().addBomRequest({
+      contractorName: formData.contractorName || "Nhà Thầu Dự Toán",
+      projectName: formData.projectName || "Công Trình Dân Dụng / M&E",
+      phone: formData.phone || "0900000000",
+      email: "khachhang@congtrinh.vn",
+      itemsCount: 1,
+      estimatedTotal: 15000000,
+      status: "PendingReview",
+      items: [
+        {
+          id: `item-${Date.now()}`,
+          materialName: initialProductName || formData.notes || "Vật tư tổng hợp M&E",
+          quantity: 1,
+          unit: "Bộ",
+          estimatedPrice: 15000000,
+        },
+      ],
+    });
+
     setSubmitted(true);
     setTimeout(() => {
       // Auto close after 2.5s

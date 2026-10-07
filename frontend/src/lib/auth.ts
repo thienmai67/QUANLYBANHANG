@@ -19,6 +19,8 @@ export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_KEY);
 }
 
+export const getToken = getAccessToken;
+
 export function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(REFRESH_KEY);
@@ -28,6 +30,8 @@ export function clearTokens(): void {
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
 }
+
+export const removeTokens = clearTokens;
 
 export function decodeToken(token: string): AuthUser | null {
   try {

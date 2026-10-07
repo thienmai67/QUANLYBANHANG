@@ -56,10 +56,11 @@ export default function LoginPage() {
         const user = decodeToken(accessToken);
 
         if (user) {
-          const isStaff =
-            user.role.toUpperCase() === "ADMIN" ||
-            user.role.toUpperCase() === "MANAGER";
-          const role = isStaff ? "ADMIN" : "CONTRACTOR";
+          const rawRole = (user.role || "").toUpperCase();
+          let role: any = "CUSTOMER";
+          if (rawRole === "ADMIN") role = "ADMIN";
+          else if (rawRole === "MANAGER") role = "MANAGER";
+          else if (rawRole === "SHIPPER") role = "SHIPPER";
 
           useAuthStore.getState().setAuth(accessToken, {
             id: user.userId,
@@ -68,8 +69,14 @@ export default function LoginPage() {
             role: role,
           });
 
-          if (isStaff) {
+          if (role === "ADMIN") {
             window.location.href = "/admin/dashboard";
+            return;
+          } else if (role === "MANAGER") {
+            window.location.href = "/manager";
+            return;
+          } else if (role === "SHIPPER") {
+            window.location.href = "/shipper";
             return;
           }
         }

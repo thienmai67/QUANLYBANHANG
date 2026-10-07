@@ -5,8 +5,9 @@ import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import RFQModal from '@/components/RFQModal';
 import { MATERIAL_PRODUCTS, MaterialProduct } from '@/data/materialData';
+import { useAdminStore } from '@/store/useAdminStore';
 import { useCartStore } from '@/store/useCartStore';
-import { Search, Filter, ShoppingCart, ShieldCheck, Truck, Zap, ShoppingBag, Check } from 'lucide-react';
+import { Search, Filter, ShieldCheck, Truck, Zap, ShoppingBag, Check } from 'lucide-react';
 
 export default function ShopPage() {
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
@@ -16,10 +17,48 @@ export default function ShopPage() {
   const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
   const [addedItemMap, setAddedItemMap] = useState<Record<string, boolean>>({});
 
+  const adminProducts = useAdminStore((state) => state.products);
   const { addItem } = useCartStore();
 
+  const allProducts: MaterialProduct[] = useMemo(() => {
+    if (adminProducts && adminProducts.length > 0) {
+      return adminProducts.map((p) => {
+        const rawPrice = p.basePrice ?? (typeof p.price === 'number' ? p.price : 0);
+        const priceStr = typeof p.price === 'string'
+          ? p.price
+          : `${rawPrice.toLocaleString('vi-VN')} ₫`;
+
+        const specsArr = Array.isArray(p.specs)
+          ? p.specs
+          : typeof p.specs === 'string'
+            ? [p.specs]
+            : [`Thương hiệu: ${p.brand || 'Chính hãng'}`, `Đơn vị: ${p.unit || 'Chuẩn'}`];
+
+        return {
+          id: p.id,
+          sku: p.sku || 'SKU-STD',
+          name: p.name,
+          brand: p.brand || 'Cadivi',
+          category: (p.category as any) || 'cable_cadivi',
+          categoryName: p.category || 'Vật tư M&E',
+          origin: 'Việt Nam',
+          price: priceStr,
+          rawPrice: rawPrice,
+          unit: p.unit || 'Bộ',
+          conversion: '1 bộ',
+          description: p.description || p.name,
+          image: p.image || 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=500&auto=format&fit=crop&q=80',
+          badge: (p.badge as any) || 'NEW',
+          specs: specsArr,
+          discount: p.discountRate ?? p.discount ?? 15,
+        };
+      });
+    }
+    return MATERIAL_PRODUCTS;
+  }, [adminProducts]);
+
   const filteredProducts = useMemo(() => {
-    return MATERIAL_PRODUCTS.filter((p) => {
+    return allProducts.filter((p) => {
       const matchesSearch =
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.sku.toLowerCase().includes(search.toLowerCase());
@@ -27,7 +66,7 @@ export default function ShopPage() {
       const matchesCat = selectedCat === 'ALL' || p.category === selectedCat;
       return matchesSearch && matchesBrand && matchesCat;
     });
-  }, [search, selectedBrand, selectedCat]);
+  }, [allProducts, search, selectedBrand, selectedCat]);
 
   const handleOpenRFQ = (name?: string) => {
     setSelectedProduct(name);
@@ -35,7 +74,6 @@ export default function ShopPage() {
   };
 
   const handleAddToCart = (prod: MaterialProduct) => {
-    // Convert price string to raw number (e.g. "850.000₫" -> 850000)
     const rawPrice = parseInt(prod.price.replace(/[^\d]/g, ''), 10) || 100000;
 
     addItem({

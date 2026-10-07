@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { MATERIAL_PRODUCTS, MAndE_PRODUCTS } from "@/data/materialData";
+import { MAndE_PRODUCTS } from "@/data/materialData";
+import { useAdminStore } from "@/store/useAdminStore";
 import { Eye, Calculator } from "lucide-react";
 import * as motion from "motion/react-client";
 
@@ -10,8 +11,37 @@ interface MaterialProductShowcaseProps {
 }
 
 export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductShowcaseProps) {
-  // Take first 8 products for showcase
-  const displayProducts = MAndE_PRODUCTS.slice(0, 8);
+  const adminProducts = useAdminStore((state) => state.products);
+  
+  // Merge products from Admin Store if available, fallback to default MAndE_PRODUCTS
+  const displayProducts = adminProducts && adminProducts.length > 0
+    ? adminProducts.map((p) => {
+        const rawPrice = p.basePrice ?? (typeof p.price === 'number' ? p.price : 0);
+        const priceStr = typeof p.price === 'string'
+          ? p.price
+          : `${rawPrice.toLocaleString('vi-VN')} ₫`;
+        
+        const specsArr = Array.isArray(p.specs)
+          ? p.specs
+          : typeof p.specs === 'string'
+            ? [p.specs]
+            : [`Thương hiệu: ${p.brand || 'Chính hãng'}`, `Đơn vị: ${p.unit || 'Chuẩn'}`];
+
+        return {
+          id: p.id,
+          sku: p.sku || "SKU-STD",
+          name: p.name,
+          brand: p.brand || "Cadivi",
+          category: p.category || "CABLE",
+          price: priceStr,
+          unit: p.unit || "Bộ",
+          image: p.image || "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=500&auto=format&fit=crop&q=80",
+          badge: p.badge || "MỚI",
+          specs: specsArr,
+          discount: p.discountRate ?? p.discount ?? 15,
+        };
+      })
+    : MAndE_PRODUCTS.slice(0, 8);
 
   return (
     <section className="w-full">
@@ -37,7 +67,7 @@ export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductSh
             {/* Badges */}
             {prod.badge && (
               <div className="absolute top-3 left-3 z-10">
-                <span className={`px-2.5 py-1 rounded bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider`}>
+                <span className={`px-2.5 py-1 rounded bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-md`}>
                   {prod.badge}
                 </span>
               </div>
@@ -62,7 +92,7 @@ export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductSh
                 <div 
                   className="p-3 bg-white text-slate-900 rounded-full transition-transform hover:scale-110 active:scale-95 cursor-pointer"
                   title="Details"
-                  onClick={() => window.location.href = `/produkt/${prod.id}`}
+                  onClick={() => window.location.href = `/shop`}
                 >
                   <Eye className="w-5 h-5" />
                 </div>
@@ -83,10 +113,10 @@ export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductSh
               {/* Interactive Spec Chips */}
               <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-medium text-slate-600 dark:text-slate-400">
                 <span className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-default hover:border-blue-300 transition-colors">
-                  {prod.specs[0]?.split(":")[1]?.trim() || "Standard"}
+                  {prod.specs[0]?.includes(":") ? prod.specs[0].split(":")[1]?.trim() : prod.specs[0]}
                 </span>
                 <span className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-default hover:border-blue-300 transition-colors">
-                  {prod.specs[1]?.split(":")[1]?.trim() || prod.unit}
+                  {prod.specs[1]?.includes(":") ? prod.specs[1].split(":")[1]?.trim() : prod.specs[1]}
                 </span>
               </div>
 

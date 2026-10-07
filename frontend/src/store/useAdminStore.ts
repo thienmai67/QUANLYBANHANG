@@ -62,9 +62,12 @@ interface AdminState {
   deleteCategory: (id: string) => void;
 
   // Order actions
+  addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'code'>) => void;
   updateOrderStatus: (id: string, status: OrderStatus) => void;
+  assignShipper: (orderId: string, shipperId: string, shipperName: string) => void;
 
   // BOM Request actions
+  addBomRequest: (bom: Omit<BomRequest, 'id' | 'createdAt' | 'code'>) => void;
   updateBomStatus: (id: string, status: BomStatus) => void;
 
   // Customer CRUD
@@ -146,13 +149,49 @@ export const useAdminStore = create<AdminState>((set) => ({
   },
 
   // Order actions
+  addOrder: (newOrder) => {
+    const id = `order-${Date.now()}`;
+    const code = `DH-${Math.floor(1000 + Math.random() * 9000)}`;
+    const order: Order = {
+      ...newOrder,
+      id,
+      code,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    set((state) => ({ orders: [order, ...state.orders] }));
+  },
   updateOrderStatus: (id, status) => {
     set((state) => ({
       orders: state.orders.map((o) => (o.id === id ? { ...o, status } : o)),
     }));
   },
+  assignShipper: (orderId, shipperId, shipperName) => {
+    set((state) => ({
+      orders: state.orders.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              assignedShipperId: shipperId,
+              assignedShipperName: shipperName,
+              status: o.status === 'Pending' ? 'Preparing' : o.status,
+            }
+          : o
+      ),
+    }));
+  },
 
   // BOM actions
+  addBomRequest: (newBom) => {
+    const id = `bom-${Date.now()}`;
+    const code = `BOM-${Math.floor(1000 + Math.random() * 9000)}`;
+    const bom: BomRequest = {
+      ...newBom,
+      id,
+      code,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    set((state) => ({ bomRequests: [bom, ...state.bomRequests] }));
+  },
   updateBomStatus: (id, status) => {
     set((state) => ({
       bomRequests: state.bomRequests.map((b) => (b.id === id ? { ...b, status } : b)),

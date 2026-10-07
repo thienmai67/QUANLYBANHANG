@@ -18,8 +18,11 @@ function CallbackProcessor() {
       const user = decodeToken(token);
 
       if (user) {
-        const isStaff = user.role.toUpperCase() === 'ADMIN' || user.role.toUpperCase() === 'MANAGER';
-        const role = isStaff ? 'ADMIN' : 'CONTRACTOR';
+        const rawRole = (user.role || '').toUpperCase();
+        let role: any = 'CUSTOMER';
+        if (rawRole === 'ADMIN') role = 'ADMIN';
+        else if (rawRole === 'MANAGER') role = 'MANAGER';
+        else if (rawRole === 'SHIPPER') role = 'SHIPPER';
 
         useAuthStore.getState().setAuth(token, {
           id: user.userId,
@@ -28,8 +31,14 @@ function CallbackProcessor() {
           role: role,
         });
 
-        if (isStaff) {
+        if (role === 'ADMIN') {
           router.replace('/admin/dashboard');
+          return;
+        } else if (role === 'MANAGER') {
+          router.replace('/manager');
+          return;
+        } else if (role === 'SHIPPER') {
+          router.replace('/shipper');
           return;
         }
       }

@@ -260,6 +260,34 @@ export function OrdersManager() {
                 <p className="text-base font-black text-cyan-600 dark:text-cyan-400 pt-2">Thanh toán cuối: <span className="font-mono">{selectedOrder.finalAmount.toLocaleString('vi-VN')} VND</span></p>
               </div>
 
+              {/* Shipper Assignment */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                <p className="font-bold text-slate-700 dark:text-slate-300">Phân công Shipper giao 2H:</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={selectedOrder.assignedShipperId || ''}
+                    onChange={(e) => {
+                      const sId = e.target.value;
+                      const sName = sId === 'u-ship-001' ? 'Tài Xế Hoàng Nam' : sId === 'u-ship-002' ? 'Tài Xế Quốc Bảo' : 'Tài Xế Minh Tuấn';
+                      useAdminStore.getState().assignShipper(selectedOrder.id, sId, sName);
+                      setSelectedOrder({ ...selectedOrder, assignedShipperId: sId, assignedShipperName: sName, status: selectedOrder.status === 'Pending' ? 'Preparing' : selectedOrder.status });
+                      addToast(`Đã phân công đơn ${selectedOrder.code} cho ${sName}`, 'success');
+                    }}
+                    className="px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-900 dark:text-white outline-none focus:border-cyan-500"
+                  >
+                    <option value="">-- Chọn Shipper Giao Hàng --</option>
+                    <option value="u-ship-001">Tài Xế Hoàng Nam (Đội Xe Cẩu 1)</option>
+                    <option value="u-ship-002">Tài Xế Quốc Bảo (Giao Siêu Tốc 2H)</option>
+                    <option value="u-ship-003">Tài Xế Minh Tuấn (Xe Tải 2 Tấn)</option>
+                  </select>
+                  {selectedOrder.assignedShipperName && (
+                    <span className="text-emerald-500 font-bold text-xs">
+                      ✓ Đã gán: {selectedOrder.assignedShipperName}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               {/* Update Status Buttons */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 <p className="font-bold text-slate-700 dark:text-slate-300">Cập nhật trạng thái đơn hàng:</p>

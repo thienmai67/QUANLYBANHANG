@@ -2,8 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -136,7 +139,41 @@ func (h *Handler) ListOrders(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
+	var order domain.Order
+	if err := json.NewDecoder(req.Body).Decode(&order); err != nil {
+		http.Error(w, "invalid order data: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if order.ID == uuid.Nil {
+		order.ID = uuid.New()
+	}
+	if order.OrderNumber == "" {
+		order.OrderNumber = fmt.Sprintf("ORD-%d", time.Now().Unix())
+	}
+	if order.Status == "" {
+		order.Status = domain.OrderStatusPending
+	} else {
+		order.Status = domain.OrderStatus(strings.ToUpper(string(order.Status)))
+	}
+	now := time.Now()
+	order.CreatedAt = now
+	order.UpdatedAt = now
+
+	for i := range order.Items {
+		if order.Items[i].ID == uuid.Nil {
+			order.Items[i].ID = uuid.New()
+		}
+		order.Items[i].OrderID = order.ID
+		order.Items[i].CreatedAt = now
+	}
+
+	if err := h.productRepo.CreateOrder(req.Context(), &order); err != nil {
+		http.Error(w, "failed to create order: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"status": "created"})
+	json.NewEncoder(w).Encode(order)
 }

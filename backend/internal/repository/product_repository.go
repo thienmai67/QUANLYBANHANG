@@ -254,7 +254,7 @@ func (r *productRepository) ListCategories(ctx context.Context) ([]domain.Catego
 func (r *productRepository) ListOrders(ctx context.Context, limit, offset int) ([]domain.Order, error) {
 	query := `
         SELECT id, order_number, customer_name, total_amount, status, created_at, updated_at
-        FROM orders
+        FROM me_supplies.orders
         ORDER BY created_at DESC
         LIMIT $1 OFFSET $2
     `
@@ -293,15 +293,15 @@ func (r *productRepository) CreateOrder(ctx context.Context, order *domain.Order
 		}
 	}()
 
-	orderQuery := `INSERT INTO orders (id, order_number, customer_name, total_amount, status) VALUES ($1, $2, $3, $4, $5)`
-	if err := tx.QueryRowContext(ctx, orderQuery, order.ID, order.OrderNumber, order.CustomerName, order.TotalAmount, order.Status).Err(); err != nil {
+	orderQuery := `INSERT INTO me_supplies.orders (id, order_number, customer_name, total_amount, status) VALUES ($1, $2, $3, $4, $5)`
+	if _, err := tx.ExecContext(ctx, orderQuery, order.ID, order.OrderNumber, order.CustomerName, order.TotalAmount, order.Status); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("insert order: %w", err)
 	}
 
-	itemQuery := `INSERT INTO order_items (id, order_id, product_id, quantity, unit_price, converted_quantity) VALUES ($1, $2, $3, $4, $5, $6)`
+	itemQuery := `INSERT INTO me_supplies.order_items (id, order_id, product_id, quantity, unit_price, converted_quantity) VALUES ($1, $2, $3, $4, $5, $6)`
 	for _, item := range order.Items {
-		if err := tx.QueryRowContext(ctx, itemQuery, item.ID, item.OrderID, item.ProductID, item.Quantity, item.UnitPrice, item.ConvertedQty).Err(); err != nil {
+		if _, err := tx.ExecContext(ctx, itemQuery, item.ID, item.OrderID, item.ProductID, item.Quantity, item.UnitPrice, item.ConvertedQty); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("insert order item: %w", err)
 		}

@@ -44,8 +44,7 @@ export default function HomePage() {
 
         {/* 3. Product Category Showcase Grid (7 Danh Mục Vật Tư Điện Nước M&E) */}
         <MaterialCategoryGrid onSelectCategory={(catId) => {
-          const el = document.getElementById(`showcase-${catId}`);
-          el?.scrollIntoView({ behavior: "smooth" });
+          window.location.href = `/shop`;
         }} />
 
         {/* 4. Categorized Product Showcases (Ống Nước, Dây Cáp, Aptomat, Van, Đèn LED, Ống Luồn) */}

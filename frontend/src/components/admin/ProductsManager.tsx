@@ -151,16 +151,20 @@ export function ProductsManager() {
         ? 'LowStock'
         : 'InStock';
 
+    const formattedPrice = `${formData.basePrice.toLocaleString('vi-VN')} ₫`;
+
     if (editingProduct) {
       updateProduct(editingProduct.id, {
         ...formData,
         status,
+        price: formattedPrice,
       });
       addToast(`Đã cập nhật thông tin vật tư ${formData.sku}`, 'success');
     } else {
       addProduct({
         ...formData,
         status,
+        price: formattedPrice,
       });
       addToast(`Đã thêm mới vật tư ${formData.name}`, 'success');
     }

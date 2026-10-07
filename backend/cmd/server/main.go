@@ -59,8 +59,13 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(chi_middleware.Logger)
 	r.Use(chi_middleware.Recoverer)
+	allowedOrigins := []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+	if frontendURL := os.Getenv("FRONTEND_URL"); frontendURL != "" {
+		allowedOrigins = append(allowedOrigins, frontendURL)
+	}
+
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{os.Getenv("FRONTEND_URL"), "http://localhost:3000"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -72,7 +77,7 @@ func main() {
 		r.Get("/health", healthHandler(db))
 
 		r.Route("/auth", func(r chi.Router) {
-			// Local Auth
+			// Public Local Auth
 			r.Post("/register", authHandler.HandleRegister)
 			r.Post("/login", authHandler.HandleLogin)
 			
@@ -83,6 +88,7 @@ func main() {
 			})
 		})
 
+		// Public Catalog APIs
 		r.Get("/products", productHandler.ListProducts)
 		r.Get("/products/sku/{sku}", productHandler.GetProductBySKU)
 		r.Get("/products/{id}", productHandler.GetProduct)
@@ -90,12 +96,19 @@ func main() {
 		r.Get("/brands", productHandler.ListBrands)
 		r.Get("/categories", productHandler.ListCategories)
 		
-		// Protected endpoints example:
+		// Authenticated Routes (Any Logged In User / Customer)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth)
+			r.Post("/orders", productHandler.CreateOrder)
+			r.Get("/orders", productHandler.ListOrders)
+		})
+
+		// Manager / Admin Protected Endpoints
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
 			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager))
-			r.Get("/orders", productHandler.ListOrders)
-			r.Post("/orders", productHandler.CreateOrder)
+
+			r.Get("/admin/orders", productHandler.ListOrders)
 		})
 	})
 

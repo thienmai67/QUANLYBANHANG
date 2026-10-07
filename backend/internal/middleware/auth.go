@@ -57,7 +57,7 @@ func RequireRole(allowedRoles ...domain.UserRole) func(http.Handler) http.Handle
 			}
 
 			for _, role := range allowedRoles {
-				if claims.Role == role {
+				if claims.Role == role || claims.Role == domain.RoleAdmin {
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -66,4 +66,25 @@ func RequireRole(allowedRoles ...domain.UserRole) func(http.Handler) http.Handle
 			http.Error(w, "forbidden: insufficient permissions", http.StatusForbidden)
 		})
 	}
+}
+
+func GetClaimsFromContext(ctx context.Context) (*auth.Claims, bool) {
+	claims, ok := ctx.Value(ClaimsKey).(*auth.Claims)
+	return claims, ok && claims != nil
+}
+
+func GetUserIDFromContext(ctx context.Context) (string, bool) {
+	claims, ok := GetClaimsFromContext(ctx)
+	if !ok {
+		return "", false
+	}
+	return claims.UserID, true
+}
+
+func GetUserRoleFromContext(ctx context.Context) (domain.UserRole, bool) {
+	claims, ok := GetClaimsFromContext(ctx)
+	if !ok {
+		return "", false
+	}
+	return claims.Role, true
 }

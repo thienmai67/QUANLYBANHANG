@@ -42,8 +42,8 @@ export function CustomersManager() {
     taxId: '',
     phone: '',
     email: '',
-    tier: 'Nhà thầu M&E',
-    creditLimit: 500000000,
+    tier: 'Khách mua lẻ',
+    creditLimit: 30000000,
     address: '',
     status: 'Active',
   });
@@ -70,8 +70,8 @@ export function CustomersManager() {
       taxId: '',
       phone: '',
       email: '',
-      tier: 'Nhà thầu M&E',
-      creditLimit: 500000000,
+      tier: 'Khách mua lẻ',
+      creditLimit: 30000000,
       address: '',
       status: 'Active',
     });
@@ -134,10 +134,11 @@ export function CustomersManager() {
 
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { id: 'ALL', label: 'Tất cả đối tác' },
-            { id: 'Đại lý Cấp 1', label: 'Đại lý Cấp 1' },
-            { id: 'Đại lý Cấp 2', label: 'Đại lý Cấp 2' },
-            { id: 'Nhà thầu M&E', label: 'Nhà thầu M&E' },
+            { id: 'ALL', label: 'Tất cả khách hàng' },
+            { id: 'Khách mua lẻ', label: 'Khách mua lẻ' },
+            { id: 'Thợ điện nước', label: 'Thợ điện nước' },
+            { id: 'Hộ gia đình', label: 'Hộ gia đình' },
+            { id: 'Khách công trình', label: 'Khách công trình' },
           ].map((t) => (
             <button
               key={t.id}

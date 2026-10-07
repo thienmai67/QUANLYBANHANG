@@ -23,19 +23,22 @@ import { MATERIAL_PRODUCTS, MaterialProduct } from '@/data/materialData';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 
+import { useAdminStore } from '@/store/useAdminStore';
+
 interface MaterialHeaderProps {
   onOpenRFQ?: (productName?: string) => void;
 }
 
 export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<MaterialProduct[]>([]);
+  const [searchResults, setSearchResults] = useState<{ id: string; name: string; sku: string; brand: string; price: string; image: string }[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const { user, isAuthenticated, logout } = useAuthStore();
   const { getTotalItems, setIsOpen } = useCartStore();
+  const adminProducts = useAdminStore((state) => state.products);
   const cartCount = getTotalItems();
 
   // Live search filtering
@@ -46,16 +49,28 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
     }
     const q = searchQuery.toLowerCase();
     const handler = setTimeout(() => {
-      const filtered = MATERIAL_PRODUCTS.filter(
+      const combined = [
+        ...adminProducts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          brand: p.brand || 'Cadivi',
+          price: typeof p.price === 'string' ? p.price : `${p.basePrice?.toLocaleString('vi-VN')} ₫`,
+          image: p.image || 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=500&auto=format&fit=crop&q=80',
+        })),
+        ...MATERIAL_PRODUCTS,
+      ];
+
+      const filtered = combined.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.sku.toLowerCase().includes(q) ||
           p.brand.toLowerCase().includes(q)
-      ).slice(0, 5);
+      ).slice(0, 6);
       setSearchResults(filtered);
     }, 250);
     return () => clearTimeout(handler);
-  }, [searchQuery]);
+  }, [searchQuery, adminProducts]);
 
   // Click outside handlers
   useEffect(() => {

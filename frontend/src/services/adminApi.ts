@@ -16,6 +16,8 @@ import {
   mockCustomers,
 } from '../data/adminMockData';
 
+import { getAccessToken } from '../lib/auth';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
 
 const apiClient = axios.create({
@@ -24,6 +26,14 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 5000,
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export const adminApi = {

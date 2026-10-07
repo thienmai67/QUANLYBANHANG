@@ -17,6 +17,13 @@ export interface Product {
   status: 'InStock' | 'LowStock' | 'OutOfStock';
   description?: string;
   createdAt: string;
+
+  // Optional storefront properties
+  price?: string | number;
+  image?: string;
+  badge?: string;
+  specs?: string[] | string;
+  discount?: number;
 }
 
 export interface Category {
@@ -44,7 +51,7 @@ export interface Order {
   id: string;
   code: string;
   contractorName: string;
-  contractorTier: 'Đại lý Cấp 1' | 'Đại lý Cấp 2' | 'Nhà thầu M&E' | 'Khách công trình';
+  contractorTier: 'Khách mua lẻ' | 'Thợ điện nước' | 'Hộ gia đình' | 'Khách công trình';
   totalAmount: number;
   discountAmount: number;
   finalAmount: number;
@@ -52,6 +59,8 @@ export interface Order {
   createdAt: string;
   deliveryAddress: string;
   items: OrderItem[];
+  assignedShipperId?: string;
+  assignedShipperName?: string;
 }
 
 export interface BomItem {
@@ -79,7 +88,7 @@ export interface BomRequest {
   items: BomItem[];
 }
 
-export type CustomerTier = 'Đại lý Cấp 1' | 'Đại lý Cấp 2' | 'Nhà thầu M&E' | 'Khách công trình';
+export type CustomerTier = 'Khách mua lẻ' | 'Thợ điện nước' | 'Hộ gia đình' | 'Khách công trình';
 
 export interface Customer {
   id: string;

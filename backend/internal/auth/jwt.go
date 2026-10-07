@@ -59,6 +59,22 @@ func (s *JWTService) ValidateClaims(tokenString string) (*Claims, error) {
 	if !ok || !token.Valid {
 		return nil, errors.New("invalid token claims")
 	}
+
+	if claims.Issuer != "tdt-me-platform" {
+		return nil, errors.New("invalid token issuer")
+	}
+
+	hasAccessAud := false
+	for _, aud := range claims.Audience {
+		if aud == "access" {
+			hasAccessAud = true
+			break
+		}
+	}
+	if !hasAccessAud {
+		return nil, errors.New("invalid token audience: expected access token")
+	}
+
 	return claims, nil
 }
 
