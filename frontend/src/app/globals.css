@@ -151,3 +151,16 @@ body {
     animation: none;
   }
 }
+
+/* High Contrast Outdoor Mode for Drivers (WCAG AAA >= 7:1) */
+.high-contrast-mode {
+  --background: #000000;
+  --foreground: #FFFFFF;
+  --surface: #000000;
+  --border: #FACC15;
+}
+.high-contrast-mode button:focus-visible,
+.high-contrast-mode a:focus-visible {
+  outline: 3px solid #FACC15 !important;
+  outline-offset: 2px !important;
+}

@@ -24,12 +24,84 @@ export default function LoginPage() {
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
 
+  const createMockToken = (userId: string, userEmail: string, role: string) => {
+    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+    const payload = btoa(
+      JSON.stringify({
+        userId,
+        email: userEmail,
+        role,
+        exp: Math.floor(Date.now() / 1000) + 86400 * 7,
+        iat: Math.floor(Date.now() / 1000),
+      })
+    );
+    const signature = btoa("mock-signature-tdt");
+    return `${header}.${payload}.${signature}`;
+  };
+
+  const handleQuickMockLogin = (role: 'MANAGER' | 'CUSTOMER' | 'SHIPPER') => {
+    if (role === 'MANAGER') {
+      setEmail('manager@tdt.vn');
+      setPassword('Manager@123');
+    } else if (role === 'SHIPPER') {
+      setEmail('shipper@tdt.vn');
+      setPassword('Shipper@123');
+    } else {
+      setEmail('customer@tdt.vn');
+      setPassword('Customer@123');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
 
     const cleanEmail = email.trim().toLowerCase();
+
+    // Support quick mock login credentials
+    if (cleanEmail === 'manager@tdt.vn' && password === 'Manager@123') {
+      const { useAuthStore } = await import("@/store/useAuthStore");
+      const mockToken = createMockToken('usr-manager-01', 'manager@tdt.vn', 'MANAGER');
+      saveTokens(mockToken, mockToken);
+      useAuthStore.getState().setAuth(mockToken, {
+        id: 'usr-manager-01',
+        email: 'manager@tdt.vn',
+        name: 'Quản Lý Hải Đăng',
+        role: 'MANAGER',
+      });
+      window.location.href = '/manager/dashboard';
+      return;
+    }
+
+    if (cleanEmail === 'shipper@tdt.vn' && password === 'Shipper@123') {
+      const { useAuthStore } = await import("@/store/useAuthStore");
+      const mockToken = createMockToken('usr-shipper-02', 'shipper@tdt.vn', 'SHIPPER');
+      saveTokens(mockToken, mockToken);
+      useAuthStore.getState().setAuth(mockToken, {
+        id: 'usr-shipper-02',
+        email: 'shipper@tdt.vn',
+        name: 'Trần Quốc Toản',
+        role: 'SHIPPER',
+        shipperId: 'ship-02',
+      });
+      window.location.href = '/shipper';
+      return;
+    }
+
+    if (cleanEmail === 'customer@tdt.vn' && password === 'Customer@123') {
+      const { useAuthStore } = await import("@/store/useAuthStore");
+      const mockToken = createMockToken('usr-customer-01', 'customer@tdt.vn', 'CUSTOMER');
+      saveTokens(mockToken, mockToken);
+      useAuthStore.getState().setAuth(mockToken, {
+        id: 'usr-customer-01',
+        email: 'customer@tdt.vn',
+        name: 'Khách Hàng Bán Lẻ',
+        role: 'CUSTOMER',
+      });
+      window.location.href = '/account';
+      return;
+    }
 
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/login`, {
@@ -73,7 +145,7 @@ export default function LoginPage() {
             window.location.href = "/admin/dashboard";
             return;
           } else if (role === "MANAGER") {
-            window.location.href = "/manager";
+            window.location.href = "/manager/dashboard";
             return;
           } else if (role === "SHIPPER") {
             window.location.href = "/shipper";
@@ -173,6 +245,36 @@ export default function LoginPage() {
 
         {/* Action Buttons: Google OAuth & Submit */}
         <AuthActionRow submitText="Đăng nhập" isLoading={isLoading} />
+
+        {/* Quick Mock Credentials Selection */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="text-[11px] font-semibold text-slate-400 mb-2 text-center">
+            Tài khoản thử nghiệm nhanh (Mock Login):
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => handleQuickMockLogin('MANAGER')}
+              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all text-center truncate"
+            >
+              👔 Manager
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickMockLogin('SHIPPER')}
+              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all text-center truncate"
+            >
+              🚚 Shipper
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickMockLogin('CUSTOMER')}
+              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 transition-all text-center truncate"
+            >
+              👤 Customer
+            </button>
+          </div>
+        </div>
       </form>
 
       {/* Forgot Password Modal */}

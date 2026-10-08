@@ -47,7 +47,7 @@ export default function ShopPage() {
           unit: p.unit || 'Bộ',
           conversion: '1 bộ',
           description: p.description || p.name,
-          image: p.image || 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=500&auto=format&fit=crop&q=80',
+          image: p.image || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&auto=format&fit=crop&q=80',
           badge: (p.badge as any) || 'NEW',
           specs: specsArr,
           discount: p.discountRate ?? p.discount ?? 15,

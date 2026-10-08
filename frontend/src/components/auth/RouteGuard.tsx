@@ -10,12 +10,14 @@ interface RouteGuardProps {
   children: React.ReactNode;
   allowedRoles: UserRole[];
   fallbackUrl?: string;
+  forbiddenUrl?: string;
 }
 
 export default function RouteGuard({
   children,
   allowedRoles,
   fallbackUrl = '/login',
+  forbiddenUrl = '/403',
 }: RouteGuardProps) {
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuthStore();
@@ -24,24 +26,17 @@ export default function RouteGuard({
   useEffect(() => {
     const token = getToken();
 
-    if (!token) {
+    if (!token && !isAuthenticated && !user) {
       setIsAuthorized(false);
       router.replace(`${fallbackUrl}?reason=unauthenticated`);
       return;
     }
 
-    const decoded = decodeToken(token);
-    if (!decoded) {
-      removeTokens();
-      logout();
-      setIsAuthorized(false);
-      router.replace(`${fallbackUrl}?reason=invalid_token`);
-      return;
-    }
+    const decoded = token ? decodeToken(token) : null;
 
-    // Check expiration
+    // Check expiration if token is decoded with exp
     const now = Math.floor(Date.now() / 1000);
-    if (decoded.exp && decoded.exp < now) {
+    if (decoded?.exp && decoded.exp < now) {
       removeTokens();
       logout();
       setIsAuthorized(false);
@@ -49,20 +44,28 @@ export default function RouteGuard({
       return;
     }
 
-    // Check Role permission: Prioritize cryptographically signed JWT claim role
-    const currentRole = (decoded.role || user?.role || '').toUpperCase() as UserRole;
+    // Check Role permission: Prioritize token claim or auth store role
+    const rawRole = decoded?.role || user?.role || '';
+    const currentRole = rawRole.toUpperCase() as UserRole;
+
+    if (!currentRole) {
+      setIsAuthorized(false);
+      router.replace(`${fallbackUrl}?reason=unauthenticated`);
+      return;
+    }
+
     const hasRole = allowedRoles.some(
       (r) => r.toUpperCase() === currentRole || currentRole === 'ADMIN'
     );
 
     if (!hasRole) {
       setIsAuthorized(false);
-      router.replace('/auth/error?reason=unauthorized');
+      router.replace(forbiddenUrl);
       return;
     }
 
     setIsAuthorized(true);
-  }, [allowedRoles, fallbackUrl, logout, router, user?.role]);
+  }, [allowedRoles, fallbackUrl, forbiddenUrl, isAuthenticated, logout, router, user]);
 
   if (isAuthorized === null) {
     return (
@@ -97,3 +100,5 @@ export default function RouteGuard({
 
   return <>{children}</>;
 }
+
+export { RouteGuard as RequireRole };

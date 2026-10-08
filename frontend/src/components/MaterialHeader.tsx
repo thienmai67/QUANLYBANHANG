@@ -166,6 +166,22 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                     <ShieldCheck className="w-4 h-4 text-cyan-400 dark:text-white" />
                     <span>Admin Control</span>
                   </Link>
+                ) : user?.role === 'MANAGER' ? (
+                  <Link
+                    href="/manager"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-sm hover:scale-105 transition-all"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-white" />
+                    <span>Manager Portal</span>
+                  </Link>
+                ) : user?.role === 'SHIPPER' ? (
+                  <Link
+                    href="/shipper"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-sm hover:scale-105 transition-all"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-white" />
+                    <span>Shipper Portal</span>
+                  </Link>
                 ) : (
                   <Link
                     href="/account"
@@ -177,7 +193,12 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                 )}
 
                 <button
-                  onClick={logout}
+                  onClick={() => {
+                    const { clearTokens } = require('@/lib/auth');
+                    clearTokens();
+                    logout();
+                    window.location.href = '/login';
+                  }}
                   className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors"
                   title="Đăng xuất"
                 >

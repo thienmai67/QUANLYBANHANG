@@ -30,3 +30,5 @@ sql_paths.txt
 .codegraph/
 .kilo/
 .superpowers/
+playwright-report/
+test-results/

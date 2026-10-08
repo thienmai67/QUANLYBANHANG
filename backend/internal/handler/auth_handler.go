@@ -214,5 +214,15 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tokenPair)
+	json.NewEncoder(w).Encode(map[string]any{
+		"accessToken":  tokenPair.AccessToken,
+		"refreshToken": tokenPair.RefreshToken,
+		"expiresIn":    tokenPair.ExpiresIn,
+		"user": map[string]any{
+			"id":       user.ID,
+			"email":    user.Email,
+			"fullName": user.FullName,
+			"role":     user.Role,
+		},
+	})
 }

@@ -1,0 +1,164 @@
+export type OrderStatus = 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
+
+export type Brand = 'Cadivi' | 'Bình Minh' | 'Schneider' | 'Panasonic';
+
+export const CORE_BRANDS: readonly Brand[] = ['Cadivi', 'Bình Minh', 'Schneider', 'Panasonic'] as const;
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  name?: string;
+  brand: Brand;
+  unitPrice: number; // Snapshot at order time in VND
+  quantity: number;
+  unit: string;
+  total: number;
+  sku?: string;
+  discountRate?: number;
+}
+
+export interface StatusHistoryEntry {
+  status: OrderStatus;
+  timestamp: string; // ISO string or formatted local string
+  changedBy: string;
+  note?: string;
+}
+
+export interface Order {
+  id: string;
+  code: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  shippingAddress: string;
+  items: OrderItem[];
+  totalAmount: number;
+  discountAmount?: number;
+  finalAmount?: number;
+  status: OrderStatus;
+  createdAt: string; // ISO string
+  approvedAt?: string;
+  shippingStartedAt?: string;
+  deliveredAt?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+  is2H: boolean;
+  deliveryType?: '2H' | 'STANDARD';
+  paymentMethod?: 'COD' | 'BANK_TRANSFER';
+  total?: number; // integer VND alias for totalAmount
+  shippingFee?: number;
+  deadline2H?: string; // ISO string (createdAt + 2 hours if is2H)
+  shipperId?: string;
+  shipperName?: string;
+  siteContact?: {
+    name: string;
+    roleLabel?: string;
+    phone: string;
+  };
+  deliveryCoords?: {
+    lat: number;
+    lng: number;
+  };
+  pod?: {
+    receiverName: string;
+    photos: Array<{
+      name: string;
+      thumbnail: string;
+    }>;
+    capturedAt: string;
+  };
+  cod?: {
+    amount: number;
+    collectedAt: string;
+    settlementId?: string | null;
+  };
+  incident?: {
+    category: string;
+    detail: string;
+    at: string;
+    shipperId: string;
+  };
+  statusHistory: StatusHistoryEntry[];
+}
+
+export interface CodSettlement {
+  id: string;
+  shipperId: string;
+  orderIds: string[];
+  totalAmount: number; // integer VND
+  settledAt: string;
+}
+
+export interface Product {
+  id: string;
+  code: string;
+  name: string;
+  brand: Brand;
+  category: string;
+  unit: string;
+  basePrice: number; // VND
+  discountPercent: number; // e.g. 10 for 10%
+  stockQuantity: number;
+  minStockLevel: number;
+  imageUrl?: string;
+  description?: string;
+  sku?: string;
+}
+
+export type CustomerTier =
+  | 'Retail'
+  | 'Bronze'
+  | 'Silver'
+  | 'Gold'
+  | 'Khách mua lẻ'
+  | 'Thợ điện nước'
+  | 'Hộ gia đình'
+  | 'Khách công trình';
+
+export interface Customer {
+  id: string;
+  code: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  tier: CustomerTier;
+  createdAt: string;
+  creditLimit?: number;
+  currentDebt?: number;
+  totalSpent?: number;
+  ordersCount?: number;
+}
+
+export type ShipperShiftStatus = 'available' | 'busy' | 'offline';
+
+export interface Shipper {
+  id: string;
+  name: string;
+  phone: string;
+  vehicle: string;
+  activeOrders: number; // Guard: max 5 active orders (SHIPPING)
+  status: 'available' | 'busy' | 'offline' | 'Active' | 'Busy' | 'Offline';
+  shiftStatus?: ShipperShiftStatus;
+}
+
+export type StockLogType =
+  | 'ORDER_APPROVED'
+  | 'ORDER_CANCELLED'
+  | 'MANUAL_ADJUST'
+  | 'INITIAL_IMPORT'
+  | 'OUT'
+  | 'RESTOCK';
+
+export interface StockLog {
+  id: string;
+  productId: string;
+  productName: string;
+  changeAmount: number; // positive for addition/restock, negative for deduction
+  previousStock: number;
+  newStock: number;
+  type: StockLogType;
+  referenceId?: string; // orderId or adjustment note
+  createdAt: string;
+  createdByName: string;
+}

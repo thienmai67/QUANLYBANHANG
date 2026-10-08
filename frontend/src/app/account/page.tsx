@@ -33,12 +33,14 @@ export default function AccountPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
 
-  // Auto sync auth from token if available on mount & redirect ADMIN to dashboard or unauthenticated to /login
   useEffect(() => {
     const decoded = getCurrentUser();
     if (decoded && !user) {
-      const isStaff = decoded.role.toUpperCase() === 'ADMIN' || decoded.role.toUpperCase() === 'MANAGER';
-      const role = isStaff ? 'ADMIN' : 'CUSTOMER';
+      const rawRole = (decoded.role || '').toUpperCase();
+      let role: any = 'CUSTOMER';
+      if (rawRole === 'ADMIN') role = 'ADMIN';
+      else if (rawRole === 'MANAGER') role = 'MANAGER';
+      else if (rawRole === 'SHIPPER') role = 'SHIPPER';
 
       setAuth('jwt-token-sso', {
         id: decoded.userId,
@@ -47,11 +49,13 @@ export default function AccountPage() {
         role: role,
       });
 
-      if (isStaff) {
-        router.replace('/admin/dashboard');
-      }
-    } else if (user && user.role === 'ADMIN') {
-      router.replace('/admin/dashboard');
+      if (role === 'ADMIN') router.replace('/admin/dashboard');
+      else if (role === 'MANAGER') router.replace('/manager');
+      else if (role === 'SHIPPER') router.replace('/shipper');
+    } else if (user) {
+      if (user.role === 'ADMIN') router.replace('/admin/dashboard');
+      else if (user.role === 'MANAGER') router.replace('/manager');
+      else if (user.role === 'SHIPPER') router.replace('/shipper');
     } else if (!decoded && !user && !isAuthenticated) {
       router.replace('/login');
     }
@@ -258,7 +262,12 @@ export default function AccountPage() {
                   Tiếp Tục Mua Hàng
                 </Link>
                 <button
-                  onClick={logout}
+                  onClick={() => {
+                    const { clearTokens } = require('@/lib/auth');
+                    clearTokens();
+                    logout();
+                    window.location.href = '/login';
+                  }}
                   className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900 transition-colors"
                 >
                   <LogOut className="w-4 h-4" /> Đăng Xuất

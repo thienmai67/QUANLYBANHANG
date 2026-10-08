@@ -11,6 +11,7 @@ export interface UserProfile {
   avatar?: string;
   companyName?: string;
   taxId?: string;
+  shipperId?: string;
 }
 
 interface AuthState {

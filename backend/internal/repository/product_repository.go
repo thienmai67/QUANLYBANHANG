@@ -114,7 +114,12 @@ func (r *productRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
 	var p domain.Product
 	var specs []byte
 
-	err := r.db.GetContext(ctx, &p, query, id)
+	row := r.db.QueryRowContext(ctx, query, id)
+	err := row.Scan(
+		&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID, &p.BasePrice,
+		&p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating, &specs,
+		&p.CreatedAt, &p.UpdatedAt,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrProductNotFound
@@ -156,7 +161,12 @@ func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*d
 	var p domain.Product
 	var specs []byte
 
-	err := r.db.QueryRowxContext(ctx, query, sku).StructScan(&p)
+	row := r.db.QueryRowContext(ctx, query, sku)
+	err := row.Scan(
+		&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID, &p.BasePrice,
+		&p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating, &specs,
+		&p.CreatedAt, &p.UpdatedAt,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrProductNotFound
