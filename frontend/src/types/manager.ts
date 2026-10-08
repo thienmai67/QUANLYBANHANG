@@ -27,6 +27,7 @@ export interface StatusHistoryEntry {
 export interface Order {
   id: string;
   code: string;
+  orderNumber?: string;
   customerId: string;
   customerName: string;
   customerPhone: string;
@@ -36,18 +37,22 @@ export interface Order {
   discountAmount?: number;
   finalAmount?: number;
   status: OrderStatus;
+  version: number;
   createdAt: string; // ISO string
+  updatedAt?: string;
   approvedAt?: string;
   shippingStartedAt?: string;
   deliveredAt?: string;
   cancelledAt?: string;
   cancellationReason?: string;
   is2H: boolean;
+  is2h?: boolean;
   deliveryType?: '2H' | 'STANDARD';
-  paymentMethod?: 'COD' | 'BANK_TRANSFER';
+  paymentMethod?: 'COD' | 'BANK_TRANSFER' | string;
   total?: number; // integer VND alias for totalAmount
   shippingFee?: number;
   deadline2H?: string; // ISO string (createdAt + 2 hours if is2H)
+  deadline2h?: string;
   shipperId?: string;
   shipperName?: string;
   siteContact?: {

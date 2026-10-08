@@ -1,15 +1,258 @@
-import { ApiResponse, HealthStatus, Product } from "@/types/api";
+import { HealthStatus, Product } from "@/types/api";
+import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+export const API_BASE_URL = rawBase.endsWith("/api/v1")
+  ? rawBase
+  : `${rawBase.replace(/\/+$/, "")}/api/v1`;
+
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  data?: any;
+
+  constructor(message: string, status: number, code?: string, data?: any) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.data = data;
+  }
+}
+
+export function getFriendlyErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    switch (err.status) {
+      case 400:
+        return err.message || "Dữ liệu yêu cầu không hợp lệ";
+      case 401:
+        return "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại";
+      case 403:
+        return "Bạn không có quyền thực hiện thao tác này";
+      case 409:
+        return "Đơn hàng vừa được cập nhật bởi người khác, đã tải lại dữ liệu mới";
+      case 404:
+        return err.message || "Không tìm thấy dữ liệu yêu cầu";
+      case 500:
+        return "Lỗi hệ thống máy chủ, vui lòng thử lại sau";
+      default:
+        return err.message || "Đã xảy ra lỗi, vui lòng thử lại";
+    }
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return "Đã xảy ra lỗi không xác định";
+}
+
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string | null) => void> = [];
+
+function subscribeTokenRefresh(cb: (token: string | null) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string | null) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+async function performTokenRefresh(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const data = await res.json();
+    const newAccessToken = data.accessToken || data.access_token;
+    const newRefreshToken = data.refreshToken || data.refresh_token;
+
+    if (newAccessToken) {
+      saveTokens(newAccessToken, newRefreshToken || refreshToken);
+      try {
+        const { useAuthStore } = await import("@/store/useAuthStore");
+        useAuthStore.getState().setTokens(newAccessToken, newRefreshToken || refreshToken);
+      } catch {
+        // ignore in non-browser or test context
+      }
+      return newAccessToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function handleAuthFailure() {
+  clearTokens();
+  try {
+    import("@/store/useAuthStore").then(({ useAuthStore }) => {
+      useAuthStore.getState().logout();
+    });
+  } catch {
+    // ignore
+  }
+  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+    window.location.href = "/login";
+  }
+}
+
+async function parseApiError(res: Response): Promise<ApiError> {
+  let errorData: any = null;
+  try {
+    errorData = await res.json();
+  } catch {
+    // body is not json
+  }
+
+  const code = errorData?.code;
+  const message = errorData?.message || res.statusText || `Request failed with status ${res.status}`;
+  return new ApiError(message, res.status, code, errorData);
+}
+
+export async function request<T = any>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const isAbsolute = endpoint.startsWith("http://") || endpoint.startsWith("https://");
+  const url = isAbsolute
+    ? endpoint
+    : `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const currentToken = getAccessToken();
+  if (currentToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${currentToken}`);
+  }
+
+  const res = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  // Intercept 401: Refresh & retry 1 time
+  if (res.status === 401) {
+    const isAuthRoute =
+      endpoint.includes("/auth/login") ||
+      endpoint.includes("/auth/refresh") ||
+      endpoint.includes("/auth/register");
+
+    if (!isAuthRoute && typeof window !== "undefined") {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        const newToken = await performTokenRefresh();
+        isRefreshing = false;
+        onRefreshed(newToken);
+
+        if (newToken) {
+          headers.set("Authorization", `Bearer ${newToken}`);
+          const retryRes = await fetch(url, {
+            ...options,
+            headers,
+          });
+          if (retryRes.ok) {
+            if (retryRes.status === 204) return {} as T;
+            return await retryRes.json();
+          }
+          throw await parseApiError(retryRes);
+        } else {
+          handleAuthFailure();
+          throw await parseApiError(res);
+        }
+      } else {
+        // Wait for ongoing refresh
+        return new Promise<T>((resolve, reject) => {
+          subscribeTokenRefresh(async (token) => {
+            if (!token) {
+              reject(
+                new ApiError(
+                  "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
+                  401,
+                  "UNAUTHORIZED"
+                )
+              );
+              return;
+            }
+            try {
+              headers.set("Authorization", `Bearer ${token}`);
+              const retryRes = await fetch(url, {
+                ...options,
+                headers,
+              });
+              if (retryRes.ok) {
+                if (retryRes.status === 204) resolve({} as T);
+                else resolve(await retryRes.json());
+              } else {
+                reject(await parseApiError(retryRes));
+              }
+            } catch (err) {
+              reject(err);
+            }
+          });
+        });
+      }
+    }
+  }
+
+  if (!res.ok) {
+    throw await parseApiError(res);
+  }
+
+  if (res.status === 204) {
+    return {} as T;
+  }
+
+  return await res.json();
+}
+
+export const api = {
+  get: <T = any>(endpoint: string, options?: RequestInit) =>
+    request<T>(endpoint, { ...options, method: "GET" }),
+
+  post: <T = any>(endpoint: string, body?: any, options?: RequestInit) =>
+    request<T>(endpoint, {
+      ...options,
+      method: "POST",
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    }),
+
+  patch: <T = any>(endpoint: string, body?: any, options?: RequestInit) =>
+    request<T>(endpoint, {
+      ...options,
+      method: "PATCH",
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    }),
+
+  delete: <T = any>(endpoint: string, options?: RequestInit) =>
+    request<T>(endpoint, { ...options, method: "DELETE" }),
+};
+
+export const apiClient = api;
 
 export async function fetchHealth(): Promise<HealthStatus | null> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/health`, {
+    const res = await fetch(`${API_BASE_URL}/health`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
     const json = await res.json();
-    // Handle both wrapped ({success, data}) and raw ({status, database}) responses
     return (json.data as HealthStatus) || (json as HealthStatus);
   } catch {
     return null;
@@ -18,12 +261,11 @@ export async function fetchHealth(): Promise<HealthStatus | null> {
 
 export async function fetchProducts(): Promise<Product[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/products`, {
+    const res = await fetch(`${API_BASE_URL}/products`, {
       next: { revalidate: 10 },
     });
     if (!res.ok) return getFallbackProducts();
     const json = await res.json();
-    // Handle both wrapped ({success, data}) and raw array responses
     const data = json.data || json;
     if (Array.isArray(data)) return data as Product[];
     return getFallbackProducts();

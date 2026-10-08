@@ -1,11 +1,20 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useManagerStore } from '../src/store/useManagerStore';
 import { CORE_BRANDS } from '../src/types/manager';
+import { api } from '../src/lib/api';
 
 describe('useManagerStore - State Management & Business Operations', () => {
   beforeEach(() => {
     // Reset to clean deterministic seed data before each test
     useManagerStore.getState().resetToSeedData();
+    vi.spyOn(api, 'patch').mockImplementation(async (url: string, body?: any) => {
+      return {
+        id: url.split('/')[2],
+        status: body?.status,
+        version: (body?.version || 1) + 1,
+        deliveredAt: body?.status === 'DELIVERED' ? new Date().toISOString() : undefined,
+      } as any;
+    });
   });
 
   describe('1. Initial State & Seed Data Loading', () => {
@@ -49,7 +58,7 @@ describe('useManagerStore - State Management & Business Operations', () => {
   });
 
   describe('2. Atomic Order Approval and Stock Deduction', () => {
-    it('approves a PENDING order, transitions to PACKING, and deducts stock atomically', () => {
+    it('approves a PENDING order, transitions to PACKING, and deducts stock atomically', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING');
       expect(pendingOrder).toBeDefined();
@@ -70,7 +79,7 @@ describe('useManagerStore - State Management & Business Operations', () => {
         (p) => p.id === firstItem.productId
       )!.stockQuantity;
 
-      const result = useManagerStore.getState().approveOrder(pendingOrder.id, 'Manager Hải Đăng');
+      const result = await useManagerStore.getState().approveOrder(pendingOrder.id, 'Manager Hải Đăng');
       expect(result.success).toBe(true);
 
       const updatedStore = useManagerStore.getState();
@@ -98,7 +107,7 @@ describe('useManagerStore - State Management & Business Operations', () => {
   });
 
   describe('3. Blocking Order Approval When Stock Is Insufficient', () => {
-    it('blocks order approval when any product in the order is out of stock', () => {
+    it('blocks order approval when any product in the order is out of stock', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING');
       expect(pendingOrder).toBeDefined();
@@ -110,7 +119,7 @@ describe('useManagerStore - State Management & Business Operations', () => {
       // Force product stock to 0
       useManagerStore.getState().adjustStock(firstItem.productId, 0, 'Giảm về 0 để test hết hàng');
 
-      const result = useManagerStore.getState().approveOrder(pendingOrder.id, 'Manager Hải Đăng');
+      const result = await useManagerStore.getState().approveOrder(pendingOrder.id, 'Manager Hải Đăng');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Không đủ tồn kho');
 
@@ -125,18 +134,18 @@ describe('useManagerStore - State Management & Business Operations', () => {
   });
 
   describe('4. Shipper Assignment Workload Enforcement (< 5)', () => {
-    it('assigns shipper when activeOrders < 5 and transitions order to SHIPPING', () => {
+    it('assigns shipper when activeOrders < 5 and transitions order to SHIPPING', async () => {
       // Find or approve an order to PACKING
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
-      useManagerStore.getState().approveOrder(pendingOrder.id);
+      await useManagerStore.getState().approveOrder(pendingOrder.id);
 
       const availableShipper = store.shippers.find(
         (s) => s.status !== 'offline' && s.activeOrders < 5
       )!;
       const initialWorkload = availableShipper.activeOrders;
 
-      const result = useManagerStore.getState().assignShipper(
+      const result = await useManagerStore.getState().assignShipper(
         pendingOrder.id,
         availableShipper.id,
         'Điều phối viên'
@@ -154,17 +163,17 @@ describe('useManagerStore - State Management & Business Operations', () => {
       expect(updatedShipper?.activeOrders).toBe(initialWorkload + 1);
     });
 
-    it('rejects shipper assignment when shipper has already reached max 5 active orders', () => {
+    it('rejects shipper assignment when shipper has already reached max 5 active orders', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
-      useManagerStore.getState().approveOrder(pendingOrder.id);
+      await useManagerStore.getState().approveOrder(pendingOrder.id);
 
       // Manually set a shipper to 5 active orders (busy)
       const targetShipper = store.shippers[0];
       targetShipper.activeOrders = 5;
       targetShipper.status = 'busy';
 
-      const result = useManagerStore.getState().assignShipper(pendingOrder.id, targetShipper.id);
+      const result = await useManagerStore.getState().assignShipper(pendingOrder.id, targetShipper.id);
       expect(result.success).toBe(false);
       expect(result.error).toContain('5 đơn');
 
@@ -173,10 +182,10 @@ describe('useManagerStore - State Management & Business Operations', () => {
       expect(freshOrder?.status).toBe('PACKING');
     });
 
-    it('rejects shipper assignment if shipper is offline', () => {
+    it('rejects shipper assignment if shipper is offline', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
-      useManagerStore.getState().approveOrder(pendingOrder.id);
+      await useManagerStore.getState().approveOrder(pendingOrder.id);
 
       const offlineShipper = store.shippers.find((s) => s.status === 'offline') || {
         ...store.shippers[1],
@@ -190,21 +199,21 @@ describe('useManagerStore - State Management & Business Operations', () => {
         ),
       }));
 
-      const result = useManagerStore.getState().assignShipper(pendingOrder.id, offlineShipper.id);
+      const result = await useManagerStore.getState().assignShipper(pendingOrder.id, offlineShipper.id);
       expect(result.success).toBe(false);
       expect(result.error).toContain('ngoại tuyến');
     });
   });
 
   describe('5. Order Cancellation with Restock (and no restock when cancelled from PENDING)', () => {
-    it('does NOT restock when order is cancelled directly from PENDING', () => {
+    it('does NOT restock when order is cancelled directly from PENDING', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
       const firstItem = pendingOrder.items[0];
       const stockBefore = store.products.find((p) => p.id === firstItem.productId)!.stockQuantity;
       const initialLogsCount = store.stockLogs.length;
 
-      const result = useManagerStore.getState().cancelOrder(
+      const result = await useManagerStore.getState().cancelOrder(
         pendingOrder.id,
         'Khách hàng thay đổi kế hoạch thi công công trình'
       );
@@ -228,21 +237,21 @@ describe('useManagerStore - State Management & Business Operations', () => {
       expect(updatedStore.stockLogs.length).toBe(initialLogsCount);
     });
 
-    it('restocks items when order is cancelled from PACKING', () => {
+    it('restocks items when order is cancelled from PACKING', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
       const firstItem = pendingOrder.items[0];
       const initialStock = store.products.find((p) => p.id === firstItem.productId)!.stockQuantity;
 
       // 1. Approve order -> stock deducted
-      useManagerStore.getState().approveOrder(pendingOrder.id);
+      await useManagerStore.getState().approveOrder(pendingOrder.id);
       const stockAfterApproval = useManagerStore.getState().products.find(
         (p) => p.id === firstItem.productId
       )!.stockQuantity;
       expect(stockAfterApproval).toBe(initialStock - firstItem.quantity);
 
       // 2. Cancel order from PACKING -> stock must be refunded
-      const cancelResult = useManagerStore.getState().cancelOrder(
+      const cancelResult = await useManagerStore.getState().cancelOrder(
         pendingOrder.id,
         'Công trình tạm dừng thi công đột xuất'
       );
@@ -262,11 +271,11 @@ describe('useManagerStore - State Management & Business Operations', () => {
       expect(cancelLog?.changeAmount).toBe(firstItem.quantity);
     });
 
-    it('rejects cancellation when reason is shorter than 5 characters', () => {
+    it('rejects cancellation when reason is shorter than 5 characters', async () => {
       const store = useManagerStore.getState();
       const order = store.orders[0];
 
-      const result = useManagerStore.getState().cancelOrder(order.id, 'Huy ');
+      const result = await useManagerStore.getState().cancelOrder(order.id, 'Huy ');
       expect(result.success).toBe(false);
       expect(result.error).toContain('ít nhất 5 ký tự');
     });

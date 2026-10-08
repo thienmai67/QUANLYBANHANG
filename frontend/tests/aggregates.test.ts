@@ -23,6 +23,7 @@ describe('aggregates - Metrics, Brand Breakdown & Zero-fill Bucketing', () => {
       totalAmount: 1000000,
       finalAmount: 1000000,
       status: 'DELIVERED',
+      version: 1,
       createdAt: '2026-10-02T08:00:00Z',
       deliveredAt: '2026-10-02T10:30:00Z',
       is2H: false,
@@ -49,6 +50,7 @@ describe('aggregates - Metrics, Brand Breakdown & Zero-fill Bucketing', () => {
       totalAmount: 2000000,
       finalAmount: 2000000,
       status: 'DELIVERED',
+      version: 1,
       createdAt: '2026-10-05T09:00:00Z',
       deliveredAt: '2026-10-05T11:00:00Z',
       is2H: true,
@@ -84,6 +86,7 @@ describe('aggregates - Metrics, Brand Breakdown & Zero-fill Bucketing', () => {
       totalAmount: 5000000,
       finalAmount: 5000000,
       status: 'PENDING',
+      version: 1,
       createdAt: '2026-10-07T14:00:00Z',
       is2H: false,
       items: [
@@ -109,6 +112,7 @@ describe('aggregates - Metrics, Brand Breakdown & Zero-fill Bucketing', () => {
       totalAmount: 3000000,
       finalAmount: 3000000,
       status: 'CANCELLED',
+      version: 1,
       createdAt: '2026-10-03T10:00:00Z',
       is2H: false,
       items: [

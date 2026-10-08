@@ -45,7 +45,13 @@ const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
 function OrdersManagementContent() {
   const searchParams = useSearchParams();
   const toast = useToast();
-  const { orders, approveOrder, deliverOrder } = useManagerStore();
+  const { orders, ordersLoading, ordersError, fetchOrders, approveOrder, deliverOrder } = useManagerStore();
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+
+  // Fetch orders from API on mount
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   // Filter states
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('ALL');
@@ -119,25 +125,37 @@ function OrdersManagementContent() {
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [orders, selectedStatus, only2H, searchQuery]);
 
-  // Action: Approve Order (Atomic deduction with stock guard)
-  const handleApprove = (order: Order) => {
-    const res = approveOrder(order.id, 'Manager Hải Đăng');
-    if (res.success) {
-      toast.success(
-        `Đã duyệt đơn #${order.code}, trừ tồn kho thành công và chuyển sang Đang đóng gói`
-      );
-    } else {
-      toast.error(res.error || 'Duyệt đơn hàng thất bại do không đủ tồn kho');
+  // Action: Approve Order (Atomic deduction with stock guard & backend sync)
+  const handleApprove = async (order: Order) => {
+    if (processingOrderId) return;
+    setProcessingOrderId(order.id);
+    try {
+      const res = await approveOrder(order.id, 'Manager Hải Đăng');
+      if (res.success) {
+        toast.success(
+          `Đã duyệt đơn #${order.code}, trừ tồn kho thành công và chuyển sang Đang đóng gói`
+        );
+      } else {
+        toast.error(res.error || 'Duyệt đơn hàng thất bại do không đủ tồn kho');
+      }
+    } finally {
+      setProcessingOrderId(null);
     }
   };
 
   // Action: Deliver Order (Shipper completed delivery)
-  const handleDeliver = (order: Order) => {
-    const res = deliverOrder(order.id, 'Manager Hải Đăng');
-    if (res.success) {
-      toast.success(`Đã xác nhận đơn #${order.code} giao thành công`);
-    } else {
-      toast.error(res.error || 'Xác nhận giao hàng thất bại');
+  const handleDeliver = async (order: Order) => {
+    if (processingOrderId) return;
+    setProcessingOrderId(order.id);
+    try {
+      const res = await deliverOrder(order.id, 'Manager Hải Đăng');
+      if (res.success) {
+        toast.success(`Đã xác nhận đơn #${order.code} giao thành công`);
+      } else {
+        toast.error(res.error || 'Xác nhận giao hàng thất bại');
+      }
+    } finally {
+      setProcessingOrderId(null);
     }
   };
 
@@ -361,19 +379,21 @@ function OrdersManagementContent() {
                               <>
                                 <button
                                   type="button"
+                                  disabled={processingOrderId === order.id}
                                   onClick={() => handleApprove(order)}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition-colors shadow-sm"
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 transition-colors shadow-sm"
                                   title="Duyệt đơn và trừ tồn kho"
                                 >
-                                  Duyệt đơn
+                                  {processingOrderId === order.id ? 'Đang duyệt...' : 'Duyệt đơn'}
                                 </button>
                                 <button
                                   type="button"
+                                  disabled={processingOrderId === order.id}
                                   onClick={() => {
                                     setCancelTargetOrder(order);
                                     setIsCancelOpen(true);
                                   }}
-                                  className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                  className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-50 transition-colors"
                                   title="Hủy đơn hàng"
                                 >
                                   Hủy
@@ -386,22 +406,24 @@ function OrdersManagementContent() {
                               <>
                                 <button
                                   type="button"
+                                  disabled={processingOrderId === order.id}
                                   onClick={() => {
                                     setAssignOrder(order);
                                     setIsAssignOpen(true);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-600 hover:bg-purple-700 text-white transition-colors shadow-sm"
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white transition-colors shadow-sm"
                                   title="Phân công nhân viên giao hàng"
                                 >
                                   Điều phối Shipper
                                 </button>
                                 <button
                                   type="button"
+                                  disabled={processingOrderId === order.id}
                                   onClick={() => {
                                     setCancelTargetOrder(order);
                                     setIsCancelOpen(true);
                                   }}
-                                  className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                  className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-50 transition-colors"
                                   title="Hủy đơn hàng và hoàn kho"
                                 >
                                   Hủy
@@ -414,11 +436,12 @@ function OrdersManagementContent() {
                               <>
                                 <button
                                   type="button"
+                                  disabled={processingOrderId === order.id}
                                   onClick={() => handleDeliver(order)}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm"
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors shadow-sm"
                                   title="Xác nhận shipper đã giao hàng xong"
                                 >
-                                  Đã giao
+                                  {processingOrderId === order.id ? 'Đang xử lý...' : 'Đã giao'}
                                 </button>
                                 <button
                                   type="button"

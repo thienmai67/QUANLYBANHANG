@@ -1043,6 +1043,7 @@ export function generateSeedOrders(): Order[] {
         totalAmount,
         finalAmount: totalAmount,
         status: 'DELIVERED',
+        version: 1,
         createdAt: createdDate.toISOString(),
         approvedAt: approvedDate.toISOString(),
         shippingStartedAt: shippingDate.toISOString(),
@@ -1107,6 +1108,7 @@ export function generateSeedOrders(): Order[] {
       totalAmount,
       finalAmount: totalAmount,
       status: 'CANCELLED',
+      version: 1,
       createdAt: createdDate.toISOString(),
       cancelledAt: cancelledDate.toISOString(),
       cancellationReason: reason,
@@ -1161,6 +1163,7 @@ export function generateSeedOrders(): Order[] {
       totalAmount,
       finalAmount: totalAmount,
       status: 'CANCELLED',
+      version: 1,
       createdAt: createdDate.toISOString(),
       approvedAt: approvedDate.toISOString(),
       cancelledAt: cancelledDate.toISOString(),
@@ -1238,6 +1241,7 @@ export function generateSeedOrders(): Order[] {
       totalAmount,
       finalAmount: totalAmount,
       status: 'SHIPPING',
+      version: 1,
       createdAt: createdDate.toISOString(),
       approvedAt: approvedDate.toISOString(),
       shippingStartedAt: shippingDate.toISOString(),
@@ -1295,6 +1299,7 @@ export function generateSeedOrders(): Order[] {
       totalAmount,
       finalAmount: totalAmount,
       status: 'PACKING',
+      version: 1,
       createdAt: createdDate.toISOString(),
       approvedAt: approvedDate.toISOString(),
       is2H,
@@ -1344,6 +1349,7 @@ export function generateSeedOrders(): Order[] {
       totalAmount,
       finalAmount: totalAmount,
       status: 'PENDING',
+      version: 1,
       createdAt: createdDate.toISOString(),
       is2H,
       deadline2H,
@@ -1367,7 +1373,7 @@ export const SEED_ORDERS: Order[] = generateSeedOrders();
  * - 1 Order for another shipper (ship-03) for testing isolation
  * Total active workload for ship-02 = 2 PACKING + 2 SHIPPING = 4 <= 5.
  */
-export const SEED_SHIPPER_ORDERS: Order[] = [
+export const SEED_SHIPPER_ORDERS: Order[] = ([
   // 1. PACKING 2H
   {
     id: 'ord-ship02-pack-01',
@@ -2051,7 +2057,7 @@ export const SEED_SHIPPER_ORDERS: Order[] = [
       },
     ],
   },
-];
+] as any[]).map((o) => ({ version: 1, ...o })) as Order[];
 
 export const SEED_COD_SETTLEMENTS: CodSettlement[] = [
   {

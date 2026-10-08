@@ -10,23 +10,25 @@ const ACCESS_KEY = "access_token";
 const REFRESH_KEY = "refresh_token";
 
 export function saveTokens(accessToken: string, refreshToken: string): void {
+  if (typeof window === "undefined" || typeof localStorage === "undefined") return;
   localStorage.setItem(ACCESS_KEY, accessToken);
   localStorage.setItem(REFRESH_KEY, refreshToken);
 }
 
 export function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || typeof localStorage === "undefined") return null;
   return localStorage.getItem(ACCESS_KEY);
 }
 
 export const getToken = getAccessToken;
 
 export function getRefreshToken(): string | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || typeof localStorage === "undefined") return null;
   return localStorage.getItem(REFRESH_KEY);
 }
 
 export function clearTokens(): void {
+  if (typeof window === "undefined" || typeof localStorage === "undefined") return;
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
 }

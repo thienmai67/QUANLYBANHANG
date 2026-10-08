@@ -89,7 +89,7 @@ export default function ShipperOrderCard({
     setIsPickingUp(true);
 
     try {
-      const result = updateOrderStatusWithActor(order.id, 'SHIPPING', {
+      const result = await updateOrderStatusWithActor(order.id, 'SHIPPING', {
         role: 'SHIPPER',
         shipperId,
         name: shipperName,

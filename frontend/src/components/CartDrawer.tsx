@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import { useCartStore } from '@/store/useCartStore';
 import { X, Trash2, Plus, Minus, ShoppingBag, CheckCircle2, ArrowRight } from 'lucide-react';
-
+import { api, getFriendlyErrorMessage } from '@/lib/api';
+import { useToast } from '@/hooks/useToast';
 import { useAdminStore } from '@/store/useAdminStore';
 
 export default function CartDrawer() {
+  const toast = useToast();
   const {
     items,
     isOpen,
@@ -22,11 +24,15 @@ export default function CartDrawer() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'BANK'>('COD');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     const total = getTotalPrice();
     const orderItems = items.map((i) => ({
       productId: i.id,
@@ -49,41 +55,30 @@ export default function CartDrawer() {
       items: orderItems,
     };
 
-    useAdminStore.getState().addOrder(newOrder);
-
     // Call Backend API to persist into PostgreSQL
     try {
-      const token = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tdt-auth-storage') || '{}')?.state?.token : null;
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
-      
       const payload = {
-        orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
         customerName: customerName || 'Khách Mua Lẻ',
-        totalAmount: total,
-        status: 'PENDING',
-        items: items.map(i => ({
+        paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
+        is2h: false,
+        items: items.map((i) => ({
           productId: i.id,
           quantity: i.quantity,
-          unitPrice: i.unitPrice
-        }))
+          unitPrice: i.unitPrice,
+        })),
       };
 
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      await api.post('/orders', payload);
 
-      await fetch(`${apiUrl}/orders`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
-    } catch (err) {
-      console.warn('Backend API order creation fallback notice:', err);
+      useAdminStore.getState().addOrder(newOrder);
+      toast.success('Đặt hàng thành công! Đơn hàng đang được xử lý.');
+      setCheckoutStep('success');
+      clearCart();
+    } catch (err: any) {
+      toast.error(getFriendlyErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setCheckoutStep('success');
-    clearCart();
   };
 
   const handleClose = () => {
@@ -312,9 +307,10 @@ export default function CartDrawer() {
                   <button
                     type="submit"
                     form="checkout-form"
-                    className="flex-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg text-xs flex items-center justify-center gap-2"
+                    disabled={isSubmitting}
+                    className="flex-2 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg text-xs flex items-center justify-center gap-2"
                   >
-                    Xác Nhận Đặt Hàng
+                    {isSubmitting ? 'Đang Xử Lý...' : 'Xác Nhận Đặt Hàng'}
                   </button>
                 </div>
               )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import RouteGuard from '@/components/auth/RouteGuard';
@@ -49,12 +49,16 @@ export default function ShipperOrderDetailPage() {
   const toast = useToast();
   const now = useNow(60000);
   const { user } = useAuthStore();
-  const { orders, shippers, updateOrderStatusWithActor } = useManagerStore();
+  const { orders, shippers, updateOrderStatusWithActor, fetchOrders } = useManagerStore();
   const { isHighContrast } = useShipperUIStore();
 
   const [isPodModalOpen, setIsPodModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [isPickingUp, setIsPickingUp] = useState(false);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const orderId = params?.orderId as string;
   const currentShipperId = user?.shipperId || 'ship-02';
@@ -125,7 +129,7 @@ export default function ShipperOrderDetailPage() {
     setIsPickingUp(true);
 
     try {
-      const result = updateOrderStatusWithActor(order.id, 'SHIPPING', {
+      const result = await updateOrderStatusWithActor(order.id, 'SHIPPING', {
         role: 'SHIPPER',
         shipperId: currentShipperId,
         name: currentShipperName,

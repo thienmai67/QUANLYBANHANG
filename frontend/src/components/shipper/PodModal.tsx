@@ -104,7 +104,7 @@ export default function PodModal({
 
     setProcessing(true);
     try {
-      const res = updateOrderStatusWithActor(
+      const res = await updateOrderStatusWithActor(
         order.id,
         'DELIVERED',
         {

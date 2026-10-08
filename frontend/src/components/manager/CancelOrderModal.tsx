@@ -58,7 +58,7 @@ export function CancelOrderModal({
 
   const willRestock = order.status === 'PACKING' || order.status === 'SHIPPING';
 
-  const handleConfirmCancel = () => {
+  const handleConfirmCancel = async () => {
     const validation = validateCancellation(reason);
     if (!validation.valid) {
       setError(validation.error || 'Lý do hủy đơn phải có ít nhất 5 ký tự');
@@ -67,7 +67,7 @@ export function CancelOrderModal({
 
     setSubmitting(true);
     try {
-      const res = cancelOrder(order.id, reason, 'Manager Hải Đăng');
+      const res = await cancelOrder(order.id, reason, 'Manager Hải Đăng');
       if (res.success) {
         toast.success(
           `Đã hủy đơn hàng #${order.code}${

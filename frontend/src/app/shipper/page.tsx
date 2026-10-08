@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import RouteGuard from '@/components/auth/RouteGuard';
 import ShipperShell from '@/components/shipper/ShipperShell';
 import ShipperWidgets from '@/components/shipper/ShipperWidgets';
@@ -23,7 +23,11 @@ import {
 
 export default function ShipperDispatchFeedPage() {
   const { user } = useAuthStore();
-  const { orders, shippers } = useManagerStore();
+  const { orders, shippers, fetchOrders } = useManagerStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
   const { activeTab, isHighContrast } = useShipperUIStore();
 
   const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);

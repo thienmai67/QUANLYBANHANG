@@ -56,7 +56,7 @@ export function ShipperAssignModal({
 
   if (!isOpen || !order) return null;
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!selectedShipperId) {
       toast.error('Vui lòng chọn một nhân viên giao hàng');
       return;
@@ -76,7 +76,7 @@ export function ShipperAssignModal({
 
     setSubmitting(true);
     try {
-      const res = assignShipper(order.id, selectedShipperId, 'Manager Hải Đăng');
+      const res = await assignShipper(order.id, selectedShipperId, 'Manager Hải Đăng');
       if (res.success) {
         toast.success(
           `Đã phân công ${shipper.name} và chuyển đơn #${order.code} sang Đang giao`

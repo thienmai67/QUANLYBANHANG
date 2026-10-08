@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useManagerStore } from '../src/store/useManagerStore';
+import { api } from '../src/lib/api';
 import {
   checkStockAvailability,
   deductStockForOrder,
@@ -27,6 +28,14 @@ import { Order, OrderItem, Product, Shipper } from '../src/types/manager';
 describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', () => {
   beforeEach(() => {
     useManagerStore.getState().resetToSeedData();
+    vi.spyOn(api, 'patch').mockImplementation(async (url: string, body?: any) => {
+      return {
+        id: url.split('/')[2],
+        status: body?.status,
+        version: (body?.version || 1) + 1,
+        deliveredAt: body?.status === 'DELIVERED' ? new Date().toISOString() : undefined,
+      } as any;
+    });
   });
 
   // =========================================================================
@@ -127,7 +136,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       expect(mockProducts[1].stockQuantity).toBe(3);
     });
 
-    it('store.approveOrder atomically blocks order and leaves all stocks untouched when stock is insufficient', () => {
+    it('store.approveOrder atomically blocks order and leaves all stocks untouched when stock is insufficient', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
       expect(pendingOrder).toBeDefined();
@@ -145,7 +154,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       const logsCountBefore = useManagerStore.getState().stockLogs.length;
 
       // Execute approval
-      const approvalResult = useManagerStore.getState().approveOrder(pendingOrder.id, 'Tester');
+      const approvalResult = await useManagerStore.getState().approveOrder(pendingOrder.id, 'Tester');
       expect(approvalResult.success).toBe(false);
       expect(approvalResult.error).toContain('Không đủ tồn kho');
 
@@ -161,7 +170,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       expect(useManagerStore.getState().stockLogs.length).toBe(logsCountBefore);
     });
 
-    it('boundary condition: order approved when stock exactly matches requested quantity (stock -> 0)', () => {
+    it('boundary condition: order approved when stock exactly matches requested quantity (stock -> 0)', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
       const firstItem = pendingOrder.items[0];
@@ -174,7 +183,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
         store.adjustStock(pendingOrder.items[i].productId, 9999, 'Đảm bảo item phụ đủ hàng');
       }
 
-      const res = useManagerStore.getState().approveOrder(pendingOrder.id, 'Tester');
+      const res = await useManagerStore.getState().approveOrder(pendingOrder.id, 'Tester');
       expect(res.success).toBe(true);
 
       const updatedProduct = useManagerStore.getState().products.find((p) => p.id === firstItem.productId)!;
@@ -187,7 +196,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
   // 2. CANCELLATION RESTOCK INVARIANT & REASON VALIDATION
   // =========================================================================
   describe('2. Cancellation Restock Invariant & Reason Validation', () => {
-    it('invariant 1: order cancelled directly from PENDING must NEVER restock or log ORDER_CANCELLED', () => {
+    it('invariant 1: order cancelled directly from PENDING must NEVER restock or log ORDER_CANCELLED', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
       const item = pendingOrder.items[0];
@@ -195,7 +204,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       const initialProductStock = store.products.find((p) => p.id === item.productId)!.stockQuantity;
       const initialLogs = store.stockLogs.length;
 
-      const res = store.cancelOrder(pendingOrder.id, 'Khách hàng thay đổi phương án thiết kế');
+      const res = await store.cancelOrder(pendingOrder.id, 'Khách hàng thay đổi phương án thiết kế');
       expect(res.success).toBe(true);
 
       const stateAfter = useManagerStore.getState();
@@ -210,7 +219,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       expect(stateAfter.stockLogs.length).toBe(initialLogs);
     });
 
-    it('invariant 2: order cancelled from PACKING accurately refunds stock and logs ORDER_CANCELLED', () => {
+    it('invariant 2: order cancelled from PACKING accurately refunds stock and logs ORDER_CANCELLED', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
       const item = pendingOrder.items[0];
@@ -220,12 +229,12 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       const baselineStock = useManagerStore.getState().products.find((p) => p.id === item.productId)!.stockQuantity;
 
       // 1. Approve (PENDING -> PACKING)
-      store.approveOrder(pendingOrder.id);
+      await store.approveOrder(pendingOrder.id);
       const stockAfterApproval = useManagerStore.getState().products.find((p) => p.id === item.productId)!.stockQuantity;
       expect(stockAfterApproval).toBe(baselineStock - item.quantity);
 
       // 2. Cancel from PACKING
-      const cancelRes = useManagerStore.getState().cancelOrder(pendingOrder.id, 'Dự án tạm ngừng cấp vốn giải ngân');
+      const cancelRes = await useManagerStore.getState().cancelOrder(pendingOrder.id, 'Dự án tạm ngừng cấp vốn giải ngân');
       expect(cancelRes.success).toBe(true);
 
       const stateAfter = useManagerStore.getState();
@@ -242,7 +251,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       expect(cancelLog?.newStock).toBe(baselineStock);
     });
 
-    it('invariant 3: order cancelled from SHIPPING refunds stock and decrements shipper workload', () => {
+    it('invariant 3: order cancelled from SHIPPING refunds stock and decrements shipper workload', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
       const item = pendingOrder.items[0];
@@ -251,19 +260,19 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       const baselineStock = useManagerStore.getState().products.find((p) => p.id === item.productId)!.stockQuantity;
 
       // 1. Approve -> PACKING
-      store.approveOrder(pendingOrder.id);
+      await store.approveOrder(pendingOrder.id);
 
       // 2. Assign shipper -> SHIPPING
       const shipper = store.shippers.find((s) => s.status !== 'offline' && s.activeOrders < 5)!;
       const initialShipperOrders = shipper.activeOrders;
-      store.assignShipper(pendingOrder.id, shipper.id);
+      await store.assignShipper(pendingOrder.id, shipper.id);
 
       const stateShipping = useManagerStore.getState();
       const assignedShipper = stateShipping.shippers.find((s) => s.id === shipper.id)!;
       expect(assignedShipper.activeOrders).toBe(initialShipperOrders + 1);
 
       // 3. Cancel from SHIPPING
-      const cancelRes = useManagerStore.getState().cancelOrder(pendingOrder.id, 'Khách hàng từ chối nhận hàng tại công trình');
+      const cancelRes = await useManagerStore.getState().cancelOrder(pendingOrder.id, 'Khách hàng từ chối nhận hàng tại công trình');
       expect(cancelRes.success).toBe(true);
 
       const stateAfter = useManagerStore.getState();
@@ -275,16 +284,16 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       expect(finalShipper.activeOrders).toBe(initialShipperOrders);
     });
 
-    it('rejects cancellation reason shorter than 5 characters or whitespace padding', () => {
+    it('rejects cancellation reason shorter than 5 characters or whitespace padding', async () => {
       const store = useManagerStore.getState();
       const order = store.orders.find((o) => o.status === 'PENDING')!;
 
       // Edge cases
-      expect(store.cancelOrder(order.id, '').success).toBe(false);
-      expect(store.cancelOrder(order.id, '   ').success).toBe(false);
-      expect(store.cancelOrder(order.id, 'Huy').success).toBe(false);
-      expect(store.cancelOrder(order.id, '1234').success).toBe(false);
-      expect(store.cancelOrder(order.id, '  1234  ').success).toBe(false); // trimmed length 4
+      expect((await store.cancelOrder(order.id, '')).success).toBe(false);
+      expect((await store.cancelOrder(order.id, '   ')).success).toBe(false);
+      expect((await store.cancelOrder(order.id, 'Huy')).success).toBe(false);
+      expect((await store.cancelOrder(order.id, '1234')).success).toBe(false);
+      expect((await store.cancelOrder(order.id, '  1234  ')).success).toBe(false); // trimmed length 4
 
       // Exactly 5 chars -> allowed
       expect(validateCancellation('12345').valid).toBe(true);
@@ -296,7 +305,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
   // 3. SHIPPER ASSIGNMENT WORKLOAD & AVAILABILITY
   // =========================================================================
   describe('3. Shipper Assignment Workload & Availability Guards', () => {
-    it('rejects shipper assignment when activeOrders >= 5', () => {
+    it('rejects shipper assignment when activeOrders >= 5', async () => {
       expect(canAssignShipper({ activeOrders: 5 })).toBe(false);
       expect(canAssignShipper({ activeOrders: 6 })).toBe(false);
 
@@ -307,17 +316,17 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       // Test via store
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
-      store.approveOrder(pendingOrder.id);
+      await store.approveOrder(pendingOrder.id);
 
       const busyShipper = store.shippers[0];
       busyShipper.activeOrders = 5;
 
-      const assignRes = store.assignShipper(pendingOrder.id, busyShipper.id);
+      const assignRes = await store.assignShipper(pendingOrder.id, busyShipper.id);
       expect(assignRes.success).toBe(false);
       expect(assignRes.error).toContain('5 đơn');
     });
 
-    it('rejects shipper assignment when shipper status is offline (regardless of activeOrders)', () => {
+    it('rejects shipper assignment when shipper status is offline (regardless of activeOrders)', async () => {
       expect(canAssignShipper({ activeOrders: 0, status: 'offline' })).toBe(false);
       expect(canAssignShipper({ activeOrders: 0, status: 'Offline' })).toBe(false);
 
@@ -327,19 +336,19 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
 
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
-      store.approveOrder(pendingOrder.id);
+      await store.approveOrder(pendingOrder.id);
 
       // ship-05 is seeded with activeOrders: 0, status: 'offline'
       const offlineShipper = store.shippers.find((s) => s.id === 'ship-05')!;
       expect(offlineShipper.status).toBe('offline');
       expect(offlineShipper.activeOrders).toBe(0);
 
-      const res = store.assignShipper(pendingOrder.id, offlineShipper.id);
+      const res = await store.assignShipper(pendingOrder.id, offlineShipper.id);
       expect(res.success).toBe(false);
       expect(res.error).toContain('ngoại tuyến');
     });
 
-    it('marks shipper status as busy when activeOrders reaches exactly 5', () => {
+    it('marks shipper status as busy when activeOrders reaches exactly 5', async () => {
       const store = useManagerStore.getState();
       const shipper = store.shippers.find((s) => s.status !== 'offline')!;
 
@@ -349,9 +358,9 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       }));
 
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
-      store.approveOrder(pendingOrder.id);
+      await store.approveOrder(pendingOrder.id);
 
-      const assignRes = useManagerStore.getState().assignShipper(pendingOrder.id, shipper.id);
+      const assignRes = await useManagerStore.getState().assignShipper(pendingOrder.id, shipper.id);
       expect(assignRes.success).toBe(true);
 
       const updatedShipper = useManagerStore.getState().shippers.find((s) => s.id === shipper.id)!;
@@ -359,10 +368,10 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       expect(updatedShipper.status).toBe('busy');
     });
 
-    it('handles shipper reassignment: decrements old shipper and increments new shipper', () => {
+    it('handles shipper reassignment: decrements old shipper and increments new shipper', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
-      store.approveOrder(pendingOrder.id);
+      await store.approveOrder(pendingOrder.id);
 
       // Shipper 1 (ship-02, activeOrders=2)
       // Shipper 2 (ship-03, activeOrders=1)
@@ -370,11 +379,11 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       const s2 = store.shippers.find((s) => s.id === 'ship-03')!;
 
       // Initial assignment to s1
-      store.assignShipper(pendingOrder.id, s1.id);
+      await store.assignShipper(pendingOrder.id, s1.id);
       expect(useManagerStore.getState().shippers.find((s) => s.id === s1.id)!.activeOrders).toBe(s1.activeOrders + 1);
 
       // Reassignment to s2
-      const reassignRes = useManagerStore.getState().assignShipper(pendingOrder.id, s2.id);
+      const reassignRes = await useManagerStore.getState().assignShipper(pendingOrder.id, s2.id);
       expect(reassignRes.success).toBe(true);
 
       const stateAfter = useManagerStore.getState();
@@ -390,10 +399,10 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       expect(orderAfter.shipperId).toBe(s2.id);
     });
 
-    it('deliverOrder completes the lifecycle: decrements shipper workload and unmarks busy', () => {
+    it('deliverOrder completes the lifecycle: decrements shipper workload and unmarks busy', async () => {
       const store = useManagerStore.getState();
       const pendingOrder = store.orders.find((o) => o.status === 'PENDING')!;
-      store.approveOrder(pendingOrder.id);
+      await store.approveOrder(pendingOrder.id);
 
       const shipper = store.shippers.find((s) => s.id === 'ship-02')!;
       // Artificially set shipper to 4 active orders
@@ -402,11 +411,11 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       }));
 
       // Assign -> reaches 5 (busy)
-      store.assignShipper(pendingOrder.id, shipper.id);
+      await store.assignShipper(pendingOrder.id, shipper.id);
       expect(useManagerStore.getState().shippers.find((s) => s.id === shipper.id)!.status).toBe('busy');
 
       // Deliver order
-      const deliverRes = useManagerStore.getState().deliverOrder(pendingOrder.id, 'Shipper Toan');
+      const deliverRes = await useManagerStore.getState().deliverOrder(pendingOrder.id, 'Shipper Toan');
       expect(deliverRes.success).toBe(true);
 
       const stateDelivered = useManagerStore.getState();
@@ -507,6 +516,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
           totalAmount: 10000000,
           finalAmount: 10000000,
           status: 'DELIVERED',
+          version: 1,
           createdAt: '2026-10-01T00:00:00Z',
           statusHistory: [],
           is2H: false,
@@ -522,6 +532,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
           totalAmount: 50000000,
           finalAmount: 50000000,
           status: 'PENDING',
+          version: 1,
           createdAt: '2026-10-01T00:00:00Z',
           statusHistory: [],
           is2H: false,
@@ -537,6 +548,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
           totalAmount: 30000000,
           finalAmount: 30000000,
           status: 'PACKING',
+          version: 1,
           createdAt: '2026-10-01T00:00:00Z',
           statusHistory: [],
           is2H: false,
@@ -552,6 +564,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
           totalAmount: 25000000,
           finalAmount: 25000000,
           status: 'SHIPPING',
+          version: 1,
           createdAt: '2026-10-01T00:00:00Z',
           statusHistory: [],
           is2H: false,
@@ -567,6 +580,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
           totalAmount: 90000000,
           finalAmount: 90000000,
           status: 'CANCELLED',
+          version: 1,
           createdAt: '2026-10-01T00:00:00Z',
           statusHistory: [],
           is2H: false,

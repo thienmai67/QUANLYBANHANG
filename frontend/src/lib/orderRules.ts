@@ -225,6 +225,8 @@ export function canActorTransition(
     pod?: { receiverName?: string; photos?: Array<{ name: string; thumbnail: string }> };
     codConfirmed?: boolean;
     cancelReason?: string;
+    incidentCategory?: string;
+    shipperId?: string;
   }
 ): ActorTransitionCheckResult {
   if (!order || !to || !actor) {
@@ -259,7 +261,8 @@ export function canActorTransition(
   // 2. MANAGER & ADMIN Actor logic
   if (actor.role === 'ADMIN' || actor.role === 'MANAGER') {
     if (order.status === 'PACKING' && to === 'SHIPPING') {
-      const guard = guardShippingTransition(order);
+      const targetOrder = extra?.shipperId ? { ...order, shipperId: extra.shipperId } : order;
+      const guard = guardShippingTransition(targetOrder);
       if (!guard.allowed) {
         return {
           allowed: false,

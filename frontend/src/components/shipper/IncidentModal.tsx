@@ -50,13 +50,13 @@ export default function IncidentModal({
   const isDetailValid = detail.trim().length >= 5;
   const canSubmit = isDetailValid && !submitting;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
 
     setSubmitting(true);
     try {
       const fullReason = `${category}: ${detail.trim()}`;
-      const res = updateOrderStatusWithActor(
+      const res = await updateOrderStatusWithActor(
         order.id,
         'CANCELLED',
         {

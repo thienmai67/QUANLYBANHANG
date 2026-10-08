@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useManagerStore } from '@/store/useManagerStore';
 import {
@@ -28,7 +28,11 @@ import {
 } from 'lucide-react';
 
 export default function ManagerDashboardPage() {
-  const { orders, products, shippers, getBrandStats, getRevenueTrend } = useManagerStore();
+  const { orders, products, shippers, getBrandStats, getRevenueTrend, fetchOrders } = useManagerStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const [trendPeriod, setTrendPeriod] = useState<'day' | 'month'>('month');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);

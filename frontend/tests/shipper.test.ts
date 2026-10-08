@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useManagerStore } from '../src/store/useManagerStore';
+import { api } from '../src/lib/api';
 import {
   canActorTransition,
   getShipperWorkload,
@@ -20,6 +21,14 @@ describe('Role SHIPPER - Comprehensive Functional & Business Logic Suite', () =>
   beforeEach(() => {
     // Reset to clean deterministic seed data
     useManagerStore.getState().resetToSeedData();
+    vi.spyOn(api, 'patch').mockImplementation(async (url: string, body?: any) => {
+      return {
+        id: url.split('/')[2],
+        status: body?.status,
+        version: (body?.version || 1) + 1,
+        deliveredAt: body?.status === 'DELIVERED' ? new Date().toISOString() : undefined,
+      } as any;
+    });
   });
 
   describe('1. Actor-based Status Transitions & Permissions (canActorTransition)', () => {
@@ -300,7 +309,7 @@ describe('Role SHIPPER - Comprehensive Functional & Business Logic Suite', () =>
   });
 
   describe('5. Delivery Incident Reporting & Automatic Stock Restitution', () => {
-    it('restocks inventory and logs incident when shipper reports delivery failure', () => {
+    it('restocks inventory and logs incident when shipper reports delivery failure', async () => {
       const store = useManagerStore.getState();
       const shippingOrder = store.orders.find(
         (o) => o.shipperId === 'ship-02' && o.status === 'SHIPPING'
@@ -316,7 +325,7 @@ describe('Role SHIPPER - Comprehensive Functional & Business Logic Suite', () =>
         name: 'Trần Quốc Toản',
       };
 
-      const result = store.updateOrderStatusWithActor(
+      const result = await store.updateOrderStatusWithActor(
         shippingOrder.id,
         'CANCELLED',
         actor,
