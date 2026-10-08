@@ -69,13 +69,33 @@ Cập nhật trạng thái đơn hàng theo luồng vòng đời chuẩn. Kiểm
 > **Lưu ý về phân quyền Shipper**:
 > Tài khoản có role `SHIPPER` chỉ được phép cập nhật đơn hàng có `shipper_id` khớp với `userId` trong token của mình. Nếu không khớp sẽ nhận mã lỗi `403 Forbidden`.
 
-### Request Body
+### Request Body (Hỗ trợ Metadata Vòng Đời & POD/COD)
 ```json
 {
-  "status": "PACKING",
-  "version": 1
+  "status": "SHIPPING",
+  "version": 2,
+  "shipper_id": "9b642ca2-1a48-4330-95b8-d218841dafc5"
 }
 ```
+Hoặc khi Shipper xác nhận giao hàng (POD):
+```json
+{
+  "status": "DELIVERED",
+  "version": 3,
+  "pod_photo_url": "https://storage.tdt-me.vn/pod/ord-261008-01.jpg",
+  "pod_recipient_name": "Nguyễn Văn Nhận"
+}
+```
+Hoặc khi hủy đơn hàng / báo sự cố:
+```json
+{
+  "status": "CANCELLED",
+  "version": 2,
+  "cancellation_reason": "Khách hàng đổi ý hủy đơn (tối thiểu 5 ký tự)",
+  "incident_detail": "Địa chỉ giao hàng phong tỏa không thể tiếp cận"
+}
+```
+*(Ghi chú: Backend hỗ trợ linh hoạt cả snake_case như `shipper_id`, `pod_photo_url` và camelCase như `shipperId`, `podPhotoUrl`)*
 
 ### Response Specs
 
@@ -90,14 +110,48 @@ Cập nhật trạng thái đơn hàng theo luồng vòng đời chuẩn. Kiểm
   "paymentMethod": "COD",
   "is2h": false,
   "deadline2h": null,
-  "deliveredAt": null,
+  "deliveredAt": "2026-10-08T15:30:00Z",
   "cancellationReason": null,
   "totalAmount": 1500000,
-  "status": "PACKING",
-  "version": 2,
+  "status": "DELIVERED",
+  "version": 4,
+  "podPhotoUrl": "https://storage.tdt-me.vn/pod/ord-261008-01.jpg",
+  "podRecipientName": "Nguyễn Văn Nhận",
+  "podConfirmedAt": "2026-10-08T15:30:00Z",
+  "codCollected": 1500000,
+  "codRemitted": false,
+  "codRemittedAt": null,
+  "incidentDetail": null,
+  "incidentReportedBy": null,
+  "incidentReportedAt": null,
   "createdAt": "2026-10-08T14:30:00Z",
-  "updatedAt": "2026-10-08T15:00:00Z"
+  "updatedAt": "2026-10-08T15:30:00Z"
 }
+```
+
+#### 400 Bad Request — Thiếu thông tin POD khi hoàn thành đơn
+```json
+{
+  "code": "MISSING_POD",
+  "message": "Thiếu ảnh hoặc tên người nhận hàng"
+}
+```
+
+#### 400 Bad Request — Lý do hủy ngắn hơn 5 ký tự
+```json
+{
+  "code": "INVALID_REASON",
+  "message": "Lý do hủy phải từ 5 ký tự trở lên"
+}
+```
+
+#### 400 Bad Request — Shipper được gán không hợp lệ (không tồn tại hoặc không phải role SHIPPER)
+```json
+{
+  "code": "INVALID_SHIPPER",
+  "message": "Shipper được gán không hợp lệ"
+}
+```
 ```
 *(Nếu chuyển sang `DELIVERED`, trường `deliveredAt` sẽ được server tự động gán thời điểm hiện tại).*
 
@@ -285,3 +339,128 @@ Lấy danh sách đơn hàng có phân trang. Đảm bảo cô lập dữ liệu
   "message": "Chưa xác thực người dùng"
 }
 ```
+
+---
+
+## 5. Quy Ước Field JSON Đơn 2 Giờ (is2h & deadline2h)
+
+- **Frontend Convention**: Đã hỗ trợ cả `is2h` / `is2H` và `deadline2h` / `deadline2H` trong kiểu `Order`.
+- **Backend Convention**: Go serialize ra định dạng `is2h` (boolean) và `deadline2h` (ISO string RFC3339 hoặc null).
+- **Quyết định chốt**: Giữ nguyên tính tương thích hai chiều — server xuất chuẩn `is2h` và `deadline2h`. Frontend không cần sửa đổi thêm.
+
+---
+
+## 6. GET /api/v1/shippers (Danh Sách Shipper & Tải Công Việc)
+
+Lấy danh sách tài khoản Shipper để điều phối phân công đơn hàng kèm số lượng đơn đang xử lý (`PACKING`, `SHIPPING`).
+
+- **Method**: `GET`
+- **Path**: `/api/v1/shippers?limit=50&offset=0`
+- **Auth Header**: `Authorization: Bearer <accessToken>`
+- **Roles được phép**: `MANAGER`, `ADMIN` (Role `CUSTOMER`, `SHIPPER` nhận `403 Forbidden`)
+- **Query Params**:
+  - `limit`: Số lượng (mặc định 50, tối đa 200)
+  - `offset`: Vị trí (mặc định 0)
+
+### Response Specs
+
+#### 200 OK — Trả về danh sách Shipper
+```json
+{
+  "data": [
+    {
+      "id": "9b642ca2-1a48-4330-95b8-d218841dafc5",
+      "full_name": "Nguyễn Văn Shipper",
+      "phone": "0912345678",
+      "active_order_count": 2
+    }
+  ],
+  "total": 1
+}
+```
+
+#### 403 Forbidden — Không có quyền truy cập
+```json
+{
+  "code": "FORBIDDEN",
+  "message": "Bạn không có quyền truy cập danh sách shipper"
+}
+```
+
+---
+
+## 7. POST & GET /api/v1/cod-settlements (Quyết Toán Tiền Mặt COD Cuối Ca)
+
+### 7.1. POST /api/v1/cod-settlements (Tạo Biên Bản Quyết Toán COD)
+
+Tạo biên bản nộp tiền COD về công ty cho danh sách các đơn đã hoàn tất giao hàng (`DELIVERED`) có phương thức `COD` và chưa nộp (`cod_remitted = false`).
+
+- **Method**: `POST`
+- **Path**: `/api/v1/cod-settlements`
+- **Auth Header**: `Authorization: Bearer <accessToken>`
+- **Roles được phép**:
+  - `SHIPPER`: Tự tạo quyết toán cho các đơn hàng của chính mình.
+  - `MANAGER`, `ADMIN`: Có thể tạo hộ quyết toán cho bất kỳ shipper nào (kèm `shipper_id` trong body).
+
+#### Request Body
+```json
+{
+  "order_ids": [
+    "e445091b-64d5-4556-9a2c-f6ebfe4f7063",
+    "8f8ef1ef-f604-4530-9df1-c88f1d8f5ef1"
+  ]
+}
+```
+*(Nếu Manager/Admin tạo hộ, gửi thêm `"shipper_id": "9b642ca2-1a48-4330-95b8-d218841dafc5"`)*
+
+#### Response Specs
+
+##### 201 Created — Quyết toán thành công
+```json
+{
+  "id": "c71a3298-2fb0-4e36-931f-0e12918843c0",
+  "shipper_id": "9b642ca2-1a48-4330-95b8-d218841dafc5",
+  "total_amount": 3500000,
+  "order_count": 2,
+  "created_at": "2026-10-08T18:00:00Z"
+}
+```
+*(Lưu ý bảo mật: `total_amount` do server tự tổng hợp từ `cod_collected` của các đơn hàng trong DB, client tuyệt đối không tự khai số tiền).*
+
+##### 400 Bad Request — Đơn hàng không hợp lệ để quyết toán
+```json
+{
+  "code": "INVALID_SETTLEMENT",
+  "message": "Đơn hàng không hợp lệ để quyết toán COD (phải là đơn DELIVERED, COD, chưa nộp tiền)"
+}
+```
+
+---
+
+### 7.2. GET /api/v1/cod-settlements (Lịch Sử Quyết Toán COD)
+
+- **Method**: `GET`
+- **Path**: `/api/v1/cod-settlements?limit=50&offset=0&shipper_id=<optional>`
+- **Auth Header**: `Authorization: Bearer <accessToken>`
+- **Roles được phép**:
+  - `SHIPPER`: Chỉ xem các biên bản quyết toán của chính mình.
+  - `MANAGER`, `ADMIN`: Xem tất cả biên bản (có thể lọc theo `?shipper_id=...`).
+
+#### Response Specs
+
+##### 200 OK — Trả về danh sách biên bản
+```json
+{
+  "data": [
+    {
+      "id": "c71a3298-2fb0-4e36-931f-0e12918843c0",
+      "shipper_id": "9b642ca2-1a48-4330-95b8-d218841dafc5",
+      "total_amount": 3500000,
+      "order_count": 2,
+      "created_at": "2026-10-08T18:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+

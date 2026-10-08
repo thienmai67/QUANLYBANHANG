@@ -119,9 +119,107 @@ type Order struct {
 	TotalAmount        float64     `json:"totalAmount" db:"total_amount"`
 	Status             OrderStatus `json:"status" db:"status"`
 	Version            int         `json:"version" db:"version"`
+
+	// Order metadata persistence (POD, COD, Incident)
+	PodPhotoURL        *string     `json:"podPhotoUrl,omitempty" db:"pod_photo_url"`
+	PodRecipientName   *string     `json:"podRecipientName,omitempty" db:"pod_recipient_name"`
+	PodConfirmedAt     *time.Time  `json:"podConfirmedAt,omitempty" db:"pod_confirmed_at"`
+	CODCollected       float64     `json:"codCollected" db:"cod_collected"`
+	CODRemitted        bool        `json:"codRemitted" db:"cod_remitted"`
+	CODRemittedAt      *time.Time  `json:"codRemittedAt,omitempty" db:"cod_remitted_at"`
+	IncidentDetail     *string     `json:"incidentDetail,omitempty" db:"incident_detail"`
+	IncidentReportedBy *uuid.UUID  `json:"incidentReportedBy,omitempty" db:"incident_reported_by"`
+	IncidentReportedAt *time.Time  `json:"incidentReportedAt,omitempty" db:"incident_reported_at"`
+
 	Items              []OrderItem `json:"items,omitempty" db:"-"`
 	CreatedAt          time.Time   `json:"createdAt" db:"created_at"`
 	UpdatedAt          time.Time   `json:"updatedAt" db:"updated_at"`
+}
+
+type UpdateOrderStatusRequest struct {
+	Status                string   `json:"status"`
+	Version               int      `json:"version"`
+	ShipperID             *string  `json:"shipper_id,omitempty"`
+	ShipperIDAlt          *string  `json:"shipperId,omitempty"`
+	CancellationReason    *string  `json:"cancellation_reason,omitempty"`
+	CancellationReasonAlt *string  `json:"cancellationReason,omitempty"`
+	IncidentDetail        *string  `json:"incident_detail,omitempty"`
+	IncidentDetailAlt     *string  `json:"incidentDetail,omitempty"`
+	PodPhotoURL           *string  `json:"pod_photo_url,omitempty"`
+	PodPhotoURLAlt        *string  `json:"podPhotoUrl,omitempty"`
+	PodRecipientName      *string  `json:"pod_recipient_name,omitempty"`
+	PodRecipientNameAlt   *string  `json:"podRecipientName,omitempty"`
+	CodCollected          *float64 `json:"cod_collected,omitempty"`
+	CodCollectedAlt       *float64 `json:"codCollected,omitempty"`
+}
+
+func (r *UpdateOrderStatusRequest) GetShipperID() *string {
+	if r.ShipperID != nil && *r.ShipperID != "" {
+		return r.ShipperID
+	}
+	if r.ShipperIDAlt != nil && *r.ShipperIDAlt != "" {
+		return r.ShipperIDAlt
+	}
+	return nil
+}
+
+func (r *UpdateOrderStatusRequest) GetCancellationReason() *string {
+	if r.CancellationReason != nil && *r.CancellationReason != "" {
+		return r.CancellationReason
+	}
+	if r.CancellationReasonAlt != nil && *r.CancellationReasonAlt != "" {
+		return r.CancellationReasonAlt
+	}
+	return nil
+}
+
+func (r *UpdateOrderStatusRequest) GetIncidentDetail() *string {
+	if r.IncidentDetail != nil && *r.IncidentDetail != "" {
+		return r.IncidentDetail
+	}
+	if r.IncidentDetailAlt != nil && *r.IncidentDetailAlt != "" {
+		return r.IncidentDetailAlt
+	}
+	return nil
+}
+
+func (r *UpdateOrderStatusRequest) GetPodPhotoURL() *string {
+	if r.PodPhotoURL != nil && *r.PodPhotoURL != "" {
+		return r.PodPhotoURL
+	}
+	if r.PodPhotoURLAlt != nil && *r.PodPhotoURLAlt != "" {
+		return r.PodPhotoURLAlt
+	}
+	return nil
+}
+
+func (r *UpdateOrderStatusRequest) GetPodRecipientName() *string {
+	if r.PodRecipientName != nil && *r.PodRecipientName != "" {
+		return r.PodRecipientName
+	}
+	if r.PodRecipientNameAlt != nil && *r.PodRecipientNameAlt != "" {
+		return r.PodRecipientNameAlt
+	}
+	return nil
+}
+
+func (r *UpdateOrderStatusRequest) GetCodCollected() *float64 {
+	if r.CodCollected != nil {
+		return r.CodCollected
+	}
+	return r.CodCollectedAlt
+}
+
+type CreateCODSettlementRequest struct {
+	OrderIDs []string `json:"order_ids"`
+}
+
+type CODSettlement struct {
+	ID          uuid.UUID `json:"id" db:"id"`
+	ShipperID   uuid.UUID `json:"shipper_id" db:"shipper_id"`
+	TotalAmount float64   `json:"total_amount" db:"total_amount"`
+	OrderCount  int       `json:"order_count" db:"order_count"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
 type ProductRepository interface {
@@ -134,6 +232,10 @@ type ProductRepository interface {
 	ListOrders(ctx context.Context, customerID *uuid.UUID, limit, offset int) ([]Order, error)
 	CreateOrder(ctx context.Context, order *Order) error
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, toStatus OrderStatus, expectedVersion int, actorRole UserRole, actorID uuid.UUID) (*Order, error)
+	UpdateOrderStatusWithDetails(ctx context.Context, orderID uuid.UUID, req UpdateOrderStatusRequest, actorRole UserRole, actorID uuid.UUID) (*Order, error)
+	CreateCODSettlement(ctx context.Context, shipperID uuid.UUID, orderIDs []uuid.UUID, actorRole UserRole, actorID uuid.UUID) (*CODSettlement, error)
+	ListCODSettlements(ctx context.Context, shipperID *uuid.UUID, limit, offset int) ([]CODSettlement, int, error)
+	ListShippers(ctx context.Context, limit, offset int) ([]ShipperSummary, int, error)
 	GetUnitConversion(ctx context.Context, fromUnitID, toUnitID uuid.UUID) (*UnitConversion, error)
 }
 

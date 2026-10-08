@@ -239,3 +239,113 @@ func TestOrderJSONSerialization(t *testing.T) {
 		t.Errorf("status mismatch: %s", restored.Status)
 	}
 }
+
+func TestOrderMetadataFields_Serialization(t *testing.T) {
+	orderID := uuid.New()
+	shipperID := uuid.New()
+	reporterID := uuid.New()
+	photoURL := "https://minio.local/pod/photo.jpg"
+	recipient := "Nguyen Van Nhan"
+	reason := "Khach doi y huy don"
+	incident := "Dia chi bi phong toa"
+	now := time.Now().UTC().Truncate(time.Second)
+
+	order := Order{
+		ID:                 orderID,
+		OrderNumber:        "ORD-261008-000001",
+		CustomerName:       "Cong Ty Dien Nuoc ABC",
+		ShipperID:          &shipperID,
+		TotalAmount:        1500000,
+		Status:             OrderStatusDelivered,
+		Version:            4,
+		PodPhotoURL:        &photoURL,
+		PodRecipientName:   &recipient,
+		PodConfirmedAt:     &now,
+		CODCollected:       1500000,
+		CODRemitted:        true,
+		CODRemittedAt:      &now,
+		CancellationReason: &reason,
+		IncidentDetail:     &incident,
+		IncidentReportedBy: &reporterID,
+		IncidentReportedAt: &now,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+
+	data, err := json.Marshal(order)
+	if err != nil {
+		t.Fatalf("failed to marshal order with metadata: %v", err)
+	}
+
+	var restored Order
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatalf("failed to unmarshal order with metadata: %v", err)
+	}
+
+	if restored.PodPhotoURL == nil || *restored.PodPhotoURL != photoURL {
+		t.Errorf("expected pod photo %s, got %v", photoURL, restored.PodPhotoURL)
+	}
+	if restored.CODCollected != 1500000 {
+		t.Errorf("expected cod collected 1500000, got %f", restored.CODCollected)
+	}
+	if !restored.CODRemitted {
+		t.Errorf("expected cod remitted to be true")
+	}
+}
+
+func TestUpdateOrderStatusRequest_FieldResolution(t *testing.T) {
+	// 1. JSON using snake_case
+	snakeJSON := `{
+		"status": "DELIVERED",
+		"version": 3,
+		"shipper_id": "s-111",
+		"cancellation_reason": "Ly do huy dai hon 5 ky tu",
+		"incident_detail": "Chi tiet su co",
+		"pod_photo_url": "https://img.local/pod.png",
+		"pod_recipient_name": "Nguyen Van A",
+		"cod_collected": 500000
+	}`
+
+	var reqSnake UpdateOrderStatusRequest
+	if err := json.Unmarshal([]byte(snakeJSON), &reqSnake); err != nil {
+		t.Fatalf("failed to unmarshal snakeJSON: %v", err)
+	}
+
+	if reqSnake.GetShipperID() == nil || *reqSnake.GetShipperID() != "s-111" {
+		t.Errorf("expected shipper_id s-111, got %v", reqSnake.GetShipperID())
+	}
+	if reqSnake.GetPodRecipientName() == nil || *reqSnake.GetPodRecipientName() != "Nguyen Van A" {
+		t.Errorf("expected pod recipient Nguyen Van A, got %v", reqSnake.GetPodRecipientName())
+	}
+	if reqSnake.GetCodCollected() == nil || *reqSnake.GetCodCollected() != 500000 {
+		t.Errorf("expected cod collected 500000, got %v", reqSnake.GetCodCollected())
+	}
+
+	// 2. JSON using camelCase
+	camelJSON := `{
+		"status": "DELIVERED",
+		"version": 3,
+		"shipperId": "s-222",
+		"cancellationReason": "Ly do huy dai hon 5 ky tu camel",
+		"incidentDetail": "Chi tiet camel",
+		"podPhotoUrl": "https://img.local/camel.png",
+		"podRecipientName": "Tran Van B",
+		"codCollected": 750000
+	}`
+
+	var reqCamel UpdateOrderStatusRequest
+	if err := json.Unmarshal([]byte(camelJSON), &reqCamel); err != nil {
+		t.Fatalf("failed to unmarshal camelJSON: %v", err)
+	}
+
+	if reqCamel.GetShipperID() == nil || *reqCamel.GetShipperID() != "s-222" {
+		t.Errorf("expected shipperId s-222, got %v", reqCamel.GetShipperID())
+	}
+	if reqCamel.GetPodRecipientName() == nil || *reqCamel.GetPodRecipientName() != "Tran Van B" {
+		t.Errorf("expected pod recipient Tran Van B, got %v", reqCamel.GetPodRecipientName())
+	}
+	if reqCamel.GetCodCollected() == nil || *reqCamel.GetCodCollected() != 750000 {
+		t.Errorf("expected cod collected 750000, got %v", reqCamel.GetCodCollected())
+	}
+}
+

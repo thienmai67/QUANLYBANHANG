@@ -75,7 +75,17 @@ func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.P
 			r.Use(authMiddleware.RequireAuth)
 			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager))
 
+			r.Get("/shippers", productHandler.ListShippers)
 			r.Get("/admin/orders", productHandler.ListOrders)
+		})
+
+		// COD Settlement APIs (MANAGER, ADMIN, SHIPPER)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth)
+			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper))
+
+			r.Post("/cod-settlements", productHandler.CreateCODSettlement)
+			r.Get("/cod-settlements", productHandler.ListCODSettlements)
 		})
 	})
 

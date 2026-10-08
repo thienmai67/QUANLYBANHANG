@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -145,15 +146,37 @@ func (m *mockProductRepo) ListOrders(ctx context.Context, customerID *uuid.UUID,
 }
 
 func (m *mockProductRepo) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, toStatus domain.OrderStatus, expectedVersion int, actorRole domain.UserRole, actorID uuid.UUID) (*domain.Order, error) {
+	req := domain.UpdateOrderStatusRequest{
+		Status:  string(toStatus),
+		Version: expectedVersion,
+	}
+	return m.UpdateOrderStatusWithDetails(ctx, orderID, req, actorRole, actorID)
+}
+
+func (m *mockProductRepo) UpdateOrderStatusWithDetails(ctx context.Context, orderID uuid.UUID, req domain.UpdateOrderStatusRequest, actorRole domain.UserRole, actorID uuid.UUID) (*domain.Order, error) {
 	m.Lock()
 	defer m.Unlock()
+	toStatus := domain.OrderStatus(req.Status)
 	for i, o := range m.orders {
 		if o.ID == orderID {
-			if o.Version != expectedVersion {
+			if o.Version != req.Version {
 				return nil, domain.ErrVersionConflict
 			}
 			if toStatus == domain.OrderStatusDelivered && o.Status == domain.OrderStatusPending {
 				return nil, domain.ErrInvalidTransition
+			}
+			if toStatus == domain.OrderStatusCancelled {
+				reason := req.GetCancellationReason()
+				if reason == nil || len(strings.TrimSpace(*reason)) < 5 {
+					return nil, domain.ErrInvalidReason
+				}
+			}
+			if toStatus == domain.OrderStatusDelivered {
+				rec := req.GetPodRecipientName()
+				photo := req.GetPodPhotoURL()
+				if rec == nil || strings.TrimSpace(*rec) == "" || photo == nil || strings.TrimSpace(*photo) == "" {
+					return nil, domain.ErrMissingPOD
+				}
 			}
 			if actorRole == domain.RoleShipper {
 				if o.ShipperID == nil || *o.ShipperID != actorID {
@@ -167,6 +190,35 @@ func (m *mockProductRepo) UpdateOrderStatus(ctx context.Context, orderID uuid.UU
 		}
 	}
 	return nil, domain.ErrOrderNotFound
+}
+
+func (m *mockProductRepo) CreateCODSettlement(ctx context.Context, shipperID uuid.UUID, orderIDs []uuid.UUID, actorRole domain.UserRole, actorID uuid.UUID) (*domain.CODSettlement, error) {
+	if len(orderIDs) == 0 {
+		return nil, domain.ErrInvalidCODSettlement
+	}
+	return &domain.CODSettlement{
+		ID:          uuid.New(),
+		ShipperID:   shipperID,
+		TotalAmount: 100000,
+		OrderCount:  len(orderIDs),
+		CreatedAt:   time.Now(),
+	}, nil
+}
+
+func (m *mockProductRepo) ListCODSettlements(ctx context.Context, shipperID *uuid.UUID, limit, offset int) ([]domain.CODSettlement, int, error) {
+	return []domain.CODSettlement{}, 0, nil
+}
+
+func (m *mockProductRepo) ListShippers(ctx context.Context, limit, offset int) ([]domain.ShipperSummary, int, error) {
+	phone := "0912345678"
+	return []domain.ShipperSummary{
+		{
+			ID:               uuid.New(),
+			FullName:         "Test Shipper",
+			Phone:            &phone,
+			ActiveOrderCount: 0,
+		},
+	}, 1, nil
 }
 
 func (m *mockProductRepo) CreateOrder(ctx context.Context, order *domain.Order) error {
