@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -42,7 +43,7 @@ func main() {
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "tdt-me-platform-jwt-secret-key-change-in-prod"
+		log.Fatal("JWT_SECRET is required")
 	}
 
 	productRepo := repository.NewProductRepository(db)
@@ -66,7 +67,7 @@ func main() {
 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Accept", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
@@ -80,6 +81,7 @@ func main() {
 			// Public Local Auth
 			r.Post("/register", authHandler.HandleRegister)
 			r.Post("/login", authHandler.HandleLogin)
+			r.Post("/refresh", authHandler.HandleRefreshToken)
 			
 			// SSO Google
 			r.Route("/google", func(r chi.Router) {
@@ -101,6 +103,13 @@ func main() {
 			r.Use(authMiddleware.RequireAuth)
 			r.Post("/orders", productHandler.CreateOrder)
 			r.Get("/orders", productHandler.ListOrders)
+		})
+
+		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth)
+			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper))
+			r.Patch("/orders/{id}/status", productHandler.UpdateOrderStatus)
 		})
 
 		// Manager / Admin Protected Endpoints

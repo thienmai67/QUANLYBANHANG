@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
 )
@@ -43,6 +44,22 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 
 	var user domain.User
 	if err := r.db.GetContext(ctx, &user, query, email); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	const query = `
+		SELECT id, email, full_name, avatar_url, google_id, password_hash, role, auth_provider, created_at, updated_at
+		FROM me_supplies.users
+		WHERE id = $1`
+
+	var user domain.User
+	if err := r.db.GetContext(ctx, &user, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrUserNotFound
 		}

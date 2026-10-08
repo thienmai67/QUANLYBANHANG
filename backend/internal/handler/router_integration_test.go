@@ -41,6 +41,7 @@ func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.P
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", authHandler.HandleRegister)
 			r.Post("/login", authHandler.HandleLogin)
+			r.Post("/refresh", authHandler.HandleRefreshToken)
 			r.Route("/google", func(r chi.Router) {
 				r.Get("/login", ssoHandler.HandleGoogleLogin)
 				r.Get("/callback", ssoHandler.HandleGoogleCallback)
@@ -60,6 +61,13 @@ func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.P
 			r.Use(authMiddleware.RequireAuth)
 			r.Post("/orders", productHandler.CreateOrder)
 			r.Get("/orders", productHandler.ListOrders)
+		})
+
+		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth)
+			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper))
+			r.Patch("/orders/{id}/status", productHandler.UpdateOrderStatus)
 		})
 
 		// Manager / Admin Protected Endpoints
@@ -257,12 +265,13 @@ func TestRouterIntegration_Orders_RBAC(t *testing.T) {
 	jwtSvc := auth.NewJWTService("integration-test-secret-123456")
 	router := buildIntegrationRouter(userRepo, prodRepo, jwtSvc)
 
-	// Generate tokens for different roles
-	custToken, _ := jwtSvc.GenerateTokenPair(&domain.User{
+	custUser := &domain.User{
 		ID:    uuid.New(),
 		Email: "cust_order@tdt.vn",
 		Role:  domain.RoleCustomer,
-	})
+	}
+	_ = userRepo.CreateUser(context.Background(), custUser)
+	custToken, _ := jwtSvc.GenerateTokenPair(custUser)
 
 	shipperToken, _ := jwtSvc.GenerateTokenPair(&domain.User{
 		ID:    uuid.New(),
@@ -402,6 +411,51 @@ func TestRouterIntegration_Orders_RBAC(t *testing.T) {
 		router.ServeHTTP(rr, req)
 		if rr.Code != http.StatusOK {
 			t.Fatalf("expected 200 when Admin accesses admin orders, got %d", rr.Code)
+		}
+	}
+
+	// 10. POST /api/v1/auth/refresh exists and verifies refresh token
+	{
+		refreshBody, _ := json.Marshal(map[string]string{"refreshToken": custToken.RefreshToken})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(refreshBody))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200 on /api/v1/auth/refresh, got %d: %s", rr.Code, rr.Body.String())
+		}
+	}
+
+	// 11. PATCH /api/v1/orders/{id}/status: Customer forbidden (403), Manager allowed (200)
+	{
+		testOrderID := uuid.New()
+		prodRepo.orders = append(prodRepo.orders, domain.Order{
+			ID:      testOrderID,
+			Status:  domain.OrderStatusPending,
+			Version: 1,
+		})
+
+		patchBody, _ := json.Marshal(map[string]any{"status": "PACKING", "version": 1})
+
+		// Customer attempt -> 403 Forbidden
+		reqCust := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/orders/%s/status", testOrderID), bytes.NewReader(patchBody))
+		reqCust.Header.Set("Authorization", "Bearer "+custToken.AccessToken)
+		reqCust.Header.Set("Content-Type", "application/json")
+		rrCust := httptest.NewRecorder()
+		router.ServeHTTP(rrCust, reqCust)
+		if rrCust.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 when Customer calls PATCH status, got %d", rrCust.Code)
+		}
+
+		// Manager attempt -> 200 OK
+		reqMgr := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/orders/%s/status", testOrderID), bytes.NewReader(patchBody))
+		reqMgr.Header.Set("Authorization", "Bearer "+managerToken.AccessToken)
+		reqMgr.Header.Set("Content-Type", "application/json")
+		rrMgr := httptest.NewRecorder()
+		router.ServeHTTP(rrMgr, reqMgr)
+		if rrMgr.Code != http.StatusOK {
+			t.Fatalf("expected 200 when Manager calls PATCH status, got %d: %s", rrMgr.Code, rrMgr.Body.String())
 		}
 	}
 }

@@ -122,20 +122,51 @@ func (m *mockProductRepo) ListCategories(ctx context.Context) ([]domain.Category
 	return m.categories, nil
 }
 
-func (m *mockProductRepo) ListOrders(ctx context.Context, limit, offset int) ([]domain.Order, error) {
+func (m *mockProductRepo) ListOrders(ctx context.Context, customerID *uuid.UUID, limit, offset int) ([]domain.Order, error) {
 	m.Lock()
 	defer m.Unlock()
 	if m.listOrdersErr != nil {
 		return nil, m.listOrdersErr
 	}
-	if offset >= len(m.orders) {
+	var filtered []domain.Order
+	for _, o := range m.orders {
+		if customerID == nil || (o.CustomerID != nil && *o.CustomerID == *customerID) {
+			filtered = append(filtered, o)
+		}
+	}
+	if offset >= len(filtered) {
 		return []domain.Order{}, nil
 	}
 	end := offset + limit
-	if end > len(m.orders) {
-		end = len(m.orders)
+	if end > len(filtered) {
+		end = len(filtered)
 	}
-	return m.orders[offset:end], nil
+	return filtered[offset:end], nil
+}
+
+func (m *mockProductRepo) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, toStatus domain.OrderStatus, expectedVersion int, actorRole domain.UserRole, actorID uuid.UUID) (*domain.Order, error) {
+	m.Lock()
+	defer m.Unlock()
+	for i, o := range m.orders {
+		if o.ID == orderID {
+			if o.Version != expectedVersion {
+				return nil, domain.ErrVersionConflict
+			}
+			if toStatus == domain.OrderStatusDelivered && o.Status == domain.OrderStatusPending {
+				return nil, domain.ErrInvalidTransition
+			}
+			if actorRole == domain.RoleShipper {
+				if o.ShipperID == nil || *o.ShipperID != actorID {
+					return nil, domain.ErrForbidden
+				}
+			}
+			m.orders[i].Status = toStatus
+			m.orders[i].Version++
+			res := m.orders[i]
+			return &res, nil
+		}
+	}
+	return nil, domain.ErrOrderNotFound
 }
 
 func (m *mockProductRepo) CreateOrder(ctx context.Context, order *domain.Order) error {
@@ -143,6 +174,21 @@ func (m *mockProductRepo) CreateOrder(ctx context.Context, order *domain.Order) 
 	defer m.Unlock()
 	if m.createOrderErr != nil {
 		return m.createOrderErr
+	}
+	order.Status = domain.OrderStatusPending
+	if order.OrderNumber == "" {
+		order.OrderNumber = fmt.Sprintf("ORD-%s", uuid.New().String()[:8])
+	}
+	if len(m.products) > 0 {
+		var sum float64
+		for _, it := range order.Items {
+			if prod, exists := m.products[it.ProductID]; exists {
+				sum += float64(it.Quantity) * prod.BasePrice
+			} else {
+				sum += float64(it.Quantity) * it.UnitPrice
+			}
+		}
+		order.TotalAmount = sum
 	}
 	m.orders = append(m.orders, *order)
 	return nil
@@ -614,7 +660,7 @@ func TestListOrders_Success(t *testing.T) {
 			OrderNumber:  "ORD-002",
 			CustomerName: "Customer B",
 			TotalAmount:  2500000,
-			Status:       domain.OrderStatusConfirmed,
+			Status:       domain.OrderStatusPacking,
 		},
 	}
 

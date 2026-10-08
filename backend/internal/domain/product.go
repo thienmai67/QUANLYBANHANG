@@ -30,11 +30,11 @@ const (
 type OrderStatus string
 
 const (
-	OrderStatusPending    OrderStatus = "PENDING"
-	OrderStatusConfirmed  OrderStatus = "CONFIRMED"
-	OrderStatusShipped    OrderStatus = "SHIPPED"
-	OrderStatusDelivered  OrderStatus = "DELIVERED"
-	OrderStatusCancelled  OrderStatus = "CANCELLED"
+	OrderStatusPending   OrderStatus = "PENDING"
+	OrderStatusPacking   OrderStatus = "PACKING"
+	OrderStatusShipping  OrderStatus = "SHIPPING"
+	OrderStatusDelivered OrderStatus = "DELIVERED"
+	OrderStatusCancelled OrderStatus = "CANCELLED"
 )
 
 type Category struct {
@@ -106,14 +106,22 @@ type OrderItem struct {
 }
 
 type Order struct {
-	ID              uuid.UUID    `json:"id" db:"id"`
-	OrderNumber     string       `json:"orderNumber" db:"order_number"`
-	CustomerName    string       `json:"customerName" db:"customer_name"`
-	TotalAmount     float64      `json:"totalAmount" db:"total_amount"`
-	Status          OrderStatus  `json:"status" db:"status"`
-	Items           []OrderItem  `json:"items,omitempty" db:"-"`
-	CreatedAt       time.Time    `json:"createdAt" db:"created_at"`
-	UpdatedAt       time.Time    `json:"updatedAt" db:"updated_at"`
+	ID                 uuid.UUID   `json:"id" db:"id"`
+	OrderNumber        string      `json:"orderNumber" db:"order_number"`
+	CustomerID         *uuid.UUID  `json:"customerId,omitempty" db:"customer_id"`
+	CustomerName       string      `json:"customerName" db:"customer_name"`
+	ShipperID          *uuid.UUID  `json:"shipperId,omitempty" db:"shipper_id"`
+	PaymentMethod      *string     `json:"paymentMethod,omitempty" db:"payment_method"`
+	Is2H               bool        `json:"is2h" db:"is_2h"`
+	Deadline2H         *time.Time  `json:"deadline2h,omitempty" db:"deadline_2h"`
+	DeliveredAt        *time.Time  `json:"deliveredAt,omitempty" db:"delivered_at"`
+	CancellationReason *string     `json:"cancellationReason,omitempty" db:"cancellation_reason"`
+	TotalAmount        float64     `json:"totalAmount" db:"total_amount"`
+	Status             OrderStatus `json:"status" db:"status"`
+	Version            int         `json:"version" db:"version"`
+	Items              []OrderItem `json:"items,omitempty" db:"-"`
+	CreatedAt          time.Time   `json:"createdAt" db:"created_at"`
+	UpdatedAt          time.Time   `json:"updatedAt" db:"updated_at"`
 }
 
 type ProductRepository interface {
@@ -123,8 +131,9 @@ type ProductRepository interface {
 	ListUnits(ctx context.Context) ([]Unit, error)
 	ListBrands(ctx context.Context) ([]Brand, error)
 	ListCategories(ctx context.Context) ([]Category, error)
-	ListOrders(ctx context.Context, limit, offset int) ([]Order, error)
+	ListOrders(ctx context.Context, customerID *uuid.UUID, limit, offset int) ([]Order, error)
 	CreateOrder(ctx context.Context, order *Order) error
+	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, toStatus OrderStatus, expectedVersion int, actorRole UserRole, actorID uuid.UUID) (*Order, error)
 	GetUnitConversion(ctx context.Context, fromUnitID, toUnitID uuid.UUID) (*UnitConversion, error)
 }
 

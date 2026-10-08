@@ -78,6 +78,39 @@ func (s *JWTService) ValidateClaims(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
+func (s *JWTService) ValidateRefreshToken(tokenString string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return s.secret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, errors.New("invalid token claims")
+	}
+
+	if claims.Issuer != "tdt-me-platform" {
+		return nil, errors.New("invalid token issuer")
+	}
+
+	hasRefreshAud := false
+	for _, aud := range claims.Audience {
+		if aud == "refresh" {
+			hasRefreshAud = true
+			break
+		}
+	}
+	if !hasRefreshAud {
+		return nil, errors.New("invalid token audience: expected refresh token")
+	}
+
+	return claims, nil
+}
+
 func (s *JWTService) sign(user *domain.User, ttl time.Duration, audience string) (string, error) {
 	now := time.Now()
 	claims := Claims{

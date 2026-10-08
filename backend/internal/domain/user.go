@@ -58,5 +58,6 @@ type TokenPair struct {
 type UserRepository interface {
 	UpsertGoogleUser(ctx context.Context, info *GoogleUserInfo) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	CreateUser(ctx context.Context, user *User) error
 }

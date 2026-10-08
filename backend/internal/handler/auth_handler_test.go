@@ -77,6 +77,17 @@ func (m *mockUserRepo) FindByEmail(ctx context.Context, email string) (*domain.U
 	return user, nil
 }
 
+func (m *mockUserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	m.Lock()
+	defer m.Unlock()
+	for _, u := range m.users {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+	return nil, domain.ErrUserNotFound
+}
+
 func (m *mockUserRepo) CreateUser(ctx context.Context, user *domain.User) error {
 	m.Lock()
 	defer m.Unlock()

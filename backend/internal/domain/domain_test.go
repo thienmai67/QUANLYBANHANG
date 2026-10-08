@@ -37,8 +37,8 @@ func TestAuthProviders(t *testing.T) {
 func TestOrderStatuses(t *testing.T) {
 	expectedStatuses := map[OrderStatus]string{
 		OrderStatusPending:   "PENDING",
-		OrderStatusConfirmed: "CONFIRMED",
-		OrderStatusShipped:   "SHIPPED",
+		OrderStatusPacking:   "PACKING",
+		OrderStatusShipping:  "SHIPPING",
 		OrderStatusDelivered: "DELIVERED",
 		OrderStatusCancelled: "CANCELLED",
 	}
@@ -94,6 +94,18 @@ func TestDomainErrors(t *testing.T) {
 	}
 	if ErrUserNotFound.Error() != "user not found" {
 		t.Errorf("unexpected ErrUserNotFound message: %s", ErrUserNotFound.Error())
+	}
+	if ErrOrderNotFound.Error() != "order not found" {
+		t.Errorf("unexpected ErrOrderNotFound message: %s", ErrOrderNotFound.Error())
+	}
+	if ErrInvalidTransition.Error() != "invalid order status transition" {
+		t.Errorf("unexpected ErrInvalidTransition message: %s", ErrInvalidTransition.Error())
+	}
+	if ErrVersionConflict.Error() != "version conflict" {
+		t.Errorf("unexpected ErrVersionConflict message: %s", ErrVersionConflict.Error())
+	}
+	if ErrForbidden.Error() != "forbidden: insufficient permissions" {
+		t.Errorf("unexpected ErrForbidden message: %s", ErrForbidden.Error())
 	}
 }
 

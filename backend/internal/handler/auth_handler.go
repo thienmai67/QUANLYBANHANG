@@ -48,10 +48,17 @@ type RegisterRequest struct {
 	FullName string `json:"fullName"`
 }
 
-func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
+func writeJSONError(w http.ResponseWriter, statusCode int, message string, code ...string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{"message": message})
+	errCode := http.StatusText(statusCode)
+	if len(code) > 0 && code[0] != "" {
+		errCode = code[0]
+	}
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": message,
+		"code":    errCode,
+	})
 }
 
 func isRateLimited(email string) bool {
@@ -226,3 +233,53 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 }
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+func (h *AuthHandler) HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req RefreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Dữ liệu yêu cầu không hợp lệ", "INVALID_REQUEST")
+		return
+	}
+
+	tokenStr := strings.TrimSpace(req.RefreshToken)
+	if tokenStr == "" {
+		writeJSONError(w, http.StatusBadRequest, "Vui lòng cung cấp refreshToken", "INVALID_REQUEST")
+		return
+	}
+
+	claims, err := h.jwtService.ValidateRefreshToken(tokenStr)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "Token không hợp lệ hoặc đã hết hạn", "UNAUTHORIZED")
+		return
+	}
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "Token không hợp lệ", "UNAUTHORIZED")
+		return
+	}
+
+	user, err := h.userRepo.FindByID(r.Context(), userID)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "Người dùng không tồn tại", "UNAUTHORIZED")
+		return
+	}
+
+	tokenPair, err := h.jwtService.GenerateTokenPair(user)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Không thể tạo phiên đăng nhập mới", "INTERNAL_ERROR")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"accessToken":  tokenPair.AccessToken,
+		"refreshToken": tokenPair.RefreshToken,
+		"expiresIn":    tokenPair.ExpiresIn,
+	})
+}
+

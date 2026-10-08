@@ -212,7 +212,7 @@ func TestProductRepository_OrderLifecycle(t *testing.T) {
 	})
 
 	// ListOrders and find created order
-	orders, err := repo.ListOrders(ctx, 20, 0)
+	orders, err := repo.ListOrders(ctx, nil, 20, 0)
 	if err != nil {
 		t.Fatalf("failed to list orders: %v", err)
 	}
