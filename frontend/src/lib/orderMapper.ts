@@ -189,7 +189,7 @@ export function mapOrderFromApi(raw: any): Order {
 
 /**
  * mapShipperSummary: Maps GET /api/v1/shippers list item.
- * Contract: { id, full_name, phone, active_order_count }
+ * Contract: { id, fullName, phone, activeOrderCount }
  */
 export function mapShipperSummary(raw: any): ShipperSummary {
   if (!raw || typeof raw !== 'object') {
@@ -203,20 +203,18 @@ export function mapShipperSummary(raw: any): ShipperSummary {
 
   return {
     id: raw.id || '',
-    fullName: raw.fullName || raw.full_name || '',
+    fullName: raw.fullName || '',
     phone: raw.phone || undefined,
     activeOrderCount:
       typeof raw.activeOrderCount === 'number'
         ? raw.activeOrderCount
-        : typeof raw.active_order_count === 'number'
-        ? raw.active_order_count
         : 0,
   };
 }
 
 /**
  * mapCODSettlement: Maps POST / GET /api/v1/cod-settlements responses.
- * Contract: { id, shipper_id, total_amount, order_count, created_at }
+ * Contract: { id, shipperId, totalAmount, orderCount, createdAt }
  */
 export function mapCODSettlement(raw: any): CODSettlement {
   if (!raw || typeof raw !== 'object') {
@@ -231,20 +229,16 @@ export function mapCODSettlement(raw: any): CODSettlement {
 
   return {
     id: raw.id || '',
-    shipperId: raw.shipperId || raw.shipper_id || '',
+    shipperId: raw.shipperId || '',
     totalAmount:
       typeof raw.totalAmount === 'number'
         ? Math.round(raw.totalAmount)
-        : typeof raw.total_amount === 'number'
-        ? Math.round(raw.total_amount)
         : 0,
     orderCount:
       typeof raw.orderCount === 'number'
         ? raw.orderCount
-        : typeof raw.order_count === 'number'
-        ? raw.order_count
         : 0,
-    createdAt: raw.createdAt || raw.created_at || new Date().toISOString(),
+    createdAt: raw.createdAt || new Date().toISOString(),
   };
 }
 

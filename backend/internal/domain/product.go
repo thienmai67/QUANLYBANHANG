@@ -215,11 +215,11 @@ type CreateCODSettlementRequest struct {
 }
 
 type CODSettlement struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	ShipperID   uuid.UUID `json:"shipper_id" db:"shipper_id"`
-	TotalAmount float64   `json:"total_amount" db:"total_amount"`
-	OrderCount  int       `json:"order_count" db:"order_count"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ID          uuid.UUID `json:"id"          db:"id"`
+	ShipperID   uuid.UUID `json:"shipperId"   db:"shipper_id"`
+	TotalAmount float64   `json:"totalAmount" db:"total_amount"`
+	OrderCount  int       `json:"orderCount"  db:"order_count"`
+	CreatedAt   time.Time `json:"createdAt"   db:"created_at"`
 }
 
 type ProductRepository interface {

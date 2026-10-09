@@ -130,12 +130,12 @@ describe('orderMapper - Centralized DTO Mapping & Contract Compliance', () => {
   });
 
   describe('mapShipperSummary', () => {
-    it('maps snake_case backend shipper response to camelCase ShipperSummary', () => {
+    it('maps pure camelCase backend shipper response to ShipperSummary', () => {
       const raw = {
         id: '9b642ca2-1a48-4330-95b8-d218841dafc5',
-        full_name: 'Nguyễn Văn Shipper',
+        fullName: 'Nguyễn Văn Shipper',
         phone: '0912345678',
-        active_order_count: 3,
+        activeOrderCount: 3,
       };
 
       const mapped = mapShipperSummary(raw);
@@ -164,13 +164,13 @@ describe('orderMapper - Centralized DTO Mapping & Contract Compliance', () => {
   });
 
   describe('mapCODSettlement', () => {
-    it('maps snake_case server settlement to camelCase CODSettlement with integer rounding', () => {
+    it('maps pure camelCase server settlement to CODSettlement with integer rounding', () => {
       const raw = {
         id: 'c71a3298-2fb0-4e36-931f-0e12918843c0',
-        shipper_id: '9b642ca2-1a48-4330-95b8-d218841dafc5',
-        total_amount: 3500000.75,
-        order_count: 2,
-        created_at: '2026-10-08T18:00:00Z',
+        shipperId: '9b642ca2-1a48-4330-95b8-d218841dafc5',
+        totalAmount: 3500000.75,
+        orderCount: 2,
+        createdAt: '2026-10-08T18:00:00Z',
       };
 
       const mapped = mapCODSettlement(raw);

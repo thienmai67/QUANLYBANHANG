@@ -311,8 +311,27 @@ func (h *Handler) ListShippers(w http.ResponseWriter, req *http.Request) {
 }
 
 type CreateCODSettlementRequestBody struct {
-	OrderIDs  []string `json:"order_ids"`
-	ShipperID *string  `json:"shipper_id,omitempty"`
+	OrderIDs     []string `json:"order_ids"`
+	OrderIDsAlt  []string `json:"orderIds,omitempty"`
+	ShipperID    *string  `json:"shipper_id,omitempty"`
+	ShipperIDAlt *string  `json:"shipperId,omitempty"`
+}
+
+func (r *CreateCODSettlementRequestBody) GetOrderIDs() []string {
+	if len(r.OrderIDs) > 0 {
+		return r.OrderIDs
+	}
+	return r.OrderIDsAlt
+}
+
+func (r *CreateCODSettlementRequestBody) GetShipperID() *string {
+	if r.ShipperID != nil && *r.ShipperID != "" {
+		return r.ShipperID
+	}
+	if r.ShipperIDAlt != nil && *r.ShipperIDAlt != "" {
+		return r.ShipperIDAlt
+	}
+	return nil
 }
 
 func (h *Handler) CreateCODSettlement(w http.ResponseWriter, req *http.Request) {
@@ -334,7 +353,8 @@ func (h *Handler) CreateCODSettlement(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	if len(reqBody.OrderIDs) == 0 {
+	rawOrderIDs := reqBody.GetOrderIDs()
+	if len(rawOrderIDs) == 0 {
 		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Danh sách đơn hàng không được để trống")
 		return
 	}
@@ -343,8 +363,9 @@ func (h *Handler) CreateCODSettlement(w http.ResponseWriter, req *http.Request) 
 	if claims.Role == domain.RoleShipper {
 		targetShipperID = actorID
 	} else if claims.Role == domain.RoleManager || claims.Role == domain.RoleAdmin {
-		if reqBody.ShipperID != nil && *reqBody.ShipperID != "" {
-			parsedID, err := uuid.Parse(*reqBody.ShipperID)
+		shipperIDPtr := reqBody.GetShipperID()
+		if shipperIDPtr != nil && *shipperIDPtr != "" {
+			parsedID, err := uuid.Parse(*shipperIDPtr)
 			if err != nil {
 				writeAPIError(w, http.StatusBadRequest, "INVALID_SHIPPER", "ID shipper không hợp lệ")
 				return
@@ -359,8 +380,8 @@ func (h *Handler) CreateCODSettlement(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	orderUUIDs := make([]uuid.UUID, 0, len(reqBody.OrderIDs))
-	for _, idStr := range reqBody.OrderIDs {
+	orderUUIDs := make([]uuid.UUID, 0, len(rawOrderIDs))
+	for _, idStr := range rawOrderIDs {
 		u, err := uuid.Parse(idStr)
 		if err != nil {
 			writeAPIError(w, http.StatusBadRequest, "INVALID_ORDER_ID", "ID đơn hàng không hợp lệ")
@@ -416,6 +437,9 @@ func (h *Handler) ListCODSettlements(w http.ResponseWriter, req *http.Request) {
 		targetShipperID = &actorID
 	} else if claims.Role == domain.RoleManager || claims.Role == domain.RoleAdmin {
 		filterShipperStr := req.URL.Query().Get("shipper_id")
+		if filterShipperStr == "" {
+			filterShipperStr = req.URL.Query().Get("shipperId")
+		}
 		if filterShipperStr != "" {
 			parsedID, err := uuid.Parse(filterShipperStr)
 			if err != nil {

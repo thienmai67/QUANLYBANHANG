@@ -43,9 +43,9 @@ type User struct {
 
 type ShipperSummary struct {
 	ID               uuid.UUID `json:"id"                 db:"id"`
-	FullName         string    `json:"full_name"          db:"full_name"`
+	FullName         string    `json:"fullName"           db:"full_name"`
 	Phone            *string   `json:"phone,omitempty"    db:"phone"`
-	ActiveOrderCount int       `json:"active_order_count" db:"active_order_count"`
+	ActiveOrderCount int       `json:"activeOrderCount"   db:"active_order_count"`
 }
 
 // GoogleUserInfo là payload trả về từ Google userinfo endpoint.

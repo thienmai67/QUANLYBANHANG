@@ -370,9 +370,9 @@ Lấy danh sách tài khoản Shipper để điều phối phân công đơn hà
   "data": [
     {
       "id": "9b642ca2-1a48-4330-95b8-d218841dafc5",
-      "full_name": "Nguyễn Văn Shipper",
+      "fullName": "Nguyễn Văn Shipper",
       "phone": "0912345678",
-      "active_order_count": 2
+      "activeOrderCount": 2
     }
   ],
   "total": 1
@@ -419,13 +419,13 @@ Tạo biên bản nộp tiền COD về công ty cho danh sách các đơn đã 
 ```json
 {
   "id": "c71a3298-2fb0-4e36-931f-0e12918843c0",
-  "shipper_id": "9b642ca2-1a48-4330-95b8-d218841dafc5",
-  "total_amount": 3500000,
-  "order_count": 2,
-  "created_at": "2026-10-08T18:00:00Z"
+  "shipperId": "9b642ca2-1a48-4330-95b8-d218841dafc5",
+  "totalAmount": 3500000,
+  "orderCount": 2,
+  "createdAt": "2026-10-08T18:00:00Z"
 }
 ```
-*(Lưu ý bảo mật: `total_amount` do server tự tổng hợp từ `cod_collected` của các đơn hàng trong DB, client tuyệt đối không tự khai số tiền).*
+*(Lưu ý bảo mật: `totalAmount` do server tự tổng hợp từ `codCollected` của các đơn hàng trong DB, client tuyệt đối không tự khai số tiền).*
 
 ##### 400 Bad Request — Đơn hàng không hợp lệ để quyết toán
 ```json
@@ -454,10 +454,10 @@ Tạo biên bản nộp tiền COD về công ty cho danh sách các đơn đã 
   "data": [
     {
       "id": "c71a3298-2fb0-4e36-931f-0e12918843c0",
-      "shipper_id": "9b642ca2-1a48-4330-95b8-d218841dafc5",
-      "total_amount": 3500000,
-      "order_count": 2,
-      "created_at": "2026-10-08T18:00:00Z"
+      "shipperId": "9b642ca2-1a48-4330-95b8-d218841dafc5",
+      "totalAmount": 3500000,
+      "orderCount": 2,
+      "createdAt": "2026-10-08T18:00:00Z"
     }
   ],
   "total": 1
