@@ -12,10 +12,12 @@ import { OrderCountdownBadge } from '@/components/manager/OrderCountdownBadge';
 import { OrderDetailModal } from '@/components/manager/OrderDetailModal';
 import { ShipperAssignModal } from '@/components/manager/ShipperAssignModal';
 import { CancelOrderModal } from '@/components/manager/CancelOrderModal';
+import { CodSettlementListModal } from '@/components/manager/CodSettlementListModal';
 import {
   Search,
   Zap,
   FileSpreadsheet,
+  Banknote,
   CheckCircle,
   Truck,
   Package,
@@ -67,6 +69,7 @@ function OrdersManagementContent() {
 
   const [cancelTargetOrder, setCancelTargetOrder] = useState<Order | null>(null);
   const [isCancelOpen, setIsCancelOpen] = useState<boolean>(false);
+  const [isCodListOpen, setIsCodListOpen] = useState<boolean>(false);
 
   const [exporting, setExporting] = useState<boolean>(false);
 
@@ -193,8 +196,18 @@ function OrdersManagementContent() {
           </p>
         </div>
 
-        {/* Export Excel Button */}
+        {/* Header Action Buttons */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsCodListOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 transition-all"
+            title="Xem danh sách các biên bản quyết toán COD cuối ca"
+          >
+            <Banknote className="w-4 h-4" />
+            <span>Sổ Quyết Toán COD</span>
+          </button>
+
           <button
             type="button"
             onClick={handleExportExcel}
@@ -647,6 +660,11 @@ function OrdersManagementContent() {
         order={cancelTargetOrder}
         isOpen={isCancelOpen}
         onClose={() => setIsCancelOpen(false)}
+      />
+
+      <CodSettlementListModal
+        isOpen={isCodListOpen}
+        onClose={() => setIsCodListOpen(false)}
       />
     </div>
   );

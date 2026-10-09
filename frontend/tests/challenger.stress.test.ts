@@ -508,6 +508,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
         {
           id: 'o-del-1',
           code: 'DEL-1',
+          orderNumber: 'DEL-1',
           customerId: 'c1',
           customerName: 'A',
           customerPhone: '090',
@@ -524,6 +525,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
         {
           id: 'o-pen-1',
           code: 'PEN-1',
+          orderNumber: 'PEN-1',
           customerId: 'c2',
           customerName: 'B',
           customerPhone: '091',
@@ -540,6 +542,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
         {
           id: 'o-pack-1',
           code: 'PAC-1',
+          orderNumber: 'PAC-1',
           customerId: 'c3',
           customerName: 'C',
           customerPhone: '092',
@@ -556,6 +559,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
         {
           id: 'o-ship-1',
           code: 'SHI-1',
+          orderNumber: 'SHI-1',
           customerId: 'c4',
           customerName: 'D',
           customerPhone: '093',
@@ -572,6 +576,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
         {
           id: 'o-can-1',
           code: 'CAN-1',
+          orderNumber: 'CAN-1',
           customerId: 'c5',
           customerName: 'E',
           customerPhone: '094',

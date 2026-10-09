@@ -16,6 +16,7 @@ describe('aggregates - Metrics, Brand Breakdown & Zero-fill Bucketing', () => {
     {
       id: 'ord-01',
       code: 'DH-001',
+      orderNumber: 'DH-001',
       customerId: 'c1',
       customerName: 'Nguyen Van A',
       customerPhone: '0901234567',
@@ -43,6 +44,7 @@ describe('aggregates - Metrics, Brand Breakdown & Zero-fill Bucketing', () => {
     {
       id: 'ord-02',
       code: 'DH-002',
+      orderNumber: 'DH-002',
       customerId: 'c2',
       customerName: 'Tran Thi B',
       customerPhone: '0902345678',
@@ -79,6 +81,7 @@ describe('aggregates - Metrics, Brand Breakdown & Zero-fill Bucketing', () => {
     {
       id: 'ord-03',
       code: 'DH-003',
+      orderNumber: 'DH-003',
       customerId: 'c3',
       customerName: 'Le Van C',
       customerPhone: '0903456789',
@@ -105,6 +108,7 @@ describe('aggregates - Metrics, Brand Breakdown & Zero-fill Bucketing', () => {
     {
       id: 'ord-04',
       code: 'DH-004',
+      orderNumber: 'DH-004',
       customerId: 'c4',
       customerName: 'Pham Van D',
       customerPhone: '0904567890',

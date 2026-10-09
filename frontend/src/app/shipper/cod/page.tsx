@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import RouteGuard from '@/components/auth/RouteGuard';
 import ShipperShell from '@/components/shipper/ShipperShell';
@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useShipperUIStore } from '@/store/useShipperUIStore';
 import { useToast } from '@/hooks/useToast';
+import { CODSettlement } from '@/types/manager';
 import {
   formatCurrencyVND,
   formatDateTime,
@@ -23,32 +24,80 @@ import {
   Layers,
   Loader2,
   Calendar,
+  CheckSquare,
+  Square,
+  FileCheck2,
+  X,
 } from 'lucide-react';
 
 export default function ShipperCodLedgerPage() {
   const toast = useToast();
   const { user } = useAuthStore();
-  const { orders, codSettlements, settleCod } = useManagerStore();
+  const {
+    orders,
+    codSettlements,
+    settleCod,
+    submitCODSettlement,
+    fetchOrders,
+    fetchCodSettlements,
+  } = useManagerStore();
   const { isHighContrast } = useShipperUIStore();
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [createdReceipt, setCreatedReceipt] = useState<CODSettlement | null>(null);
   const [isSettling, setIsSettling] = useState(false);
 
   const currentShipperId = user?.shipperId || 'ship-02';
 
-  // Unsettled orders for current shipper
-  const unsettledOrders = orders.filter(
-    (o) =>
-      o.shipperId === currentShipperId &&
-      o.status === 'DELIVERED' &&
-      o.cod &&
-      !o.cod.settlementId
-  );
+  // Fetch live orders and settlements on mount
+  useEffect(() => {
+    fetchOrders();
+    fetchCodSettlements(currentShipperId);
+  }, [fetchOrders, fetchCodSettlements, currentShipperId]);
 
-  const totalUnsettled = unsettledOrders.reduce(
-    (sum, o) => sum + (o.cod?.amount ?? o.total ?? o.totalAmount ?? 0),
-    0
-  );
+  // Unsettled DELIVERED COD orders for current shipper
+  const unsettledOrders = useMemo(() => {
+    return orders.filter(
+      (o) =>
+        o.shipperId === currentShipperId &&
+        o.status === 'DELIVERED' &&
+        (o.paymentMethod === 'COD' || o.cod) &&
+        !o.codRemitted &&
+        (!o.cod || !o.cod.settlementId)
+    );
+  }, [orders, currentShipperId]);
+
+  // Selected order IDs for settlement (default all)
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelectedOrderIds(unsettledOrders.map((o) => o.id));
+  }, [unsettledOrders]);
+
+  const toggleSelectOrder = (id: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedOrderIds.length === unsettledOrders.length) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(unsettledOrders.map((o) => o.id));
+    }
+  };
+
+  const selectedOrders = useMemo(() => {
+    return unsettledOrders.filter((o) => selectedOrderIds.includes(o.id));
+  }, [unsettledOrders, selectedOrderIds]);
+
+  const totalUnsettled = useMemo(() => {
+    return selectedOrders.reduce(
+      (sum, o) => sum + (o.codCollected ?? o.cod?.amount ?? o.total ?? o.totalAmount ?? 0),
+      0
+    );
+  }, [selectedOrders]);
 
   // Group by local calendar date to detect previous days' pending COD
   const todayStr = formatDate(new Date());
@@ -59,7 +108,7 @@ export default function ShipperCodLedgerPage() {
 
   const hasPastDaysPending = ordersFromPastDays.length > 0;
   const pastDaysAmount = ordersFromPastDays.reduce(
-    (sum, o) => sum + (o.cod?.amount ?? o.total ?? o.totalAmount ?? 0),
+    (sum, o) => sum + (o.codCollected ?? o.cod?.amount ?? o.total ?? o.totalAmount ?? 0),
     0
   );
 
@@ -68,28 +117,47 @@ export default function ShipperCodLedgerPage() {
     .filter((s) => s.shipperId === currentShipperId)
     .sort(
       (a, b) =>
-        new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime()
+        new Date(b.settledAt || b.createdAt || '').getTime() -
+        new Date(a.settledAt || a.createdAt || '').getTime()
     )
     .slice(0, 10);
 
   const handleConfirmSettle = async () => {
     if (isSettling) return;
-    if (unsettledOrders.length === 0) {
-      toast.warning('Không có khoản COD nào cần nộp');
+    const idsToSettle = selectedOrderIds.length > 0 ? selectedOrderIds : unsettledOrders.map((o) => o.id);
+    if (idsToSettle.length === 0) {
+      toast.warning('Vui lòng chọn ít nhất 1 đơn hàng để nộp COD');
       setShowConfirmModal(false);
       return;
     }
 
     setIsSettling(true);
     try {
-      const res = settleCod(currentShipperId);
-      if (res.success) {
+      const res = await submitCODSettlement(idsToSettle);
+      if (res.success && res.settlement) {
+        setCreatedReceipt(res.settlement);
         toast.success(
-          `Đã nộp thành công ${formatCurrencyVND(totalUnsettled)} về quỹ kế toán! Mã đợt: ${res.settlement?.id || ''}`
+          `Đã nộp thành công ${formatCurrencyVND(res.settlement.totalAmount)} về quỹ kế toán!`
         );
         setShowConfirmModal(false);
       } else {
-        toast.error(res.error || 'Quyết toán thất bại. Vui lòng thử lại.');
+        // Fallback local if offline/mock
+        const localRes = settleCod(currentShipperId, idsToSettle);
+        if (localRes.success && localRes.settlement) {
+          setCreatedReceipt({
+            id: localRes.settlement.id,
+            shipperId: localRes.settlement.shipperId,
+            totalAmount: localRes.settlement.totalAmount,
+            orderCount: localRes.settlement.orderIds?.length || idsToSettle.length,
+            createdAt: localRes.settlement.settledAt,
+          });
+          toast.success(
+            `Đã ghi nhận nộp COD cục bộ ${formatCurrencyVND(localRes.settlement.totalAmount)}!`
+          );
+          setShowConfirmModal(false);
+        } else {
+          toast.error(res.error || localRes.error || 'Quyết toán thất bại. Vui lòng thử lại.');
+        }
       }
     } finally {
       setIsSettling(false);
@@ -181,9 +249,9 @@ export default function ShipperCodLedgerPage() {
           <button
             type="button"
             onClick={() => setShowConfirmModal(true)}
-            disabled={unsettledOrders.length === 0}
+            disabled={unsettledOrders.length === 0 || selectedOrderIds.length === 0}
             className={`w-full min-h-[52px] px-4 py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-transform active:scale-[0.98] ${
-              unsettledOrders.length === 0
+              unsettledOrders.length === 0 || selectedOrderIds.length === 0
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                 : isHighContrast
                 ? 'bg-yellow-400 text-black hover:bg-yellow-300 border-2 border-black font-extrabold'
@@ -191,14 +259,25 @@ export default function ShipperCodLedgerPage() {
             }`}
           >
             <Banknote className="w-5 h-5" />
-            <span>NỘP TIỀN VỀ QUỸ KẾ TOÁN</span>
+            <span>NỘP TIỀN VỀ QUỸ KẾ TOÁN ({selectedOrderIds.length} ĐƠN)</span>
           </button>
 
           {/* 4. List of Unsettled Orders */}
           <div className="space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-amber-400" /> Các đơn COD cần nộp ({unsettledOrders.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-amber-400" /> Các đơn COD cần nộp ({unsettledOrders.length})
+              </h2>
+              {unsettledOrders.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className="text-xs text-amber-400 hover:text-amber-300 font-semibold"
+                >
+                  {selectedOrderIds.length === unsettledOrders.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                </button>
+              )}
+            </div>
 
             {unsettledOrders.length === 0 ? (
               <div
@@ -215,38 +294,59 @@ export default function ShipperCodLedgerPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {unsettledOrders.map((o) => (
-                  <div
-                    key={o.id}
-                    className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
-                      isHighContrast
-                        ? 'bg-black border-yellow-400 text-white'
-                        : 'bg-slate-900 border-slate-800'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-blue-400">
-                          {o.code}
-                        </span>
-                        <span className="text-[11px] text-slate-400">
-                          {formatDateTime(o.deliveredAt || o.cod?.collectedAt)}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                        {o.siteContact?.name || o.customerName}
-                      </p>
-                    </div>
+                {unsettledOrders.map((o) => {
+                  const isChecked = selectedOrderIds.includes(o.id);
+                  const orderCodAmount = o.codCollected ?? o.cod?.amount ?? o.total ?? o.totalAmount;
 
-                    <span
-                      className={`font-mono font-bold text-sm shrink-0 ${
-                        isHighContrast ? 'text-yellow-400' : 'text-amber-400'
+                  return (
+                    <div
+                      key={o.id}
+                      onClick={() => toggleSelectOrder(o.id)}
+                      className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs cursor-pointer transition-colors ${
+                        isChecked
+                          ? isHighContrast
+                            ? 'bg-black border-2 border-yellow-400 text-white'
+                            : 'bg-slate-900 border-amber-500/60'
+                          : 'bg-slate-900/60 border-slate-800 opacity-70'
                       }`}
                     >
-                      {formatCurrencyVND(o.cod?.amount ?? o.total ?? o.totalAmount)}
-                    </span>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <button
+                          type="button"
+                          className="text-amber-400 shrink-0"
+                          aria-label={isChecked ? 'Bỏ chọn' : 'Chọn đơn'}
+                        >
+                          {isChecked ? (
+                            <CheckSquare className="w-5 h-5" />
+                          ) : (
+                            <Square className="w-5 h-5 text-slate-500" />
+                          )}
+                        </button>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-blue-400">
+                              {o.code}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {formatDateTime(o.deliveredAt || o.cod?.collectedAt)}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                            {o.siteContact?.name || o.customerName}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`font-mono font-bold text-sm shrink-0 ${
+                          isHighContrast ? 'text-yellow-400' : 'text-amber-400'
+                        }`}
+                      >
+                        {formatCurrencyVND(orderCodAmount)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -310,7 +410,7 @@ export default function ShipperCodLedgerPage() {
               <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Số lượng đơn:</span>
-                  <span className="font-bold">{unsettledOrders.length} đơn</span>
+                  <span className="font-bold">{selectedOrders.length} đơn</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Tổng tiền nộp:</span>
@@ -319,7 +419,7 @@ export default function ShipperCodLedgerPage() {
                   </span>
                 </div>
                 <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400">
-                  Các mã đơn: {unsettledOrders.map((o) => o.code).join(', ')}
+                  Các mã đơn: {selectedOrders.map((o) => o.code).join(', ')}
                 </div>
               </div>
 
@@ -353,6 +453,67 @@ export default function ShipperCodLedgerPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Created Settlement Receipt Modal */}
+        {createdReceipt && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+              className={`w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl ${
+                isHighContrast
+                  ? 'bg-black border-2 border-yellow-400 text-white'
+                  : 'bg-slate-900 border border-slate-800 text-white'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <FileCheck2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-emerald-400">Biên bản quyết toán COD</h3>
+                    <p className="text-xs text-slate-400">Đã nộp thành công về kế toán</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreatedReceipt(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Mã biên bản:</span>
+                  <span className="font-mono font-bold text-slate-200 truncate max-w-[180px]">{createdReceipt.id}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Tổng tiền nộp:</span>
+                  <span className="font-black text-base text-emerald-400 font-mono">
+                    {formatCurrencyVND(createdReceipt.totalAmount)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Số đơn hoàn tất:</span>
+                  <span className="font-bold text-slate-200">{createdReceipt.orderCount} đơn</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Thời gian tạo:</span>
+                  <span className="text-slate-300">{formatDateTime(createdReceipt.createdAt)}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCreatedReceipt(null)}
+                className="w-full min-h-[48px] px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                Hoàn tất & Đóng
+              </button>
             </div>
           </div>
         )}

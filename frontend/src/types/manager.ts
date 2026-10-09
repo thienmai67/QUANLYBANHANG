@@ -27,7 +27,7 @@ export interface StatusHistoryEntry {
 export interface Order {
   id: string;
   code: string;
-  orderNumber?: string;
+  orderNumber: string;
   customerId: string;
   customerName: string;
   customerPhone: string;
@@ -84,6 +84,42 @@ export interface Order {
     shipperId: string;
   };
   statusHistory: StatusHistoryEntry[];
+
+  // Server metadata persistence fields
+  podPhotoUrl?: string;
+  podRecipientName?: string;
+  podConfirmedAt?: string;
+  codCollected?: number;
+  codRemitted?: boolean;
+  codRemittedAt?: string;
+  incidentDetail?: string;
+  incidentReportedBy?: string;
+  incidentReportedAt?: string;
+}
+
+export interface ShipperSummary {
+  id: string;
+  fullName: string;
+  phone?: string;
+  activeOrderCount: number;
+}
+
+export interface CODSettlement {
+  id: string;
+  shipperId: string;
+  totalAmount: number;
+  orderCount: number;
+  createdAt: string;
+}
+
+export interface UpdateOrderStatusPayload {
+  status: OrderStatus;
+  version: number;
+  shipper_id?: string;
+  cancellation_reason?: string;
+  incident_detail?: string;
+  pod_photo_url?: string;
+  pod_recipient_name?: string;
 }
 
 export interface CodSettlement {
@@ -92,6 +128,8 @@ export interface CodSettlement {
   orderIds: string[];
   totalAmount: number; // integer VND
   settledAt: string;
+  createdAt?: string;
+  orderCount?: number;
 }
 
 export interface Product {

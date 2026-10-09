@@ -166,6 +166,47 @@ export function OrderDetailModal({
             </div>
           )}
 
+          {/* POD Confirmation Details if Delivered */}
+          {order.status === 'DELIVERED' && (order.podRecipientName || order.podPhotoUrl || order.codCollected !== undefined) && (
+            <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Biên bản giao hàng (POD) & Tiền COD</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {order.podRecipientName && (
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400">Người ký nhận: </span>
+                    <strong className="text-slate-900 dark:text-white">{order.podRecipientName}</strong>
+                  </div>
+                )}
+                {order.codCollected !== undefined && (
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400">Tiền COD đã thu: </span>
+                    <strong className="text-amber-600 dark:text-amber-400 font-mono">
+                      {formatCurrencyVND(order.codCollected)}
+                    </strong>
+                    <span className="ml-1 text-[11px] text-slate-500">
+                      ({order.codRemitted ? 'Đã nộp quỹ' : 'Chưa nộp quỹ'})
+                    </span>
+                  </div>
+                )}
+              </div>
+              {order.podPhotoUrl && (
+                <div className="pt-2">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">
+                    Ảnh chụp đối chứng (POD):
+                  </span>
+                  <img
+                    src={order.podPhotoUrl}
+                    alt="Bằng chứng giao hàng"
+                    className="w-32 h-32 object-cover rounded-xl border border-emerald-300 dark:border-emerald-700 shadow-sm"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Items Table */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">

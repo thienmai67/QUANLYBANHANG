@@ -921,7 +921,7 @@ function createDeterministicRandom(seed: number) {
  */
 export function generateSeedOrders(): Order[] {
   const prng = createDeterministicRandom(4294967);
-  const orders: Order[] = [];
+  const orders: any[] = [];
 
   // Helper to pick random item from array
   const pick = <T>(arr: readonly T[]): T => arr[Math.floor(prng() * arr.length)];
@@ -1358,7 +1358,7 @@ export function generateSeedOrders(): Order[] {
     orderIndex++;
   }
 
-  return orders;
+  return orders.map((o) => ({ orderNumber: o.code, ...o }));
 }
 
 export const SEED_ORDERS: Order[] = generateSeedOrders();
@@ -2057,7 +2057,7 @@ export const SEED_SHIPPER_ORDERS: Order[] = ([
       },
     ],
   },
-] as any[]).map((o) => ({ version: 1, ...o })) as Order[];
+] as any[]).map((o) => ({ version: 1, orderNumber: o.code, ...o })) as Order[];
 
 export const SEED_COD_SETTLEMENTS: CodSettlement[] = [
   {

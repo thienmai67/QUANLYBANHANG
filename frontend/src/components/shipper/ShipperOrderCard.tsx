@@ -332,12 +332,12 @@ export default function ShipperOrderCard({
               isCod ? (isHighContrast ? 'text-yellow-400' : 'text-amber-700 dark:text-amber-300') : ''
             }`}
           >
-            {isCod ? formatCurrencyVND(totalAmount) : 'Chuyển khoản (0 ₫)'}
+            {isCod ? formatCurrencyVND(order.codCollected ?? totalAmount) : 'Chuyển khoản (0 ₫)'}
           </span>
         </div>
 
         {/* POD details if already delivered */}
-        {order.status === 'DELIVERED' && order.pod && (
+        {order.status === 'DELIVERED' && (order.pod || order.podRecipientName) && (
           <div
             className={`p-2.5 rounded-xl text-xs space-y-1 ${
               isHighContrast
@@ -348,22 +348,31 @@ export default function ShipperOrderCard({
             <div className="flex items-center justify-between font-semibold">
               <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Người ký nhận: {order.pod.receiverName}
+                Người ký nhận: {order.podRecipientName || order.pod?.receiverName}
               </span>
               <span className="text-slate-500 dark:text-slate-400">
-                {order.pod.photos.length} ảnh POD
+                {order.podPhotoUrl ? '1 ảnh POD' : `${order.pod?.photos?.length || 0} ảnh POD`}
               </span>
             </div>
-            {order.cod && order.cod.settlementId && (
+            {order.podPhotoUrl && (
+              <div className="pt-1">
+                <img
+                  src={order.podPhotoUrl}
+                  alt="POD"
+                  className="w-16 h-16 object-cover rounded-lg border border-slate-300 dark:border-slate-700 shadow-sm"
+                />
+              </div>
+            )}
+            {(order.codRemitted || (order.cod && order.cod.settlementId)) && (
               <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                ✓ Tiền COD đã nộp về quỹ kế toán ({order.cod.settlementId})
+                ✓ Tiền COD đã nộp về quỹ kế toán
               </p>
             )}
           </div>
         )}
 
         {/* Incident details if cancelled */}
-        {order.status === 'CANCELLED' && order.incident && (
+        {order.status === 'CANCELLED' && (order.incident || order.incidentDetail || order.cancellationReason) && (
           <div
             className={`p-2.5 rounded-xl text-xs space-y-1 ${
               isHighContrast
@@ -373,9 +382,9 @@ export default function ShipperOrderCard({
           >
             <div className="flex items-center gap-1 font-bold">
               <ShieldAlert className="w-3.5 h-3.5" />
-              Sự cố: {order.incident.category}
+              Sự cố: {order.incident?.category || 'Đã hủy'}
             </div>
-            <p className="text-[11px] leading-relaxed">{order.incident.detail}</p>
+            <p className="text-[11px] leading-relaxed">{order.incidentDetail || order.cancellationReason || order.incident?.detail}</p>
           </div>
         )}
       </div>

@@ -30,6 +30,7 @@ describe('excel - Empirical Stress Harness & Formatting Verification', () => {
     {
       id: 'ord-01',
       code: 'DH-CADIVI-001',
+      orderNumber: 'DH-CADIVI-001',
       customerId: 'cust-01',
       customerName: 'Nguyễn Văn Hải',
       customerPhone: '0903123456',
@@ -49,6 +50,7 @@ describe('excel - Empirical Stress Harness & Formatting Verification', () => {
     {
       id: 'ord-02',
       code: 'DH-CANCEL-002',
+      orderNumber: 'DH-CANCEL-002',
       customerId: 'cust-02',
       customerName: 'Lê Văn Cường',
       customerPhone: '0912345678',

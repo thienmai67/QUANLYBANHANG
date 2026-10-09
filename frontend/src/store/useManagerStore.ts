@@ -10,8 +10,17 @@ import {
   Shipper,
   StockLog,
   CodSettlement,
+  CODSettlement,
+  ShipperSummary,
+  UpdateOrderStatusPayload,
   ShipperShiftStatus,
 } from '@/types/manager';
+import {
+  mapOrderFromApi,
+  mapShipperSummary,
+  mapCODSettlement,
+  buildUpdateOrderStatusPayload,
+} from '@/lib/orderMapper';
 import {
   canTransition,
   validateCancellation,
@@ -63,6 +72,12 @@ export interface ManagerState {
 
   fetchOrders: () => Promise<void>;
   setOrders: (orders: Order[]) => void;
+  fetchShippers: () => Promise<void>;
+  fetchCodSettlements: (shipperId?: string) => Promise<void>;
+  submitCODSettlement: (
+    orderIds: string[],
+    shipperId?: string
+  ) => Promise<{ success: boolean; error?: string; settlement?: CODSettlement }>;
 
   // Single Shared Action for State Transitions by Actor
   updateOrderStatusWithActor: (
@@ -163,26 +178,94 @@ export const useManagerStore = create<ManagerState>()(
       fetchOrders: async () => {
         set({ ordersLoading: true, ordersError: null });
         try {
-          const data = await api.get<Order[]>('/orders');
-          const mapped = (Array.isArray(data) ? data : []).map((o) => ({
-            ...o,
-            code: o.code || o.orderNumber || `ORD-${o.id.slice(0, 8).toUpperCase()}`,
-            is2H: o.is2H ?? o.is2h ?? false,
-            deadline2H: o.deadline2H || o.deadline2h,
-            customerPhone: o.customerPhone || '0901234567',
-            shippingAddress: o.shippingAddress || 'TP. Hồ Chí Minh',
-            items: o.items || [],
-            statusHistory: o.statusHistory || [
-              { status: o.status, timestamp: o.createdAt || new Date().toISOString(), changedBy: 'Hệ thống' },
-            ],
-            version: o.version || 1,
-          }));
+          const data = await api.get<any[]>('/orders');
+          const mapped = (Array.isArray(data) ? data : []).map(mapOrderFromApi);
           set({ orders: mapped, ordersLoading: false, ordersError: null });
         } catch (err: any) {
           set({
             ordersLoading: false,
             ordersError: getFriendlyErrorMessage(err),
           });
+        }
+      },
+
+      fetchShippers: async () => {
+        try {
+          const res = await api.get<{ data: any[]; total: number }>('/shippers');
+          const rawList = res?.data || (Array.isArray(res) ? res : []);
+          const mappedSummaries = rawList.map(mapShipperSummary);
+          const mappedShippers: Shipper[] = mappedSummaries.map((s) => ({
+            id: s.id,
+            name: s.fullName,
+            phone: s.phone || '0901234567',
+            vehicle: 'Xe máy',
+            activeOrders: s.activeOrderCount,
+            status: s.activeOrderCount >= 5 ? 'busy' : 'available',
+            shiftStatus: s.activeOrderCount >= 5 ? 'busy' : 'available',
+          }));
+          if (mappedShippers.length > 0) {
+            set({ shippers: mappedShippers });
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV !== 'test') {
+            console.warn('[useManagerStore] Không thể tải danh sách shipper từ backend (/api/v1/shippers), sử dụng fallback local:', err);
+          }
+        }
+      },
+
+      fetchCodSettlements: async (shipperId?: string) => {
+        try {
+          const url = shipperId ? `/cod-settlements?shipper_id=${shipperId}` : '/cod-settlements';
+          const res = await api.get<{ data: any[]; total: number }>(url);
+          const rawList = res?.data || (Array.isArray(res) ? res : []);
+          const mapped = rawList.map(mapCODSettlement).map((s) => ({
+            id: s.id,
+            shipperId: s.shipperId,
+            orderIds: [],
+            totalAmount: s.totalAmount,
+            settledAt: s.createdAt,
+            createdAt: s.createdAt,
+            orderCount: s.orderCount,
+          }));
+          set({ codSettlements: mapped });
+        } catch (err) {
+          if (process.env.NODE_ENV !== 'test') {
+            console.warn('[useManagerStore] Không thể tải danh sách quyết toán COD từ backend (/api/v1/cod-settlements), sử dụng fallback local:', err);
+          }
+        }
+      },
+
+      submitCODSettlement: async (orderIds: string[], shipperId?: string) => {
+        try {
+          const body: { order_ids: string[]; shipper_id?: string } = {
+            order_ids: orderIds,
+          };
+          if (shipperId) {
+            body.shipper_id = shipperId;
+          }
+          const resRaw = await api.post<any>('/cod-settlements', body);
+          const settlement = mapCODSettlement(resRaw);
+
+          const codSettlementRecord: CodSettlement = {
+            id: settlement.id,
+            shipperId: settlement.shipperId,
+            orderIds,
+            totalAmount: settlement.totalAmount,
+            settledAt: settlement.createdAt,
+            createdAt: settlement.createdAt,
+            orderCount: settlement.orderCount,
+          };
+
+          set((prev) => ({
+            codSettlements: [codSettlementRecord, ...(prev.codSettlements || [])],
+          }));
+
+          // Refetch orders so codRemitted is synchronized from server
+          await get().fetchOrders();
+
+          return { success: true, settlement };
+        } catch (err: any) {
+          return { success: false, error: getFriendlyErrorMessage(err) };
         }
       },
 
@@ -353,28 +436,51 @@ export const useManagerStore = create<ManagerState>()(
           }),
         }));
 
-        // 2. Call Server API with current order version
+        // 2. Call Server API with current order version and lifecycle metadata
         try {
-          const res = await api.patch<Order>(`/orders/${orderId}/status`, {
+          const payload = buildUpdateOrderStatusPayload({
             status: targetStatus,
             version: order.version,
+            shipperId: extra?.shipperId,
+            cancellationReason: extra?.cancelReason,
+            incidentDetail: extra?.incidentCategory
+              ? `[${extra.incidentCategory}] ${extra.cancelReason || ''}`.trim()
+              : extra?.cancelReason,
+            podPhotoUrl: extra?.pod?.photos?.[0]?.thumbnail,
+            podRecipientName: extra?.pod?.receiverName?.trim(),
           });
 
-          // Server is single source of truth: synchronize returned fields
-          if (res && res.version) {
-            set((prev) => ({
-              orders: prev.orders.map((o) =>
-                o.id === orderId
-                  ? {
-                      ...o,
-                      status: res.status || targetStatus,
-                      version: res.version,
-                      deliveredAt: res.deliveredAt ? res.deliveredAt : o.deliveredAt,
-                      updatedAt: res.updatedAt || now,
-                    }
-                  : o
-              ),
-            }));
+          const resRaw = await api.patch<any>(`/orders/${orderId}/status`, payload);
+          const updatedOrder = mapOrderFromApi(resRaw);
+
+          // Server is single source of truth: synchronize parsed server response while preserving non-persisted client properties
+          set((prev) => ({
+            orders: prev.orders.map((o) => {
+              if (o.id !== orderId) return o;
+              return {
+                ...o,
+                ...updatedOrder,
+                items: updatedOrder.items && updatedOrder.items.length > 0 ? updatedOrder.items : o.items,
+                statusHistory: Array.isArray(resRaw?.statusHistory) && resRaw.statusHistory.length > 0 ? updatedOrder.statusHistory : o.statusHistory,
+                customerName: updatedOrder.customerName || o.customerName,
+                customerPhone: updatedOrder.customerPhone || o.customerPhone,
+                shippingAddress: updatedOrder.shippingAddress || o.shippingAddress,
+                approvedAt: updatedOrder.approvedAt || o.approvedAt,
+                shippingStartedAt: updatedOrder.shippingStartedAt || o.shippingStartedAt,
+                deliveredAt: updatedOrder.deliveredAt || o.deliveredAt,
+                cancelledAt: updatedOrder.cancelledAt || o.cancelledAt,
+                cancellationReason: updatedOrder.cancellationReason ?? o.cancellationReason,
+                incident: o.incident,
+                pod: o.pod,
+                cod: o.cod,
+                shipperName: o.shipperName || (updatedOrder.shipperId ? prev.shippers.find((s) => s.id === updatedOrder.shipperId)?.name : undefined),
+              };
+            }),
+          }));
+
+          // Trigger live workload refresh for shippers
+          if (targetStatus === 'SHIPPING' || targetStatus === 'DELIVERED' || targetStatus === 'CANCELLED') {
+            get().fetchShippers().catch(() => {});
           }
 
           return { success: true };

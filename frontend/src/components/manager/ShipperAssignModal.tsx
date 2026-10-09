@@ -28,10 +28,16 @@ export function ShipperAssignModal({
   onClose,
   onSuccess,
 }: ShipperAssignModalProps) {
-  const { shippers, assignShipper } = useManagerStore();
+  const { shippers, assignShipper, fetchShippers } = useManagerStore();
   const toast = useToast();
   const [selectedShipperId, setSelectedShipperId] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchShippers();
+    }
+  }, [isOpen, fetchShippers]);
 
   useEffect(() => {
     if (isOpen && order) {
