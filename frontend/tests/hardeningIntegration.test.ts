@@ -43,11 +43,20 @@ describe('Hardening Integration & Security Test Suite', () => {
       const fetchSpy = vi.spyOn(useManagerStore.getState(), 'fetchOrders').mockImplementation(async () => {});
 
       // Mock api.patch to throw 409 Conflict
-      vi.spyOn(api, 'patch').mockRejectedValue(
+      const patchSpy = vi.spyOn(api, 'patch').mockRejectedValue(
         new ApiError('Xung đột phiên bản dữ liệu', 409, 'VERSION_CONFLICT')
       );
 
       const result = await useManagerStore.getState().approveOrder(pendingOrder.id, 'Manager Hải Đăng');
+
+      // 0. Verified version sent in PATCH payload
+      expect(patchSpy).toHaveBeenCalledWith(
+        `/orders/${pendingOrder.id}/status`,
+        expect.objectContaining({
+          status: 'PACKING',
+          version: pendingOrder.version,
+        })
+      );
 
       // 1. Mutation failed
       expect(result.success).toBe(false);
