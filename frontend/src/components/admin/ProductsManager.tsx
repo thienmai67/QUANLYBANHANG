@@ -48,6 +48,8 @@ export function ProductsManager() {
 
   // Delete Confirm State
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<{
@@ -59,6 +61,7 @@ export function ProductsManager() {
     discountRate: number;
     unit: ProductUnit;
     stock: number;
+    image: string;
     description: string;
   }>({
     sku: '',
@@ -69,6 +72,7 @@ export function ProductsManager() {
     discountRate: 20,
     unit: 'Cuộn 100m',
     stock: 100,
+    image: '/images/products/copper-cables.png',
     description: '',
   });
 
@@ -112,9 +116,11 @@ export function ProductsManager() {
       discountRate: 20,
       unit: 'Cuộn 100m',
       stock: 100,
+      image: '/images/products/copper-cables.png',
       description: '',
     });
     setFormErrors({});
+    setApiError(null);
     setModalOpen(true);
   };
 
@@ -129,9 +135,11 @@ export function ProductsManager() {
       discountRate: product.discountRate,
       unit: product.unit,
       stock: product.stock,
+      image: product.image || '/images/products/copper-cables.png',
       description: product.description || '',
     });
     setFormErrors({});
+    setApiError(null);
     setModalOpen(true);
   };
 
@@ -147,8 +155,9 @@ export function ProductsManager() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiError(null);
     if (!validateForm()) return;
 
     const status =
@@ -160,29 +169,44 @@ export function ProductsManager() {
 
     const formattedPrice = `${formData.basePrice.toLocaleString('vi-VN')} ₫`;
 
-    if (editingProduct) {
-      updateProduct(editingProduct.id, {
-        ...formData,
-        status,
-        price: formattedPrice,
-      });
-      addToast(`Đã cập nhật thông tin vật tư ${formData.sku}`, 'success');
-    } else {
-      addProduct({
-        ...formData,
-        status,
-        price: formattedPrice,
-      });
-      addToast(`Đã thêm mới vật tư ${formData.name}`, 'success');
+    setIsSubmitting(true);
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, {
+          ...formData,
+          status,
+          price: formattedPrice,
+        });
+        addToast(`Đã cập nhật thông tin vật tư ${formData.sku}`, 'success');
+      } else {
+        await addProduct({
+          ...formData,
+          status,
+          price: formattedPrice,
+        });
+        addToast(`Đã thêm mới vật tư ${formData.name}`, 'success');
+      }
+      setModalOpen(false);
+    } catch (err: any) {
+      const msg =
+        err?.message ||
+        'Không thể lưu vật tư. Vui lòng kiểm tra lại dữ liệu hoặc quyền truy cập.';
+      setApiError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setModalOpen(false);
   };
 
-  const handleDelete = (id: string, name: string) => {
-    deleteProduct(id);
-    setDeleteConfirmId(null);
-    addToast(`Đã xóa vật tư ${name}`, 'warning');
+  const handleDelete = async (id: string, name: string) => {
+    try {
+      await deleteProduct(id);
+      setDeleteConfirmId(null);
+      addToast(`Đã xóa vật tư ${name}`, 'warning');
+    } catch (err: any) {
+      setDeleteConfirmId(null);
+      addToast(err?.message || 'Không thể xóa vật tư (chỉ Admin có quyền xóa)', 'error');
+    }
   };
 
   return (
@@ -433,7 +457,13 @@ export function ProductsManager() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs max-h-[80vh] overflow-y-auto">
+              {apiError && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 font-semibold">
+                  {apiError}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* SKU */}
                 <div>
@@ -488,7 +518,7 @@ export function ProductsManager() {
                 {/* Category */}
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Nhóm vật tư
+                    Danh mục vật tư
                   </label>
                   <select
                     value={formData.category}
@@ -565,6 +595,34 @@ export function ProductsManager() {
                 </div>
               </div>
 
+              {/* Image URL */}
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Đường dẫn ảnh (URL)
+                </label>
+                <input
+                  type="text"
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  placeholder="/images/products/copper-cables.png"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 font-mono focus:border-cyan-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Mô tả chi tiết sản phẩm
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Thông số kỹ thuật, tiêu chuẩn áp lực, dòng cắt..."
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:border-cyan-500 focus:outline-none"
+                />
+              </div>
+
               {/* Submit Buttons */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
@@ -576,9 +634,15 @@ export function ProductsManager() {
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-5 py-2 font-bold bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-md"
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-5 py-2 font-bold bg-cyan-600 hover:bg-cyan-700 disabled:opacity-60 text-white rounded-xl shadow-md"
                 >
-                  <Check className="w-4 h-4" /> {editingProduct ? 'Cập Nhật' : 'Tạo Mới'}
+                  <Check className="w-4 h-4" />{' '}
+                  {isSubmitting
+                    ? 'Đang lưu...'
+                    : editingProduct
+                      ? 'Cập Nhật'
+                      : 'Tạo Mới'}
                 </button>
               </div>
             </form>

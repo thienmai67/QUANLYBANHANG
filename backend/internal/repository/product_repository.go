@@ -60,6 +60,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
                 p.cross_section_mm2,
                 p.amp_rating,
                 p.specifications,
+                COALESCE(p.is_active, TRUE) AS is_active,
                 p.created_at,
                 p.updated_at,
                 b.id AS brand_id,
@@ -78,6 +79,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
         FROM products p
         INNER JOIN brands b ON p.brand_id = b.id
         INNER JOIN categories c ON p.category_id = c.id
+        WHERE COALESCE(p.is_active, TRUE) = TRUE
         ORDER BY p.name
         LIMIT $1 OFFSET $2
     `
@@ -87,7 +89,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
 	}
 	defer rows.Close()
 
-	var products []domain.Product
+	products := make([]domain.Product, 0)
 	for rows.Next() {
 		var p domain.Product
 		var brand domain.Brand
@@ -98,7 +100,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
 		err := rows.Scan(
 			&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID,
 			&p.BasePrice, &p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating,
-			&specs, &p.CreatedAt, &p.UpdatedAt,
+			&specs, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 			&brand.ID, &brand.Code, &brand.Name, &brand.DiscountRate, &brand.CreatedAt, &brand.UpdatedAt,
 			&cat.ID, &cat.Code, &cat.Name, &parentID, &cat.Type, &cat.CreatedAt, &cat.UpdatedAt,
 		)
@@ -135,9 +137,9 @@ func (r *productRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
 	query := `
         SELECT  p.id, p.sku, p.name, p.brand_id, p.category_id, p.base_price,
                 p.diameter_mm, p.pressure_class, p.cross_section_mm2, p.amp_rating, p.specifications,
-                p.created_at, p.updated_at
+                COALESCE(p.is_active, TRUE) AS is_active, p.created_at, p.updated_at
         FROM products p
-        WHERE p.id = $1
+        WHERE p.id = $1 AND COALESCE(p.is_active, TRUE) = TRUE
     `
 
 	var p domain.Product
@@ -147,7 +149,7 @@ func (r *productRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
 	err := row.Scan(
 		&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID, &p.BasePrice,
 		&p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating, &specs,
-		&p.CreatedAt, &p.UpdatedAt,
+		&p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -182,9 +184,9 @@ func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*d
 	query := `
         SELECT  p.id, p.sku, p.name, p.brand_id, p.category_id, p.base_price,
                 p.diameter_mm, p.pressure_class, p.cross_section_mm2, p.amp_rating, p.specifications,
-                p.created_at, p.updated_at
+                COALESCE(p.is_active, TRUE) AS is_active, p.created_at, p.updated_at
         FROM products p
-        WHERE p.sku = $1
+        WHERE p.sku = $1 AND COALESCE(p.is_active, TRUE) = TRUE
     `
 
 	var p domain.Product
@@ -194,7 +196,7 @@ func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*d
 	err := row.Scan(
 		&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID, &p.BasePrice,
 		&p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating, &specs,
-		&p.CreatedAt, &p.UpdatedAt,
+		&p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -223,6 +225,313 @@ func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*d
 	p.Category = cat
 
 	return &p, nil
+}
+
+func normalizeCode(raw string, maxLen int) string {
+	var b strings.Builder
+	for _, r := range strings.ToUpper(strings.TrimSpace(raw)) {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else if r == ' ' || r == '-' || r == '_' {
+			b.WriteRune('_')
+		}
+	}
+	res := strings.Trim(b.String(), "_")
+	if res == "" {
+		res = "CODE_" + uuid.New().String()[:6]
+	}
+	if len(res) > maxLen {
+		res = res[:maxLen]
+	}
+	return res
+}
+
+func (r *productRepository) resolveOrCreateBrand(ctx context.Context, brandInput string, discountRate *float64) (domain.Brand, error) {
+	trimmed := strings.TrimSpace(brandInput)
+	var brand domain.Brand
+	err := r.db.GetContext(ctx, &brand, `
+		SELECT id, code, name, discount_rate, created_at, updated_at
+		FROM brands
+		WHERE LOWER(name) = LOWER($1) OR LOWER(code) = LOWER($1)
+		LIMIT 1
+	`, trimmed)
+	if err == nil {
+		if discountRate != nil && *discountRate >= 0 {
+			_, _ = r.db.ExecContext(ctx, `UPDATE brands SET discount_rate = $1, updated_at = NOW() WHERE id = $2`, *discountRate, brand.ID)
+			brand.DiscountRate = *discountRate
+		}
+		return brand, nil
+	}
+
+	code := normalizeCode(trimmed, 30)
+	rate := 15.0
+	if discountRate != nil && *discountRate >= 0 {
+		rate = *discountRate
+	}
+	err = r.db.GetContext(ctx, &brand, `
+		INSERT INTO brands (code, name, discount_rate)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (code) DO UPDATE
+		SET name = EXCLUDED.name,
+		    updated_at = NOW()
+		RETURNING id, code, name, discount_rate, created_at, updated_at
+	`, code, trimmed, rate)
+	if err != nil {
+		return domain.Brand{}, fmt.Errorf("resolve or create brand: %w", err)
+	}
+	return brand, nil
+}
+
+func inferCategoryType(nameOrCode string) domain.CategoryType {
+	upper := strings.ToUpper(nameOrCode)
+	switch {
+	case strings.Contains(upper, "CABLE") || strings.Contains(upper, "CÁP") || strings.Contains(upper, "CAP") || strings.Contains(upper, "DÂY") || strings.Contains(upper, "DAY"):
+		return domain.CategoryTypeCable
+	case strings.Contains(upper, "PIPE") || strings.Contains(upper, "ỐNG") || strings.Contains(upper, "ONG") || strings.Contains(upper, "NƯỚC") || strings.Contains(upper, "NUOC"):
+		return domain.CategoryTypePipe
+	case strings.Contains(upper, "DEVICE") || strings.Contains(upper, "THIẾT BỊ") || strings.Contains(upper, "THIET BI") || strings.Contains(upper, "TỦ") || strings.Contains(upper, "ĐÓNG CẮT"):
+		return domain.CategoryTypeDevice
+	case strings.Contains(upper, "FITTING") || strings.Contains(upper, "VAN") || strings.Contains(upper, "PHỤ KIỆN"):
+		return domain.CategoryTypeFitting
+	default:
+		return domain.CategoryTypeAccessory
+	}
+}
+
+func (r *productRepository) resolveOrCreateCategory(ctx context.Context, catInput string) (domain.Category, error) {
+	trimmed := strings.TrimSpace(catInput)
+	var cat domain.Category
+	err := r.db.GetContext(ctx, &cat, `
+		SELECT id, code, name, parent_id, type, created_at, updated_at
+		FROM categories
+		WHERE LOWER(name) = LOWER($1) OR LOWER(code) = LOWER($1)
+		LIMIT 1
+	`, trimmed)
+	if err == nil {
+		return cat, nil
+	}
+
+	catType := inferCategoryType(trimmed)
+	code := normalizeCode(trimmed, 50)
+	err = r.db.GetContext(ctx, &cat, `
+		INSERT INTO categories (code, name, type)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (code) DO UPDATE
+		SET name = EXCLUDED.name,
+		    updated_at = NOW()
+		RETURNING id, code, name, parent_id, type, created_at, updated_at
+	`, code, trimmed, string(catType))
+	if err != nil {
+		return domain.Category{}, fmt.Errorf("resolve or create category: %w", err)
+	}
+	return cat, nil
+}
+
+func buildProductSpecsJSON(input domain.UpsertProductInput) ([]byte, error) {
+	specsMap := make(map[string]any)
+	for k, v := range input.Specifications {
+		specsMap[k] = v
+	}
+	if strings.TrimSpace(input.Unit) != "" {
+		specsMap["unit"] = strings.TrimSpace(input.Unit)
+	}
+	if strings.TrimSpace(input.Image) != "" {
+		specsMap["image"] = strings.TrimSpace(input.Image)
+	}
+	if strings.TrimSpace(input.Description) != "" {
+		specsMap["description"] = strings.TrimSpace(input.Description)
+	}
+	if len(specsMap) == 0 {
+		return []byte("{}"), nil
+	}
+	return json.Marshal(specsMap)
+}
+
+func validateUpsertProductInput(input domain.UpsertProductInput) error {
+	if strings.TrimSpace(input.SKU) == "" ||
+		strings.TrimSpace(input.Name) == "" ||
+		strings.TrimSpace(input.Brand) == "" ||
+		strings.TrimSpace(input.Category) == "" ||
+		input.BasePrice <= 0 {
+		return domain.ErrInvalidProductInput
+	}
+	return nil
+}
+
+func (r *productRepository) CreateProduct(ctx context.Context, input domain.UpsertProductInput) (*domain.Product, error) {
+	if err := validateUpsertProductInput(input); err != nil {
+		return nil, err
+	}
+
+	sku := strings.TrimSpace(input.SKU)
+	name := strings.TrimSpace(input.Name)
+
+	var existingID uuid.UUID
+	var existingActive bool
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, COALESCE(is_active, TRUE)
+		FROM products
+		WHERE LOWER(sku) = LOWER($1)
+		LIMIT 1
+	`, sku).Scan(&existingID, &existingActive)
+	if err == nil {
+		if existingActive {
+			return nil, domain.ErrDuplicateSKU
+		}
+		brand, err := r.resolveOrCreateBrand(ctx, input.Brand, input.DiscountRate)
+		if err != nil {
+			return nil, err
+		}
+		cat, err := r.resolveOrCreateCategory(ctx, input.Category)
+		if err != nil {
+			return nil, err
+		}
+		specsBytes, err := buildProductSpecsJSON(input)
+		if err != nil {
+			return nil, err
+		}
+		_, err = r.db.ExecContext(ctx, `
+			UPDATE products
+			SET sku = $1,
+			    name = $2,
+			    brand_id = $3,
+			    category_id = $4,
+			    base_price = $5,
+			    diameter_mm = $6,
+			    pressure_class = $7,
+			    cross_section_mm2 = $8,
+			    amp_rating = $9,
+			    specifications = $10::jsonb,
+			    is_active = TRUE,
+			    updated_at = NOW()
+			WHERE id = $11
+		`, sku, name, brand.ID, cat.ID, input.BasePrice, input.DiameterMM, input.PressureClass, input.CrossSectionMM2, input.AmpRating, string(specsBytes), existingID)
+		if err != nil {
+			return nil, fmt.Errorf("reactivate product: %w", err)
+		}
+		return r.GetProductByID(ctx, existingID)
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("check existing sku: %w", err)
+	}
+
+	brand, err := r.resolveOrCreateBrand(ctx, input.Brand, input.DiscountRate)
+	if err != nil {
+		return nil, err
+	}
+	cat, err := r.resolveOrCreateCategory(ctx, input.Category)
+	if err != nil {
+		return nil, err
+	}
+	specsBytes, err := buildProductSpecsJSON(input)
+	if err != nil {
+		return nil, err
+	}
+
+	newID := uuid.New()
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO products (
+			id, sku, name, brand_id, category_id, base_price,
+			diameter_mm, pressure_class, cross_section_mm2, amp_rating, specifications, is_active
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, TRUE)
+	`, newID, sku, name, brand.ID, cat.ID, input.BasePrice, input.DiameterMM, input.PressureClass, input.CrossSectionMM2, input.AmpRating, string(specsBytes))
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, domain.ErrDuplicateSKU
+		}
+		return nil, fmt.Errorf("insert product: %w", err)
+	}
+
+	return r.GetProductByID(ctx, newID)
+}
+
+func (r *productRepository) UpdateProduct(ctx context.Context, id uuid.UUID, input domain.UpsertProductInput) (*domain.Product, error) {
+	if err := validateUpsertProductInput(input); err != nil {
+		return nil, err
+	}
+
+	existing, err := r.GetProductByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	sku := strings.TrimSpace(input.SKU)
+	name := strings.TrimSpace(input.Name)
+
+	var conflictID uuid.UUID
+	err = r.db.QueryRowContext(ctx, `
+		SELECT id FROM products
+		WHERE LOWER(sku) = LOWER($1) AND id <> $2
+		LIMIT 1
+	`, sku, id).Scan(&conflictID)
+	if err == nil {
+		return nil, domain.ErrDuplicateSKU
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("check sku conflict: %w", err)
+	}
+
+	brand, err := r.resolveOrCreateBrand(ctx, input.Brand, input.DiscountRate)
+	if err != nil {
+		return nil, err
+	}
+	cat, err := r.resolveOrCreateCategory(ctx, input.Category)
+	if err != nil {
+		return nil, err
+	}
+
+	mergedInput := input
+	if mergedInput.Specifications == nil && existing.Specifications != nil {
+		mergedInput.Specifications = make(map[string]any)
+		for k, v := range existing.Specifications {
+			mergedInput.Specifications[k] = v
+		}
+	}
+	specsBytes, err := buildProductSpecsJSON(mergedInput)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = r.db.ExecContext(ctx, `
+		UPDATE products
+		SET sku = $1,
+		    name = $2,
+		    brand_id = $3,
+		    category_id = $4,
+		    base_price = $5,
+		    diameter_mm = $6,
+		    pressure_class = $7,
+		    cross_section_mm2 = $8,
+		    amp_rating = $9,
+		    specifications = $10::jsonb,
+		    updated_at = NOW()
+		WHERE id = $11 AND COALESCE(is_active, TRUE) = TRUE
+	`, sku, name, brand.ID, cat.ID, input.BasePrice, input.DiameterMM, input.PressureClass, input.CrossSectionMM2, input.AmpRating, string(specsBytes), id)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, domain.ErrDuplicateSKU
+		}
+		return nil, fmt.Errorf("update product: %w", err)
+	}
+
+	return r.GetProductByID(ctx, id)
+}
+
+func (r *productRepository) DeleteProduct(ctx context.Context, id uuid.UUID) error {
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE products
+		SET is_active = FALSE, updated_at = NOW()
+		WHERE id = $1 AND COALESCE(is_active, TRUE) = TRUE
+	`, id)
+	if err != nil {
+		return fmt.Errorf("soft delete product: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if affected == 0 {
+		return domain.ErrProductNotFound
+	}
+	return nil
 }
 
 func (r *productRepository) ListUnits(ctx context.Context) ([]domain.Unit, error) {
@@ -409,52 +718,131 @@ func (r *productRepository) ListOrders(ctx context.Context, customerID *uuid.UUI
 	}
 
 	for i := range orders {
-		itemRows, err := r.db.QueryContext(ctx, `
-			SELECT oi.id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.converted_quantity, oi.created_at,
-			       p.id, p.sku, p.name, p.base_price
-			FROM me_supplies.order_items oi
-			LEFT JOIN me_supplies.products p ON oi.product_id = p.id
-			WHERE oi.order_id = $1
-			ORDER BY oi.created_at ASC
-		`, orders[i].ID)
-		if err == nil {
-			var items []domain.OrderItem
-			for itemRows.Next() {
-				var it domain.OrderItem
-				var convQty sql.NullFloat64
-				var pID uuid.NullUUID
-				var pSKU, pName sql.NullString
-				var pPrice sql.NullFloat64
-				if scanErr := itemRows.Scan(
-					&it.ID, &it.OrderID, &it.ProductID, &it.Quantity, &it.UnitPrice, &convQty, &it.CreatedAt,
-					&pID, &pSKU, &pName, &pPrice,
-				); scanErr == nil {
-					if convQty.Valid {
-						it.ConvertedQty = &convQty.Float64
-					}
-					if pID.Valid {
-						it.Product = domain.Product{
-							ID:        pID.UUID,
-							SKU:       pSKU.String,
-							Name:      pName.String,
-							BasePrice: pPrice.Float64,
-						}
-					}
-					items = append(items, it)
-				}
-			}
-			_ = itemRows.Close()
-			if items == nil {
-				items = []domain.OrderItem{}
-			}
-			orders[i].Items = items
-		}
+		orders[i].Items = r.loadOrderItems(ctx, orders[i].ID)
 	}
 
 	if orders == nil {
 		orders = []domain.Order{}
 	}
 	return orders, nil
+}
+
+func (r *productRepository) loadOrderItems(ctx context.Context, orderID uuid.UUID) []domain.OrderItem {
+	items := make([]domain.OrderItem, 0)
+	itemRows, err := r.db.QueryContext(ctx, `
+		SELECT oi.id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.converted_quantity, oi.created_at,
+		       p.id, p.sku, p.name, p.base_price
+		FROM me_supplies.order_items oi
+		LEFT JOIN me_supplies.products p ON oi.product_id = p.id
+		WHERE oi.order_id = $1
+		ORDER BY oi.created_at ASC
+	`, orderID)
+	if err != nil {
+		return items
+	}
+	defer itemRows.Close()
+
+	for itemRows.Next() {
+		var it domain.OrderItem
+		var convQty sql.NullFloat64
+		var pID uuid.NullUUID
+		var pSKU, pName sql.NullString
+		var pPrice sql.NullFloat64
+		if scanErr := itemRows.Scan(
+			&it.ID, &it.OrderID, &it.ProductID, &it.Quantity, &it.UnitPrice, &convQty, &it.CreatedAt,
+			&pID, &pSKU, &pName, &pPrice,
+		); scanErr == nil {
+			if convQty.Valid {
+				it.ConvertedQty = &convQty.Float64
+			}
+			if pID.Valid {
+				it.ProductName = pName.String
+				it.SKU = pSKU.String
+				it.Product = domain.Product{
+					ID:        pID.UUID,
+					SKU:       pSKU.String,
+					Name:      pName.String,
+					BasePrice: pPrice.Float64,
+				}
+			}
+			items = append(items, it)
+		}
+	}
+	return items
+}
+
+func (r *productRepository) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error) {
+	query := `
+        SELECT id, order_number, customer_id, customer_name, shipper_id, payment_method,
+               is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
+               version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
+               cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
+               created_at, updated_at
+        FROM me_supplies.orders
+        WHERE id = $1
+    `
+
+	var o domain.Order
+	var custID, shipID, incidentReportedBy uuid.NullUUID
+	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail sql.NullString
+	var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt sql.NullTime
+
+	err := r.db.QueryRowContext(ctx, query, orderID).Scan(
+		&o.ID, &o.OrderNumber, &custID, &o.CustomerName, &shipID, &payMethod,
+		&o.Is2H, &deadline2H, &deliveredAt, &cancelReason, &o.TotalAmount, &o.Status,
+		&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
+		&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
+		&o.CreatedAt, &o.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrOrderNotFound
+		}
+		return nil, fmt.Errorf("get order by id: %w", err)
+	}
+
+	if custID.Valid {
+		o.CustomerID = &custID.UUID
+	}
+	if shipID.Valid {
+		o.ShipperID = &shipID.UUID
+	}
+	if payMethod.Valid {
+		o.PaymentMethod = &payMethod.String
+	}
+	if cancelReason.Valid {
+		o.CancellationReason = &cancelReason.String
+	}
+	if deadline2H.Valid {
+		o.Deadline2H = &deadline2H.Time
+	}
+	if deliveredAt.Valid {
+		o.DeliveredAt = &deliveredAt.Time
+	}
+	if podPhoto.Valid {
+		o.PodPhotoURL = &podPhoto.String
+	}
+	if podRecipient.Valid {
+		o.PodRecipientName = &podRecipient.String
+	}
+	if podConfirmedAt.Valid {
+		o.PodConfirmedAt = &podConfirmedAt.Time
+	}
+	if codRemittedAt.Valid {
+		o.CODRemittedAt = &codRemittedAt.Time
+	}
+	if incidentDetail.Valid {
+		o.IncidentDetail = &incidentDetail.String
+	}
+	if incidentReportedBy.Valid {
+		o.IncidentReportedBy = &incidentReportedBy.UUID
+	}
+	if incidentReportedAt.Valid {
+		o.IncidentReportedAt = &incidentReportedAt.Time
+	}
+
+	o.Items = r.loadOrderItems(ctx, o.ID)
+	return &o, nil
 }
 
 func (r *productRepository) CreateOrder(ctx context.Context, order *domain.Order) error {

@@ -161,9 +161,9 @@ interface AdminState {
   removeToast: (id: string) => void;
 
   // Product CRUD
-  addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => void;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
 
   // Category CRUD
   addCategory: (category: Omit<Category, 'id' | 'skuCount'>) => void;
@@ -184,7 +184,7 @@ interface AdminState {
   updateCustomer: (id: string, customer: Partial<Customer>) => void;
 }
 
-export const useAdminStore = create<AdminState>((set) => ({
+export const useAdminStore = create<AdminState>((set, get) => ({
   darkMode: false,
   toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
   sidebarCollapsed: false,
@@ -231,25 +231,52 @@ export const useAdminStore = create<AdminState>((set) => ({
   removeToast: (id) =>
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 
-  // Product actions
-  addProduct: (newProd) => {
-    const id = `prod-${Date.now()}`;
-    const product: Product = {
-      ...newProd,
-      id,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    set((state) => ({ products: [product, ...state.products] }));
+  // Product actions (Real API)
+  addProduct: async (newProd) => {
+    await api.post('/products', {
+      sku: newProd.sku,
+      name: newProd.name,
+      brand: newProd.brand,
+      category: newProd.category,
+      basePrice: newProd.basePrice,
+      unit: newProd.unit,
+      image: newProd.image,
+      description: newProd.description,
+      specifications: {
+        unit: newProd.unit,
+        image: newProd.image,
+        description: newProd.description,
+        discountRate: newProd.discountRate,
+        stock: newProd.stock,
+      },
+    });
+    await get().fetchProducts();
   },
-  updateProduct: (id, updated) => {
-    set((state) => ({
-      products: state.products.map((p) => (p.id === id ? { ...p, ...updated } : p)),
-    }));
+  updateProduct: async (id, updated) => {
+    const existing = get().products.find((p) => p.id === id);
+    const merged = { ...existing, ...updated };
+    await api.put(`/products/${id}`, {
+      sku: merged.sku,
+      name: merged.name,
+      brand: merged.brand,
+      category: merged.category,
+      basePrice: merged.basePrice,
+      unit: merged.unit,
+      image: merged.image,
+      description: merged.description,
+      specifications: {
+        unit: merged.unit,
+        image: merged.image,
+        description: merged.description,
+        discountRate: merged.discountRate,
+        stock: merged.stock,
+      },
+    });
+    await get().fetchProducts();
   },
-  deleteProduct: (id) => {
-    set((state) => ({
-      products: state.products.filter((p) => p.id !== id),
-    }));
+  deleteProduct: async (id) => {
+    await api.delete(`/products/${id}`);
+    await get().fetchProducts();
   },
 
   // Category actions

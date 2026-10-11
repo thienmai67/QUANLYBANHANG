@@ -77,32 +77,52 @@ type UnitConversion struct {
 }
 
 type Product struct {
-	ID              uuid.UUID          `json:"id" db:"id"`
-	SKU             string             `json:"sku" db:"sku"`
-	Name            string             `json:"name" db:"name"`
-	Brand           Brand              `json:"brand,omitempty" db:"-"`
-	BrandID         uuid.UUID          `json:"brandId" db:"brand_id"`
-	Category        Category           `json:"category,omitempty" db:"-"`
-	CategoryID      uuid.UUID          `json:"categoryId" db:"category_id"`
-	BasePrice       float64            `json:"basePrice" db:"base_price"`
-	DiameterMM      *float64           `json:"diameterMm,omitempty" db:"diameter_mm"`
-	PressureClass   *string            `json:"pressureClass,omitempty" db:"pressure_class"`
-	CrossSectionMM2 *float64           `json:"crossSectionMm2,omitempty" db:"cross_section_mm2"`
-	AmpRating       *float64           `json:"ampRating,omitempty" db:"amp_rating"`
-	Specifications  map[string]any     `json:"specifications,omitempty" db:"specifications"`
-	CreatedAt       time.Time          `json:"createdAt" db:"created_at"`
-	UpdatedAt       time.Time          `json:"updatedAt" db:"updated_at"`
+	ID              uuid.UUID      `json:"id" db:"id"`
+	SKU             string         `json:"sku" db:"sku"`
+	Name            string         `json:"name" db:"name"`
+	Brand           Brand          `json:"brand,omitempty" db:"-"`
+	BrandID         uuid.UUID      `json:"brandId" db:"brand_id"`
+	Category        Category       `json:"category,omitempty" db:"-"`
+	CategoryID      uuid.UUID      `json:"categoryId" db:"category_id"`
+	BasePrice       float64        `json:"basePrice" db:"base_price"`
+	DiameterMM      *float64       `json:"diameterMm,omitempty" db:"diameter_mm"`
+	PressureClass   *string        `json:"pressureClass,omitempty" db:"pressure_class"`
+	CrossSectionMM2 *float64       `json:"crossSectionMm2,omitempty" db:"cross_section_mm2"`
+	AmpRating       *float64       `json:"ampRating,omitempty" db:"amp_rating"`
+	Specifications  map[string]any `json:"specifications,omitempty" db:"specifications"`
+	IsActive        bool           `json:"isActive" db:"is_active"`
+	CreatedAt       time.Time      `json:"createdAt" db:"created_at"`
+	UpdatedAt       time.Time      `json:"updatedAt" db:"updated_at"`
+}
+
+type UpsertProductInput struct {
+	SKU             string         `json:"sku"`
+	Name            string         `json:"name"`
+	Brand           string         `json:"brand"`
+	Category        string         `json:"category"`
+	BasePrice       float64        `json:"basePrice"`
+	DiscountRate    *float64       `json:"discountRate,omitempty"`
+	Unit            string         `json:"unit,omitempty"`
+	Image           string         `json:"image,omitempty"`
+	Description     string         `json:"description,omitempty"`
+	DiameterMM      *float64       `json:"diameterMm,omitempty"`
+	PressureClass   *string        `json:"pressureClass,omitempty"`
+	CrossSectionMM2 *float64       `json:"crossSectionMm2,omitempty"`
+	AmpRating       *float64       `json:"ampRating,omitempty"`
+	Specifications  map[string]any `json:"specifications,omitempty"`
 }
 
 type OrderItem struct {
-	ID              uuid.UUID  `json:"id" db:"id"`
-	OrderID         uuid.UUID  `json:"orderId" db:"order_id"`
-	Product         Product    `json:"product,omitempty" db:"-"`
-	ProductID       uuid.UUID  `json:"productId" db:"product_id"`
-	Quantity        float64    `json:"quantity" db:"quantity"`
-	UnitPrice       float64    `json:"unitPrice" db:"unit_price"`
-	ConvertedQty    *float64   `json:"convertedQuantity,omitempty" db:"converted_quantity"`
-	CreatedAt       time.Time  `json:"createdAt" db:"created_at"`
+	ID           uuid.UUID `json:"id" db:"id"`
+	OrderID      uuid.UUID `json:"orderId" db:"order_id"`
+	Product      Product   `json:"product,omitempty" db:"-"`
+	ProductID    uuid.UUID `json:"productId" db:"product_id"`
+	ProductName  string    `json:"productName,omitempty" db:"-"`
+	SKU          string    `json:"sku,omitempty" db:"-"`
+	Quantity     float64   `json:"quantity" db:"quantity"`
+	UnitPrice    float64   `json:"unitPrice" db:"unit_price"`
+	ConvertedQty *float64  `json:"convertedQuantity,omitempty" db:"converted_quantity"`
+	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
 }
 
 type Order struct {
@@ -121,19 +141,19 @@ type Order struct {
 	Version            int         `json:"version" db:"version"`
 
 	// Order metadata persistence (POD, COD, Incident)
-	PodPhotoURL        *string     `json:"podPhotoUrl,omitempty" db:"pod_photo_url"`
-	PodRecipientName   *string     `json:"podRecipientName,omitempty" db:"pod_recipient_name"`
-	PodConfirmedAt     *time.Time  `json:"podConfirmedAt,omitempty" db:"pod_confirmed_at"`
-	CODCollected       float64     `json:"codCollected" db:"cod_collected"`
-	CODRemitted        bool        `json:"codRemitted" db:"cod_remitted"`
-	CODRemittedAt      *time.Time  `json:"codRemittedAt,omitempty" db:"cod_remitted_at"`
-	IncidentDetail     *string     `json:"incidentDetail,omitempty" db:"incident_detail"`
-	IncidentReportedBy *uuid.UUID  `json:"incidentReportedBy,omitempty" db:"incident_reported_by"`
-	IncidentReportedAt *time.Time  `json:"incidentReportedAt,omitempty" db:"incident_reported_at"`
+	PodPhotoURL        *string    `json:"podPhotoUrl,omitempty" db:"pod_photo_url"`
+	PodRecipientName   *string    `json:"podRecipientName,omitempty" db:"pod_recipient_name"`
+	PodConfirmedAt     *time.Time `json:"podConfirmedAt,omitempty" db:"pod_confirmed_at"`
+	CODCollected       float64    `json:"codCollected" db:"cod_collected"`
+	CODRemitted        bool       `json:"codRemitted" db:"cod_remitted"`
+	CODRemittedAt      *time.Time `json:"codRemittedAt,omitempty" db:"cod_remitted_at"`
+	IncidentDetail     *string    `json:"incidentDetail,omitempty" db:"incident_detail"`
+	IncidentReportedBy *uuid.UUID `json:"incidentReportedBy,omitempty" db:"incident_reported_by"`
+	IncidentReportedAt *time.Time `json:"incidentReportedAt,omitempty" db:"incident_reported_at"`
 
-	Items              []OrderItem `json:"items,omitempty" db:"-"`
-	CreatedAt          time.Time   `json:"createdAt" db:"created_at"`
-	UpdatedAt          time.Time   `json:"updatedAt" db:"updated_at"`
+	Items     []OrderItem `json:"items,omitempty" db:"-"`
+	CreatedAt time.Time   `json:"createdAt" db:"created_at"`
+	UpdatedAt time.Time   `json:"updatedAt" db:"updated_at"`
 }
 
 type UpdateOrderStatusRequest struct {
@@ -226,10 +246,14 @@ type ProductRepository interface {
 	ListProducts(ctx context.Context, limit, offset int) ([]Product, error)
 	GetProductByID(ctx context.Context, id uuid.UUID) (*Product, error)
 	GetProductBySKU(ctx context.Context, sku string) (*Product, error)
+	CreateProduct(ctx context.Context, input UpsertProductInput) (*Product, error)
+	UpdateProduct(ctx context.Context, id uuid.UUID, input UpsertProductInput) (*Product, error)
+	DeleteProduct(ctx context.Context, id uuid.UUID) error
 	ListUnits(ctx context.Context) ([]Unit, error)
 	ListBrands(ctx context.Context) ([]Brand, error)
 	ListCategories(ctx context.Context) ([]Category, error)
 	ListOrders(ctx context.Context, customerID *uuid.UUID, limit, offset int) ([]Order, error)
+	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*Order, error)
 	CreateOrder(ctx context.Context, order *Order) error
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, toStatus OrderStatus, expectedVersion int, actorRole UserRole, actorID uuid.UUID) (*Order, error)
 	UpdateOrderStatusWithDetails(ctx context.Context, orderID uuid.UUID, req UpdateOrderStatusRequest, actorRole UserRole, actorID uuid.UUID) (*Order, error)

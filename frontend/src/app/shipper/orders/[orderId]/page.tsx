@@ -24,6 +24,9 @@ import {
   getTelUrl,
   getGoogleMapsUrl,
 } from '@/lib/shipperHelpers';
+import { api } from '@/lib/api';
+import { mapOrderFromApi } from '@/lib/orderMapper';
+import { Order } from '@/types/manager';
 import {
   ArrowLeft,
   Truck,
@@ -55,25 +58,56 @@ export default function ShipperOrderDetailPage() {
   const [isPodModalOpen, setIsPodModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [isPickingUp, setIsPickingUp] = useState(false);
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+
+  const orderId = params?.orderId as string;
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  const orderId = params?.orderId as string;
-  const currentShipperId = user?.shipperId || 'ship-02';
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+    api
+      .get<any>(`/orders/${orderId}`)
+      .then((raw) => {
+        if (!cancelled && raw) {
+          setDetailOrder(mapOrderFromApi(raw));
+        }
+      })
+      .catch(() => {
+        // Fallback to store order
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const currentShipperId = user?.shipperId || user?.id || 'ship-02';
   const currentShipperName =
     user?.name ||
     shippers.find((s) => s.id === currentShipperId)?.name ||
     'Trần Quốc Toản';
 
-  const order = orders.find((o) => o.id === orderId);
+  const storeOrder = orders.find((o) => o.id === orderId);
+  const order = detailOrder
+    ? {
+        ...storeOrder,
+        ...detailOrder,
+        items:
+          detailOrder.items && detailOrder.items.length > 0
+            ? detailOrder.items
+            : storeOrder?.items || [],
+      }
+    : storeOrder;
 
   // STRICT DATA ISOLATION:
   // If order not found OR order is not assigned to current shipper (and actor not admin/manager)
   const isAuthorizedShipper =
     order &&
     (order.shipperId === currentShipperId ||
+      order.shipperId === user?.id ||
       user?.role === 'ADMIN' ||
       user?.role === 'MANAGER');
 

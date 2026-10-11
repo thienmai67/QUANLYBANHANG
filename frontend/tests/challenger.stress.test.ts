@@ -42,7 +42,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
   // 1. ATOMIC ORDER APPROVAL & STOCK MECHANICS
   // =========================================================================
   describe('1. Atomic Order Approval & Stock Mechanics', () => {
-    const mockProducts: Product[] = [
+    const stressProducts: Product[] = [
       {
         id: 'stress-p1',
         code: 'CAD-01',
@@ -83,7 +83,7 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       ];
 
       // 1. checkStockAvailability returns available: false
-      const avail = checkStockAvailability(items, mockProducts);
+      const avail = checkStockAvailability(items, stressProducts);
       expect(avail.available).toBe(false);
       expect(avail.missingItems).toHaveLength(1);
       expect(avail.missingItems[0].currentStock).toBe(10);
@@ -91,11 +91,11 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
 
       // 2. deductStockForOrder throws error
       expect(() => {
-        deductStockForOrder(items, mockProducts, 'ORD-STRESS-01', 'Tester');
+        deductStockForOrder(items, stressProducts, 'ORD-STRESS-01', 'Tester');
       }).toThrow(/Không đủ tồn kho/);
 
       // 3. Products array unchanged
-      expect(mockProducts[0].stockQuantity).toBe(10);
+      expect(stressProducts[0].stockQuantity).toBe(10);
     });
 
     it('enforces all-or-nothing atomicity: multi-item order where 1 item fails must NOT deduct any item', () => {
@@ -121,19 +121,19 @@ describe('Adversarial Challenger Stress Suite — Logic, Stock & Edge Cases', ()
       ];
 
       // Pure check
-      const avail = checkStockAvailability(items, mockProducts);
+      const avail = checkStockAvailability(items, stressProducts);
       expect(avail.available).toBe(false);
       expect(avail.missingItems).toHaveLength(1);
       expect(avail.missingItems[0].productId).toBe('stress-p2');
 
       // Attempt deduction
       expect(() => {
-        deductStockForOrder(items, mockProducts, 'ORD-MULTI-FAIL', 'Tester');
+        deductStockForOrder(items, stressProducts, 'ORD-MULTI-FAIL', 'Tester');
       }).toThrow();
 
       // Invariant: p1 must NOT be partially deducted
-      expect(mockProducts[0].stockQuantity).toBe(10);
-      expect(mockProducts[1].stockQuantity).toBe(3);
+      expect(stressProducts[0].stockQuantity).toBe(10);
+      expect(stressProducts[1].stockQuantity).toBe(3);
     });
 
     it('store.approveOrder atomically blocks order and leaves all stocks untouched when stock is insufficient', async () => {

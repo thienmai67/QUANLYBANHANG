@@ -61,6 +61,7 @@ func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.P
 			r.Use(authMiddleware.RequireAuth)
 			r.Post("/orders", productHandler.CreateOrder)
 			r.Get("/orders", productHandler.ListOrders)
+			r.Get("/orders/{id}", productHandler.GetOrderByID)
 		})
 
 		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER)
@@ -77,6 +78,16 @@ func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.P
 
 			r.Get("/shippers", productHandler.ListShippers)
 			r.Get("/admin/orders", productHandler.ListOrders)
+			r.Post("/products", productHandler.CreateProduct)
+			r.Put("/products/{id}", productHandler.UpdateProduct)
+		})
+
+		// Admin Only Protected Endpoints
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth)
+			r.Use(middleware.RequireRole(domain.RoleAdmin))
+
+			r.Delete("/products/{id}", productHandler.DeleteProduct)
 		})
 
 		// COD Settlement APIs (MANAGER, ADMIN, SHIPPER)
@@ -467,6 +478,65 @@ func TestRouterIntegration_Orders_RBAC(t *testing.T) {
 		if rrMgr.Code != http.StatusOK {
 			t.Fatalf("expected 200 when Manager calls PATCH status, got %d: %s", rrMgr.Code, rrMgr.Body.String())
 		}
+
+		// 12. GET /api/v1/orders/{id}: Customer viewing another user's order -> 404
+		reqGetOther := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/orders/%s", testOrderID), nil)
+		reqGetOther.Header.Set("Authorization", "Bearer "+custToken.AccessToken)
+		rrGetOther := httptest.NewRecorder()
+		router.ServeHTTP(rrGetOther, reqGetOther)
+		if rrGetOther.Code != http.StatusNotFound {
+			t.Fatalf("expected 404 when Customer gets another user's order, got %d", rrGetOther.Code)
+		}
+
+		// Manager viewing any order -> 200
+		reqGetMgr := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/orders/%s", testOrderID), nil)
+		reqGetMgr.Header.Set("Authorization", "Bearer "+managerToken.AccessToken)
+		rrGetMgr := httptest.NewRecorder()
+		router.ServeHTTP(rrGetMgr, reqGetMgr)
+		if rrGetMgr.Code != http.StatusOK {
+			t.Fatalf("expected 200 when Manager gets order detail, got %d", rrGetMgr.Code)
+		}
+	}
+
+	// 13. Product CRUD RBAC & Duplicate SKU (409)
+	{
+		prodPayload, _ := json.Marshal(map[string]any{
+			"sku":       "INT-SKU-001",
+			"name":      "Integration Test Cable",
+			"brand":     "Cadivi",
+			"category":  "Dây Cáp",
+			"basePrice": 45000,
+		})
+
+		// Customer POST /products -> 403
+		reqCust := httptest.NewRequest(http.MethodPost, "/api/v1/products", bytes.NewReader(prodPayload))
+		reqCust.Header.Set("Authorization", "Bearer "+custToken.AccessToken)
+		reqCust.Header.Set("Content-Type", "application/json")
+		rrCust := httptest.NewRecorder()
+		router.ServeHTTP(rrCust, reqCust)
+		if rrCust.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 when Customer calls POST /products, got %d", rrCust.Code)
+		}
+
+		// Admin POST /products -> 201
+		reqAdmin := httptest.NewRequest(http.MethodPost, "/api/v1/products", bytes.NewReader(prodPayload))
+		reqAdmin.Header.Set("Authorization", "Bearer "+adminToken.AccessToken)
+		reqAdmin.Header.Set("Content-Type", "application/json")
+		rrAdmin := httptest.NewRecorder()
+		router.ServeHTTP(rrAdmin, reqAdmin)
+		if rrAdmin.Code != http.StatusCreated {
+			t.Fatalf("expected 201 when Admin creates product, got %d: %s", rrAdmin.Code, rrAdmin.Body.String())
+		}
+
+		// Duplicate SKU -> 409
+		reqDup := httptest.NewRequest(http.MethodPost, "/api/v1/products", bytes.NewReader(prodPayload))
+		reqDup.Header.Set("Authorization", "Bearer "+adminToken.AccessToken)
+		reqDup.Header.Set("Content-Type", "application/json")
+		rrDup := httptest.NewRecorder()
+		router.ServeHTTP(rrDup, reqDup)
+		if rrDup.Code != http.StatusConflict {
+			t.Fatalf("expected 409 on duplicate SKU, got %d", rrDup.Code)
+		}
 	}
 }
 
@@ -474,3 +544,4 @@ func init() {
 	_ = fmt.Sprintf("")
 	_ = context.Background()
 }
+

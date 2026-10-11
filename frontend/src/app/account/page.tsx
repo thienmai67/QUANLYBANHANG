@@ -29,9 +29,11 @@ import {
 import { api, API_BASE_URL, getFriendlyErrorMessage } from '@/lib/api';
 
 interface AccountOrderItem {
-  id: string;
-  orderId: string;
+  id?: string;
+  orderId?: string;
   productId: string;
+  productName?: string;
+  sku?: string;
   product?: {
     id: string;
     sku: string;
@@ -129,7 +131,24 @@ export default function AccountPage() {
     setOrdersError(null);
     try {
       const data = await api.get<AccountOrder[]>('/orders');
-      setOrders(Array.isArray(data) ? data : []);
+      const baseOrders = Array.isArray(data) ? data : [];
+      const enriched = await Promise.all(
+        baseOrders.map(async (ord) => {
+          if (Array.isArray(ord.items) && ord.items.length > 0) {
+            return ord;
+          }
+          try {
+            const detail = await api.get<AccountOrder>(`/orders/${ord.id}`);
+            if (detail && Array.isArray(detail.items)) {
+              return { ...ord, items: detail.items };
+            }
+          } catch {
+            // Keep base order if detail fails
+          }
+          return ord;
+        })
+      );
+      setOrders(enriched);
     } catch (err) {
       setOrdersError(getFriendlyErrorMessage(err));
       setOrders([]);
@@ -567,22 +586,28 @@ export default function AccountPage() {
 
                           {itemsList.length > 0 ? (
                             <div className="space-y-1 pt-0.5">
-                              {itemsList.map((item) => (
-                                <p
-                                  key={item.id}
-                                  className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"
-                                >
-                                  <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  <span>
-                                    {Number(item.quantity)}x{' '}
-                                    {item.product?.name || `Sản phẩm (${item.productId.slice(0, 8)})`}
-                                    {item.product?.sku ? ` [${item.product.sku}]` : ''} —{' '}
-                                    <span className="font-mono text-slate-600 dark:text-slate-300">
-                                      {Number(item.unitPrice).toLocaleString('vi-VN')} ₫
+                              {itemsList.map((item, idx) => {
+                                const prodName =
+                                  item.productName ||
+                                  item.product?.name ||
+                                  `Sản phẩm (${item.productId.slice(0, 8)})`;
+                                const prodSku = item.sku || item.product?.sku;
+                                return (
+                                  <p
+                                    key={item.id || `${item.productId}-${idx}`}
+                                    className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"
+                                  >
+                                    <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>
+                                      {Number(item.quantity)}x {prodName}
+                                      {prodSku ? ` [${prodSku}]` : ''} —{' '}
+                                      <span className="font-mono text-slate-600 dark:text-slate-300">
+                                        {Number(item.unitPrice).toLocaleString('vi-VN')} ₫
+                                      </span>
                                     </span>
-                                  </span>
-                                </p>
-                              ))}
+                                  </p>
+                                );
+                              })}
                             </div>
                           ) : (
                             <p className="text-xs font-medium text-slate-600 dark:text-slate-300">

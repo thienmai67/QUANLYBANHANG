@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>()(
           const isPlaceholder =
             !token ||
             token === 'jwt-token-sso' ||
-            token.startsWith('mock-token-');
+            token.split('.').length !== 3;
           if (isPlaceholder && existingAccess) {
             finalToken = existingAccess;
           }

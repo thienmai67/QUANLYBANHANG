@@ -260,6 +260,89 @@ func (m *mockProductRepo) GetUnitConversion(ctx context.Context, fromUnitID, toU
 	return &uc, nil
 }
 
+func (m *mockProductRepo) CreateProduct(ctx context.Context, input domain.UpsertProductInput) (*domain.Product, error) {
+	m.Lock()
+	defer m.Unlock()
+	sku := strings.TrimSpace(input.SKU)
+	name := strings.TrimSpace(input.Name)
+	brand := strings.TrimSpace(input.Brand)
+	category := strings.TrimSpace(input.Category)
+	if sku == "" || name == "" || brand == "" || category == "" || input.BasePrice <= 0 {
+		return nil, domain.ErrInvalidProductInput
+	}
+	if _, exists := m.productsBySKU[sku]; exists {
+		return nil, domain.ErrDuplicateSKU
+	}
+	id := uuid.New()
+	now := time.Now()
+	p := domain.Product{
+		ID:            id,
+		SKU:           sku,
+		Name:          name,
+		BasePrice:     input.BasePrice,
+		IsActive:      true,
+		Brand:         domain.Brand{ID: uuid.New(), Code: strings.ToUpper(brand), Name: brand},
+		Category:      domain.Category{ID: uuid.New(), Code: strings.ToUpper(category), Name: category, Type: domain.CategoryTypeDevice},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	m.products[id] = p
+	m.productsBySKU[sku] = p
+	return &p, nil
+}
+
+func (m *mockProductRepo) UpdateProduct(ctx context.Context, id uuid.UUID, input domain.UpsertProductInput) (*domain.Product, error) {
+	m.Lock()
+	defer m.Unlock()
+	existing, exists := m.products[id]
+	if !exists {
+		return nil, domain.ErrProductNotFound
+	}
+	sku := strings.TrimSpace(input.SKU)
+	if sku == "" {
+		sku = existing.SKU
+	}
+	if other, dup := m.productsBySKU[sku]; dup && other.ID != id {
+		return nil, domain.ErrDuplicateSKU
+	}
+	delete(m.productsBySKU, existing.SKU)
+	existing.SKU = sku
+	if strings.TrimSpace(input.Name) != "" {
+		existing.Name = strings.TrimSpace(input.Name)
+	}
+	if input.BasePrice > 0 {
+		existing.BasePrice = input.BasePrice
+	}
+	existing.UpdatedAt = time.Now()
+	m.products[id] = existing
+	m.productsBySKU[sku] = existing
+	return &existing, nil
+}
+
+func (m *mockProductRepo) DeleteProduct(ctx context.Context, id uuid.UUID) error {
+	m.Lock()
+	defer m.Unlock()
+	existing, exists := m.products[id]
+	if !exists {
+		return domain.ErrProductNotFound
+	}
+	delete(m.productsBySKU, existing.SKU)
+	delete(m.products, id)
+	return nil
+}
+
+func (m *mockProductRepo) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error) {
+	m.Lock()
+	defer m.Unlock()
+	for _, o := range m.orders {
+		if o.ID == orderID {
+			copyOrder := o
+			return &copyOrder, nil
+		}
+	}
+	return nil, domain.ErrOrderNotFound
+}
+
 // ---------------- Product Catalog Tests ----------------
 
 func TestListProducts_DefaultPagination(t *testing.T) {

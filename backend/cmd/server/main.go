@@ -108,6 +108,7 @@ func main() {
 			r.Use(authMiddleware.RequireAuth)
 			r.Post("/orders", productHandler.CreateOrder)
 			r.Get("/orders", productHandler.ListOrders)
+			r.Get("/orders/{id}", productHandler.GetOrderByID)
 		})
 
 		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER)
@@ -124,6 +125,16 @@ func main() {
 
 			r.Get("/shippers", productHandler.ListShippers)
 			r.Get("/admin/orders", productHandler.ListOrders)
+			r.Post("/products", productHandler.CreateProduct)
+			r.Put("/products/{id}", productHandler.UpdateProduct)
+		})
+
+		// Admin Only Protected Endpoints
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth)
+			r.Use(middleware.RequireRole(domain.RoleAdmin))
+
+			r.Delete("/products/{id}", productHandler.DeleteProduct)
 		})
 
 		// COD Settlement APIs (MANAGER, ADMIN, SHIPPER)
@@ -218,11 +229,13 @@ CREATE TABLE IF NOT EXISTS products (
     cross_section_mm2 DECIMAL(6,2),
     amp_rating      DECIMAL(6,2),
     specifications  JSONB,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE products ADD COLUMN IF NOT EXISTS pressure_class VARCHAR(50);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE TABLE IF NOT EXISTS users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -344,7 +357,8 @@ INSERT INTO products (id, sku, name, brand_id, category_id, base_price, diameter
 ON CONFLICT (sku) DO UPDATE
 SET specifications = EXCLUDED.specifications,
     name = EXCLUDED.name,
-    base_price = EXCLUDED.base_price;
+    base_price = EXCLUDED.base_price,
+    is_active = TRUE;
 
 DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'ORD-TEST-%' OR customer_id IN (SELECT id FROM users WHERE email LIKE 'e2e_%@tdt.vn' OR email LIKE 'verify_e2e_%@tdt.vn'));
 DELETE FROM orders WHERE order_number LIKE 'ORD-TEST-%' OR customer_id IN (SELECT id FROM users WHERE email LIKE 'e2e_%@tdt.vn' OR email LIKE 'verify_e2e_%@tdt.vn');
@@ -426,6 +440,23 @@ DELETE FROM products WHERE sku LIKE 'TEST-SKU-%';
 			ON CONFLICT (order_number) DO NOTHING
 		`)
 	}
+
+	_, _ = db.Exec(`
+		INSERT INTO me_supplies.order_items (order_id, product_id, quantity, unit_price, converted_quantity)
+		SELECT
+			o.id,
+			p.id,
+			GREATEST(1, ROUND(o.total_amount / NULLIF(p.base_price, 0))),
+			p.base_price,
+			GREATEST(1, ROUND(o.total_amount / NULLIF(p.base_price, 0)))
+		FROM me_supplies.orders o
+		CROSS JOIN (
+			SELECT id, base_price FROM me_supplies.products WHERE sku = 'PA-MCB-2P32' LIMIT 1
+		) p
+		WHERE NOT EXISTS (
+			SELECT 1 FROM me_supplies.order_items oi WHERE oi.order_id = o.id
+		)
+	`)
 
 	return nil
 }

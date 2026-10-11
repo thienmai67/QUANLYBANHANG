@@ -38,6 +38,9 @@ export function getFriendlyErrorMessage(err: unknown): string {
       case 403:
         return "Bạn không có quyền thực hiện thao tác này";
       case 409:
+        if (err.code === "DUPLICATE_SKU") {
+          return err.message || "Mã SKU đã tồn tại trong hệ thống";
+        }
         return "Đơn hàng vừa được cập nhật bởi người khác, đã tải lại dữ liệu mới";
       case 404:
         return err.message || "Không tìm thấy dữ liệu yêu cầu";
@@ -238,6 +241,13 @@ export const api = {
     request<T>(endpoint, {
       ...options,
       method: "POST",
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    }),
+
+  put: <T = any>(endpoint: string, body?: any, options?: RequestInit) =>
+    request<T>(endpoint, {
+      ...options,
+      method: "PUT",
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
 

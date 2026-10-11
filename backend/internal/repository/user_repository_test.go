@@ -39,6 +39,8 @@ func getTestDB(t *testing.T) *sqlx.DB {
 		return nil
 	}
 
+	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")
+
 	return db
 }
 

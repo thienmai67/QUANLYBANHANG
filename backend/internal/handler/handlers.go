@@ -98,6 +98,187 @@ func (h *Handler) GetProductBySKU(w http.ResponseWriter, req *http.Request) {
 	_ = json.NewEncoder(w).Encode(product)
 }
 
+func parseUpsertProductInput(req *http.Request) (domain.UpsertProductInput, error) {
+	var raw map[string]any
+	if err := json.NewDecoder(req.Body).Decode(&raw); err != nil {
+		return domain.UpsertProductInput{}, err
+	}
+
+	var input domain.UpsertProductInput
+	if v, ok := raw["sku"].(string); ok {
+		input.SKU = v
+	}
+	if v, ok := raw["name"].(string); ok {
+		input.Name = v
+	}
+
+	switch b := raw["brand"].(type) {
+	case string:
+		input.Brand = b
+	case map[string]any:
+		if name, ok := b["name"].(string); ok && name != "" {
+			input.Brand = name
+		} else if code, ok := b["code"].(string); ok {
+			input.Brand = code
+		}
+	}
+
+	switch c := raw["category"].(type) {
+	case string:
+		input.Category = c
+	case map[string]any:
+		if name, ok := c["name"].(string); ok && name != "" {
+			input.Category = name
+		} else if code, ok := c["code"].(string); ok {
+			input.Category = code
+		}
+	}
+
+	if v, ok := raw["basePrice"].(float64); ok {
+		input.BasePrice = v
+	} else if v, ok := raw["base_price"].(float64); ok {
+		input.BasePrice = v
+	} else if v, ok := raw["price"].(float64); ok {
+		input.BasePrice = v
+	}
+
+	if v, ok := raw["discountRate"].(float64); ok {
+		input.DiscountRate = &v
+	} else if v, ok := raw["discount_rate"].(float64); ok {
+		input.DiscountRate = &v
+	}
+
+	if v, ok := raw["unit"].(string); ok {
+		input.Unit = v
+	}
+	if v, ok := raw["image"].(string); ok {
+		input.Image = v
+	}
+	if v, ok := raw["description"].(string); ok {
+		input.Description = v
+	}
+
+	if v, ok := raw["diameterMm"].(float64); ok {
+		input.DiameterMM = &v
+	} else if v, ok := raw["diameter_mm"].(float64); ok {
+		input.DiameterMM = &v
+	}
+
+	if v, ok := raw["pressureClass"].(string); ok && v != "" {
+		input.PressureClass = &v
+	} else if v, ok := raw["pressure_class"].(string); ok && v != "" {
+		input.PressureClass = &v
+	}
+
+	if v, ok := raw["crossSectionMm2"].(float64); ok {
+		input.CrossSectionMM2 = &v
+	} else if v, ok := raw["cross_section_mm2"].(float64); ok {
+		input.CrossSectionMM2 = &v
+	}
+
+	if v, ok := raw["ampRating"].(float64); ok {
+		input.AmpRating = &v
+	} else if v, ok := raw["amp_rating"].(float64); ok {
+		input.AmpRating = &v
+	}
+
+	if specs, ok := raw["specifications"].(map[string]any); ok {
+		input.Specifications = specs
+	}
+
+	return input, nil
+}
+
+func (h *Handler) CreateProduct(w http.ResponseWriter, req *http.Request) {
+	input, err := parseUpsertProductInput(req)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Dữ liệu sản phẩm không hợp lệ")
+		return
+	}
+
+	product, err := h.productRepo.CreateProduct(req.Context(), input)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrInvalidProductInput):
+			writeAPIError(w, http.StatusBadRequest, "INVALID_PRODUCT_INPUT", "Thiếu thông tin bắt buộc (SKU, tên, thương hiệu, danh mục, giá niêm yết > 0)")
+		case errors.Is(err, domain.ErrDuplicateSKU):
+			writeAPIError(w, http.StatusConflict, "DUPLICATE_SKU", "Mã SKU đã tồn tại trong hệ thống")
+		default:
+			writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Không thể tạo sản phẩm")
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(product)
+}
+
+func (h *Handler) UpdateProduct(w http.ResponseWriter, req *http.Request) {
+	idStr := chi.URLParam(req, "id")
+	if idStr == "" {
+		idStr = req.PathValue("id")
+	}
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID sản phẩm không hợp lệ")
+		return
+	}
+
+	input, err := parseUpsertProductInput(req)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Dữ liệu cập nhật sản phẩm không hợp lệ")
+		return
+	}
+
+	product, err := h.productRepo.UpdateProduct(req.Context(), id, input)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrInvalidProductInput):
+			writeAPIError(w, http.StatusBadRequest, "INVALID_PRODUCT_INPUT", "Thiếu thông tin bắt buộc (SKU, tên, thương hiệu, danh mục, giá niêm yết > 0)")
+		case errors.Is(err, domain.ErrProductNotFound):
+			writeAPIError(w, http.StatusNotFound, "PRODUCT_NOT_FOUND", "Không tìm thấy sản phẩm")
+		case errors.Is(err, domain.ErrDuplicateSKU):
+			writeAPIError(w, http.StatusConflict, "DUPLICATE_SKU", "Mã SKU đã tồn tại ở sản phẩm khác")
+		default:
+			writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Không thể cập nhật sản phẩm")
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(product)
+}
+
+func (h *Handler) DeleteProduct(w http.ResponseWriter, req *http.Request) {
+	idStr := chi.URLParam(req, "id")
+	if idStr == "" {
+		idStr = req.PathValue("id")
+	}
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID sản phẩm không hợp lệ")
+		return
+	}
+
+	if err := h.productRepo.DeleteProduct(req.Context(), id); err != nil {
+		if errors.Is(err, domain.ErrProductNotFound) {
+			writeAPIError(w, http.StatusNotFound, "PRODUCT_NOT_FOUND", "Không tìm thấy sản phẩm")
+			return
+		}
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Không thể xóa sản phẩm")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": "Đã xóa sản phẩm thành công",
+		"id":      id.String(),
+	})
+}
+
 func (h *Handler) ListUnits(w http.ResponseWriter, req *http.Request) {
 	units, err := h.productRepo.ListUnits(req.Context())
 	if err != nil {
@@ -156,6 +337,46 @@ func (h *Handler) ListOrders(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(orders)
+}
+
+func (h *Handler) GetOrderByID(w http.ResponseWriter, req *http.Request) {
+	idStr := chi.URLParam(req, "id")
+	if idStr == "" {
+		idStr = req.PathValue("id")
+	}
+	orderID, err := uuid.Parse(idStr)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID đơn hàng không hợp lệ")
+		return
+	}
+
+	order, err := h.productRepo.GetOrderByID(req.Context(), orderID)
+	if err != nil {
+		if errors.Is(err, domain.ErrOrderNotFound) {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn chi tiết đơn hàng")
+		return
+	}
+
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
+	}
+
+	if claims.Role == domain.RoleCustomer {
+		customerUUID, parseErr := uuid.Parse(claims.UserID)
+		if parseErr != nil || order.CustomerID == nil || *order.CustomerID != customerUUID {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(order)
 }
 
 func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {

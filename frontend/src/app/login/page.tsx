@@ -23,23 +23,11 @@ export default function LoginPage() {
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  const createMockToken = (userId: string, userEmail: string, role: string) => {
-    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-    const payload = btoa(
-      JSON.stringify({
-        userId,
-        email: userEmail,
-        role,
-        exp: Math.floor(Date.now() / 1000) + 86400 * 7,
-        iat: Math.floor(Date.now() / 1000),
-      })
-    );
-    const signature = btoa("mock-signature-tdt");
-    return `${header}.${payload}.${signature}`;
-  };
-
-  const handleQuickMockLogin = (role: 'MANAGER' | 'CUSTOMER' | 'SHIPPER') => {
-    if (role === 'MANAGER') {
+  const handleQuickMockLogin = (role: 'ADMIN' | 'MANAGER' | 'CUSTOMER' | 'SHIPPER') => {
+    if (role === 'ADMIN') {
+      setEmail('admin@tdt.vn');
+      setPassword('Admin@123');
+    } else if (role === 'MANAGER') {
       setEmail('manager@tdt.vn');
       setPassword('Manager@123');
     } else if (role === 'SHIPPER') {
@@ -51,53 +39,6 @@ export default function LoginPage() {
     }
   };
 
-  const applyOfflineMockFallback = async (cleanEmail: string, pwd: string): Promise<boolean> => {
-    if (cleanEmail === 'manager@tdt.vn' && pwd === 'Manager@123') {
-      const { useAuthStore } = await import("@/store/useAuthStore");
-      const mockToken = createMockToken('usr-manager-01', 'manager@tdt.vn', 'MANAGER');
-      saveTokens(mockToken, mockToken);
-      useAuthStore.getState().setAuth(mockToken, {
-        id: 'usr-manager-01',
-        email: 'manager@tdt.vn',
-        name: 'Quản Lý Hải Đăng',
-        role: 'MANAGER',
-      });
-      window.location.href = '/manager/dashboard';
-      return true;
-    }
-
-    if (cleanEmail === 'shipper@tdt.vn' && pwd === 'Shipper@123') {
-      const { useAuthStore } = await import("@/store/useAuthStore");
-      const mockToken = createMockToken('usr-shipper-02', 'shipper@tdt.vn', 'SHIPPER');
-      saveTokens(mockToken, mockToken);
-      useAuthStore.getState().setAuth(mockToken, {
-        id: 'usr-shipper-02',
-        email: 'shipper@tdt.vn',
-        name: 'Trần Quốc Toản',
-        role: 'SHIPPER',
-        shipperId: 'ship-02',
-      });
-      window.location.href = '/shipper';
-      return true;
-    }
-
-    if (cleanEmail === 'customer@tdt.vn' && pwd === 'Customer@123') {
-      const { useAuthStore } = await import("@/store/useAuthStore");
-      const mockToken = createMockToken('usr-customer-01', 'customer@tdt.vn', 'CUSTOMER');
-      saveTokens(mockToken, mockToken);
-      useAuthStore.getState().setAuth(mockToken, {
-        id: 'usr-customer-01',
-        email: 'customer@tdt.vn',
-        name: 'Khách Hàng Bán Lẻ',
-        role: 'CUSTOMER',
-      });
-      window.location.href = '/account';
-      return true;
-    }
-
-    return false;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -106,24 +47,13 @@ export default function LoginPage() {
     const cleanEmail = email.trim().toLowerCase();
 
     try {
-      let res: Response;
-      try {
-        res = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, password }),
-        });
-      } catch (networkErr) {
-        if (await applyOfflineMockFallback(cleanEmail, password)) {
-          return;
-        }
-        throw networkErr;
-      }
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, password }),
+      });
 
       if (!res.ok) {
-        if (res.status >= 500 && (await applyOfflineMockFallback(cleanEmail, password))) {
-          return;
-        }
         const errorData = await res.json().catch(() => null);
         throw new Error(
           errorData?.message ||

@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Order } from '@/types/manager';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { OrderCountdownBadge } from './OrderCountdownBadge';
 import { formatCurrencyVND, formatDateTime } from '@/lib/formatters';
+import { api } from '@/lib/api';
+import { mapOrderFromApi } from '@/lib/orderMapper';
 import {
   X,
   User,
@@ -26,10 +28,42 @@ interface OrderDetailModalProps {
 }
 
 export function OrderDetailModal({
-  order,
+  order: propOrder,
   isOpen,
   onClose,
 }: OrderDetailModalProps) {
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !propOrder?.id) {
+      setDetailOrder(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get<any>(`/orders/${propOrder.id}`)
+      .then((raw) => {
+        if (!cancelled && raw) {
+          const mapped = mapOrderFromApi(raw);
+          setDetailOrder({
+            ...propOrder,
+            ...mapped,
+            items:
+              mapped.items && mapped.items.length > 0
+                ? mapped.items
+                : propOrder.items,
+            shipperName: propOrder.shipperName || mapped.shipperName,
+          });
+        }
+      })
+      .catch(() => {
+        // Fallback to propOrder if offline or mock ID
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, propOrder]);
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -45,6 +79,7 @@ export function OrderDetailModal({
     };
   }, [isOpen, onClose]);
 
+  const order = detailOrder || propOrder;
   if (!isOpen || !order) return null;
 
   const totalAmount = order.totalAmount || 0;
