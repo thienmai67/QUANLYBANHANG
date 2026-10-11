@@ -1,20 +1,75 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import MaterialHeader from "@/components/MaterialHeader";
 import MaterialFooter from "@/components/MaterialFooter";
-import { MAndE_PRODUCTS } from "@/data/materialData";
+import { useAdminStore } from "@/store/useAdminStore";
 import { Truck, ShieldCheck, Undo2, Check, Calculator, ShoppingCart, ChevronDown, ChevronUp } from "lucide-react";
 import * as motion from "motion/react-client";
 
 export default function ProductDetailPage({ params }: { params: { slug: string } }) {
-  // Mock product selection or fallback to first product
-  const product = MAndE_PRODUCTS.find(p => p.id === params.slug) || MAndE_PRODUCTS[0];
-  const images = product.images && product.images.length > 0 ? product.images : [product.image];
-  
-  const [activeImage, setActiveImage] = useState(images[0]);
+  const { products, productsLoading, fetchProducts } = useAdminStore();
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const product = useMemo(() => {
+    const found =
+      products.find((p) => p.id === params.slug || p.sku === params.slug) ||
+      products[0];
+    if (!found) return null;
+    const rawPrice = Number(found.basePrice ?? 0);
+    const specs = Array.isArray(found.specs)
+      ? found.specs
+      : typeof found.specs === "string"
+        ? [found.specs]
+        : [`Thương hiệu: ${found.brand}`, `Đơn vị: ${found.unit}`];
+    const img = found.image || "/images/products/pvc-pipes.png";
+    return {
+      id: found.id,
+      sku: found.sku,
+      name: found.name,
+      brand: found.brand,
+      categoryName: found.category,
+      price: `${rawPrice.toLocaleString("vi-VN")}đ`,
+      rawPrice,
+      unit: found.unit,
+      image: img,
+      images: [img],
+      badge: found.badge,
+      discount: found.discountRate,
+      description: found.description || found.name,
+      origin: "Việt Nam (TCVN)",
+      specs,
+    };
+  }, [products, params.slug]);
+
+  const [activeImage, setActiveImage] = useState<string>("");
   const [descOpen, setDescOpen] = useState(true);
   const [specsOpen, setSpecsOpen] = useState(true);
+
+  useEffect(() => {
+    if (product?.images?.[0]) {
+      setActiveImage(product.images[0]);
+    }
+  }, [product]);
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex flex-col bg-white dark:bg-[#070b14] text-slate-900 dark:text-slate-100">
+        <MaterialHeader />
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+          <p className="text-base font-bold text-slate-500">
+            {productsLoading ? "Đang tải sản phẩm..." : "Chưa có sản phẩm"}
+          </p>
+        </main>
+        <MaterialFooter />
+      </div>
+    );
+  }
+
+  const images = product.images;
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#070b14] text-slate-900 dark:text-slate-100 selection:bg-blue-500 selection:text-white">
@@ -22,17 +77,16 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
-          
           {/* Mosaic Gallery Section */}
           <div className="space-y-4">
             <div className="w-full aspect-square md:aspect-[4/3] lg:aspect-square bg-slate-50 dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
-              <motion.img 
-                key={activeImage}
+              <motion.img
+                key={activeImage || product.image}
                 initial={{ opacity: 0, scale: 1.05 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4 }}
-                src={activeImage} 
-                alt={product.name} 
+                src={activeImage || product.image}
+                alt={product.name}
                 className="w-full h-full object-cover"
               />
               {product.badge && (
@@ -43,14 +97,14 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 </div>
               )}
             </div>
-            
+
             {/* Thumbnail Mosaic */}
             <div className="grid grid-cols-4 gap-4">
               {images.map((img, idx) => (
-                <button 
+                <button
                   key={idx}
                   onClick={() => setActiveImage(img)}
-                  className={`w-full aspect-square rounded-xl overflow-hidden border-2 transition-all ${activeImage === img ? 'border-blue-500 ring-4 ring-blue-500/20' : 'border-transparent hover:border-slate-300'}`}
+                  className={`w-full aspect-square rounded-xl overflow-hidden border-2 transition-all ${activeImage === img ? "border-blue-500 ring-4 ring-blue-500/20" : "border-transparent hover:border-slate-300"}`}
                 >
                   <img src={img} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
                 </button>
@@ -64,14 +118,14 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               <span className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">{product.categoryName}</span>
               <span className="text-xs font-mono font-bold px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-slate-500">SKU: {product.sku}</span>
             </div>
-            
+
             <h1 className="text-3xl lg:text-4xl font-display font-black tracking-tight text-slate-900 dark:text-white uppercase leading-snug mb-6">
               {product.name}
             </h1>
 
             <div className="flex items-end gap-4 mb-8">
               <span className="text-3xl font-black text-orange-500">{product.price}</span>
-              <span className="text-sm font-bold text-slate-400 mb-1.5 line-through">{product.rawPrice ? `${(product.rawPrice * 1.2).toLocaleString()}đ` : ''}</span>
+              <span className="text-sm font-bold text-slate-400 mb-1.5 line-through">{product.rawPrice ? `${(product.rawPrice * 1.2).toLocaleString()}đ` : ""}</span>
               {product.discount && (
                 <span className="text-xs font-bold text-green-600 bg-green-500/10 px-2 py-1 rounded mb-1.5">
                   Save {product.discount}%
@@ -123,7 +177,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             {/* Accordions */}
             <div className="mt-12 space-y-4">
               <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-[#0c1322]">
-                <button 
+                <button
                   onClick={() => setDescOpen(!descOpen)}
                   className="w-full flex items-center justify-between p-5 text-left bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
                 >
@@ -138,7 +192,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               </div>
 
               <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-[#0c1322]">
-                <button 
+                <button
                   onClick={() => setSpecsOpen(!specsOpen)}
                   className="w-full flex items-center justify-between p-5 text-left bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
                 >
@@ -158,8 +212,8 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                       </li>
                       {product.specs.map((spec, i) => (
                         <li key={i} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800/50 last:border-0">
-                          <span className="text-sm font-medium text-slate-500">{spec.split(':')[0] || 'Spec'}</span>
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">{spec.split(':')[1] || spec}</span>
+                          <span className="text-sm font-medium text-slate-500">{spec.split(":")[0] || "Spec"}</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">{spec.split(":")[1] || spec}</span>
                         </li>
                       ))}
                     </ul>
@@ -167,7 +221,6 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 )}
               </div>
             </div>
-
           </div>
         </div>
       </main>
@@ -176,3 +229,4 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     </div>
   );
 }
+

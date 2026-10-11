@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Search,
@@ -18,8 +18,12 @@ import { useAdminStore } from '../../store/useAdminStore';
 import { Customer, CustomerTier } from '../../types/admin';
 
 export function CustomersManager() {
-  const { customers, addCustomer, updateCustomer, addToast, searchQuery } =
+  const { customers, fetchOrders, addCustomer, updateCustomer, addToast, searchQuery } =
     useAdminStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const [tierFilter, setTierFilter] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState(1);

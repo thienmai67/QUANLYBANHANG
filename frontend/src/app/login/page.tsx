@@ -89,6 +89,16 @@ export default function LoginPage() {
             refreshToken
           );
 
+          const redirectParam =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("redirect")
+              : null;
+
+          if (redirectParam && redirectParam.startsWith("/")) {
+            window.location.href = redirectParam;
+            return;
+          }
+
           if (role === "ADMIN") {
             window.location.href = "/admin/dashboard";
             return;

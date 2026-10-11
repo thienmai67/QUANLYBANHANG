@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { saveTokens, clearTokens, getAccessToken, getRefreshToken } from '@/lib/auth';
+import { useCartStore } from '@/store/useCartStore';
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'SHIPPER' | 'CUSTOMER' | 'CONTRACTOR';
 
@@ -75,6 +76,11 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         if (typeof window !== 'undefined') {
           clearTokens();
+        }
+        try {
+          useCartStore.getState().clearCart();
+        } catch {
+          // ignore if store not yet initialized
         }
         set({
           token: null,

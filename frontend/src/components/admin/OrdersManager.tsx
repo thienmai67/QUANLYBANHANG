@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -17,7 +17,11 @@ import { useAdminStore } from '../../store/useAdminStore';
 import { Order, OrderStatus } from '../../types/admin';
 
 export function OrdersManager() {
-  const { orders, updateOrderStatus, addToast, searchQuery } = useAdminStore();
+  const { orders, fetchOrders, updateOrderStatus, addToast, searchQuery } = useAdminStore();
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);

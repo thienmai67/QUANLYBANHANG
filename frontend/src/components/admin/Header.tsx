@@ -166,12 +166,19 @@ export function Header() {
               >
                 <User className="w-4 h-4 text-slate-400" /> Hồ sơ cá nhân
               </Link>
-              <Link
-                href="/"
-                className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+              <button
+                type="button"
+                onClick={() => {
+                  const { useAuthStore } = require('../../store/useAuthStore');
+                  const { useCartStore } = require('../../store/useCartStore');
+                  useCartStore.getState().clearCart();
+                  useAuthStore.getState().logout();
+                  window.location.href = '/login';
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
               >
                 <LogOut className="w-4 h-4 text-rose-500" /> Đăng xuất
-              </Link>
+              </button>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useManagerStore } from '@/store/useManagerStore';
 import { Customer, CustomerTier } from '@/types/manager';
 import { formatCurrencyVND, formatDate } from '@/lib/formatters';
@@ -58,7 +58,11 @@ const tierBadgeStyles: Record<string, string> = {
 };
 
 export default function ManagerCustomersPage() {
-  const { customers, getCustomerMetrics } = useManagerStore();
+  const { customers, getCustomerMetrics, fetchCustomers } = useManagerStore();
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const [selectedTier, setSelectedTier] = useState<TierTab>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');

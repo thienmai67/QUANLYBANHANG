@@ -49,62 +49,71 @@ export function BomRequestsManager() {
       </div>
 
       {/* BOM Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {bomRequests.map((bom) => (
-          <div
-            key={bom.id}
-            className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-all"
-          >
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-xl">
-                    <FileSpreadsheet className="w-6 h-6" />
+      {bomRequests.length === 0 ? (
+        <div className="p-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-slate-400">
+          <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
+            Chưa có yêu cầu
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {bomRequests.map((bom) => (
+            <div
+              key={bom.id}
+              className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-all"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-xl">
+                      <FileSpreadsheet className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-mono font-bold text-cyan-600 dark:text-cyan-400 text-sm">
+                        {bom.code}
+                      </h3>
+                      <p className="font-bold text-slate-900 dark:text-slate-100 text-sm mt-0.5">
+                        {bom.contractorName}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-mono font-bold text-cyan-600 dark:text-cyan-400 text-sm">
-                      {bom.code}
-                    </h3>
-                    <p className="font-bold text-slate-900 dark:text-slate-100 text-sm mt-0.5">
-                      {bom.contractorName}
-                    </p>
-                  </div>
+
+                  {getStatusBadge(bom.status)}
                 </div>
 
-                {getStatusBadge(bom.status)}
+                <div className="mt-4 space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                  <p className="flex items-center gap-2">
+                    <Building className="w-3.5 h-3.5 text-slate-400" /> Dự án: <strong className="text-slate-900 dark:text-slate-100">{bom.projectName}</strong>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-slate-400" /> SĐT liên hệ: <span>{bom.phone}</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 text-slate-400" /> Email: <span>{bom.email}</span>
+                  </p>
+                </div>
               </div>
 
-              <div className="mt-4 space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                <p className="flex items-center gap-2">
-                  <Building className="w-3.5 h-3.5 text-slate-400" /> Dự án: <strong className="text-slate-900 dark:text-slate-100">{bom.projectName}</strong>
-                </p>
-                <p className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-slate-400" /> SĐT liên hệ: <span>{bom.phone}</span>
-                </p>
-                <p className="flex items-center gap-2">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" /> Email: <span>{bom.email}</span>
-                </p>
+              <div className="flex items-center justify-between pt-4 mt-6 border-t border-slate-100 dark:border-slate-800 text-xs">
+                <div>
+                  <span className="text-slate-400">Ước tính BOM:</span>
+                  <p className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">
+                    {bom.estimatedTotal.toLocaleString('vi-VN')} VND
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setSelectedBom(bom)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md transition-all"
+                >
+                  Xem chi tiết BOM <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center justify-between pt-4 mt-6 border-t border-slate-100 dark:border-slate-800 text-xs">
-              <div>
-                <span className="text-slate-400">Ước tính BOM:</span>
-                <p className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">
-                  {bom.estimatedTotal.toLocaleString('vi-VN')} VND
-                </p>
-              </div>
-
-              <button
-                onClick={() => setSelectedBom(bom)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md transition-all"
-              >
-                Xem chi tiết BOM <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* BOM Detail Modal */}
       {selectedBom && (

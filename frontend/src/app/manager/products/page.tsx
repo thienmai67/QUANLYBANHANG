@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useManagerStore } from '@/store/useManagerStore';
 import { Brand, CORE_BRANDS, Product } from '@/types/manager';
 import { calculateDiscountedPrice } from '@/lib/stock';
@@ -31,7 +31,11 @@ const BRAND_TABS: Array<{ id: BrandTab; label: string }> = [
 ];
 
 export default function ManagerProductsPage() {
-  const { products, getDiscountedPrice } = useManagerStore();
+  const { products, getDiscountedPrice, fetchProducts } = useManagerStore();
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const [selectedBrand, setSelectedBrand] = useState<BrandTab>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');

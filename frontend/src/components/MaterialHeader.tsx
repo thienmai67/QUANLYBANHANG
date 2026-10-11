@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import CartDrawer from './CartDrawer';
-import { MATERIAL_PRODUCTS, MaterialProduct } from '@/data/materialData';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 
@@ -39,7 +38,14 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { getTotalItems, setIsOpen } = useCartStore();
   const adminProducts = useAdminStore((state) => state.products);
+  const fetchProducts = useAdminStore((state) => state.fetchProducts);
   const cartCount = getTotalItems();
+
+  useEffect(() => {
+    if (adminProducts.length === 0) {
+      fetchProducts();
+    }
+  }, [adminProducts.length, fetchProducts]);
 
   // Live search filtering
   useEffect(() => {
@@ -49,24 +55,23 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
     }
     const q = searchQuery.toLowerCase();
     const handler = setTimeout(() => {
-      const combined = [
-        ...adminProducts.map((p) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          brand: p.brand || 'Cadivi',
-          price: typeof p.price === 'string' ? p.price : `${p.basePrice?.toLocaleString('vi-VN')} ₫`,
-          image: p.image || 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=500&auto=format&fit=crop&q=80',
-        })),
-        ...MATERIAL_PRODUCTS,
-      ];
+      const combined = adminProducts.map((p) => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        brand: p.brand || 'Cadivi',
+        price: typeof p.price === 'string' ? p.price : `${p.basePrice?.toLocaleString('vi-VN')} ₫`,
+        image: p.image || '/images/products/pvc-pipes.png',
+      }));
 
-      const filtered = combined.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q)
-      ).slice(0, 6);
+      const filtered = combined
+        .filter(
+          (p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.sku.toLowerCase().includes(q) ||
+            p.brand.toLowerCase().includes(q)
+        )
+        .slice(0, 6);
       setSearchResults(filtered);
     }, 250);
     return () => clearTimeout(handler);

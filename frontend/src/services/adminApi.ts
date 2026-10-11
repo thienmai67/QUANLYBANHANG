@@ -7,13 +7,6 @@ import {
   Customer,
   DashboardStats,
 } from '../types/admin';
-import {
-  mockDashboardStats,
-  mockCategories,
-  mockOrders,
-  mockBomRequests,
-  mockCustomers,
-} from '../data/adminMockData';
 
 import { getAccessToken } from '../lib/auth';
 import { API_BASE_URL } from '../lib/api';
@@ -43,7 +36,14 @@ export const adminApi = {
       const res = await apiClient.get('/admin/stats');
       return res.data;
     } catch {
-      return mockDashboardStats;
+      return {
+        totalRevenue: 0,
+        revenueGrowth: 0,
+        newOrders: 0,
+        ordersGrowth: 0,
+        pendingBom: 0,
+        activeContractors: 0,
+      };
     }
   },
 
@@ -76,17 +76,17 @@ export const adminApi = {
       const res = await apiClient.get('/categories');
       return res.data;
     } catch {
-      return mockCategories;
+      return [];
     }
   },
 
   // Orders
   getOrders: async (): Promise<Order[]> => {
     try {
-      const res = await apiClient.get('/admin/orders');
+      const res = await apiClient.get('/orders');
       return res.data;
     } catch {
-      return mockOrders;
+      return [];
     }
   },
 
@@ -96,7 +96,7 @@ export const adminApi = {
       const res = await apiClient.get('/admin/bom-requests');
       return res.data;
     } catch {
-      return mockBomRequests;
+      return [];
     }
   },
 
@@ -106,7 +106,8 @@ export const adminApi = {
       const res = await apiClient.get('/admin/customers');
       return res.data;
     } catch {
-      return mockCustomers;
+      return [];
     }
   },
 };
+

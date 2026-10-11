@@ -57,5 +57,11 @@ export function getCurrentUser(): AuthUser | null {
 
 export function logout(): void {
   clearTokens();
+  try {
+    const { useCartStore } = require('@/store/useCartStore');
+    useCartStore.getState().clearCart();
+  } catch {
+    // ignore
+  }
   window.location.href = "/";
 }

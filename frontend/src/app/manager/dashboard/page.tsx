@@ -28,11 +28,13 @@ import {
 } from 'lucide-react';
 
 export default function ManagerDashboardPage() {
-  const { orders, products, shippers, getBrandStats, getRevenueTrend, fetchOrders } = useManagerStore();
+  const { orders, products, shippers, getBrandStats, getRevenueTrend, fetchOrders, fetchProducts, fetchShippers } = useManagerStore();
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    fetchProducts();
+    fetchShippers();
+  }, [fetchOrders, fetchProducts, fetchShippers]);
 
   const [trendPeriod, setTrendPeriod] = useState<'day' | 'month'>('month');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);

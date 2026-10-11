@@ -71,6 +71,8 @@ export interface ManagerState {
   ordersError: string | null;
 
   fetchOrders: () => Promise<void>;
+  fetchProducts: () => Promise<void>;
+  fetchCustomers: () => Promise<void>;
   setOrders: (orders: Order[]) => void;
   fetchShippers: () => Promise<void>;
   fetchCodSettlements: (shipperId?: string) => Promise<void>;
@@ -158,19 +160,121 @@ export interface ManagerState {
   };
 }
 
-const initialSeed = createInitialManagerData();
+function mapApiProductToManagerProduct(raw: any): Product {
+  const specsObj =
+    raw && typeof raw.specifications === 'object' && raw.specifications !== null
+      ? raw.specifications
+      : {};
+  const brandRaw =
+    typeof raw.brand === 'object' && raw.brand !== null
+      ? raw.brand.name
+      : raw.brand;
+  const brand: Brand =
+    brandRaw === 'Bình Minh' || brandRaw === 'Schneider' || brandRaw === 'Panasonic'
+      ? brandRaw
+      : 'Cadivi';
+  const discountPercent =
+    typeof specsObj.discountRate === 'number'
+      ? specsObj.discountRate
+      : typeof raw?.brand?.discountRate === 'number'
+        ? raw.brand.discountRate
+        : typeof raw.discountPercent === 'number'
+          ? raw.discountPercent
+          : 10;
+  const catName =
+    typeof raw.category === 'object' && raw.category !== null
+      ? raw.category.name || raw.category.code || 'Vật tư M&E'
+      : String(raw.category || 'Vật tư M&E');
+  const stockQuantity =
+    typeof specsObj.stock === 'number'
+      ? specsObj.stock
+      : typeof raw.stockQuantity === 'number'
+        ? raw.stockQuantity
+        : typeof raw.stock === 'number'
+          ? raw.stock
+          : 100;
+  const unit = String(specsObj.unit || raw.unit || 'cái');
+  const sku = String(raw.sku || raw.code || 'SKU-STD');
+  return {
+    id: String(raw.id),
+    code: sku,
+    sku,
+    name: String(raw.name || ''),
+    brand,
+    category: catName,
+    unit,
+    basePrice: Number(raw.basePrice ?? raw.base_price ?? raw.price ?? 0),
+    discountPercent,
+    stockQuantity,
+    minStockLevel: typeof specsObj.minStockLevel === 'number' ? specsObj.minStockLevel : 10,
+    imageUrl: specsObj.image || raw.image,
+    description: specsObj.description || raw.description,
+  };
+}
+
+function deriveCustomersFromOrders(orders: Order[]): Customer[] {
+  const map = new Map<string, Customer>();
+  orders.forEach((o, idx) => {
+    const cid = o.customerId || o.customerName || `cust-${idx + 1}`;
+    const existing = map.get(cid);
+    const amount = o.finalAmount ?? o.totalAmount ?? o.total ?? 0;
+    const isDelivered = o.status === 'DELIVERED';
+    if (!existing) {
+      const code = `KH-${String(map.size + 1).padStart(4, '0')}`;
+      const totalSpent = isDelivered ? amount : 0;
+      const tier =
+        totalSpent >= 50000000
+          ? 'Gold'
+          : totalSpent >= 15000000
+            ? 'Silver'
+            : totalSpent > 0
+              ? 'Bronze'
+              : 'Retail';
+      map.set(cid, {
+        id: cid,
+        code,
+        name: o.customerName || 'Khách hàng',
+        phone: o.customerPhone || '0900000000',
+        email: `${code.toLowerCase().replace('-', '')}@khachhang.vn`,
+        address: o.shippingAddress || 'Chưa cập nhật địa chỉ',
+        tier,
+        createdAt: o.createdAt || new Date().toISOString(),
+        totalSpent,
+        ordersCount: 1,
+      });
+    } else {
+      const nextSpent = (existing.totalSpent || 0) + (isDelivered ? amount : 0);
+      const nextCount = (existing.ordersCount || 0) + 1;
+      const tier =
+        nextSpent >= 50000000
+          ? 'Gold'
+          : nextSpent >= 15000000
+            ? 'Silver'
+            : nextSpent > 0
+              ? 'Bronze'
+              : existing.tier;
+      map.set(cid, {
+        ...existing,
+        totalSpent: nextSpent,
+        ordersCount: nextCount,
+        tier,
+      });
+    }
+  });
+  return Array.from(map.values());
+}
 
 export const useManagerStore = create<ManagerState>()(
   persist(
     (set, get) => ({
-      products: initialSeed.products,
+      products: [],
       orders: [],
       ordersLoading: false,
       ordersError: null,
-      customers: initialSeed.customers,
-      shippers: initialSeed.shippers,
-      stockLogs: initialSeed.stockLogs,
-      codSettlements: (initialSeed as any).codSettlements || [],
+      customers: [],
+      shippers: [],
+      stockLogs: [],
+      codSettlements: [],
       initialized: true,
 
       setOrders: (orders: Order[]) => set({ orders }),
@@ -180,13 +284,36 @@ export const useManagerStore = create<ManagerState>()(
         try {
           const data = await api.get<any[]>('/orders');
           const mapped = (Array.isArray(data) ? data : []).map(mapOrderFromApi);
-          set({ orders: mapped, ordersLoading: false, ordersError: null });
+          const derivedCustomers = deriveCustomersFromOrders(mapped);
+          set({
+            orders: mapped,
+            customers: derivedCustomers,
+            ordersLoading: false,
+            ordersError: null,
+          });
         } catch (err: any) {
           set({
             ordersLoading: false,
             ordersError: getFriendlyErrorMessage(err),
           });
         }
+      },
+
+      fetchProducts: async () => {
+        try {
+          const data = await api.get<any[]>('/products');
+          if (Array.isArray(data)) {
+            set({ products: data.map(mapApiProductToManagerProduct) });
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV !== 'test') {
+            console.warn('[useManagerStore] Không thể tải danh sách sản phẩm (/api/v1/products):', err);
+          }
+        }
+      },
+
+      fetchCustomers: async () => {
+        await get().fetchOrders();
       },
 
       fetchShippers: async () => {
@@ -942,7 +1069,7 @@ export const useManagerStore = create<ManagerState>()(
     }),
     {
       name: 'tdt-manager-storage',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() =>
         typeof window !== 'undefined'
           ? localStorage
@@ -953,11 +1080,18 @@ export const useManagerStore = create<ManagerState>()(
             }
       ),
       migrate: (persistedState: any, version: number) => {
-        if (!persistedState || typeof persistedState !== 'object') {
-          return createInitialManagerData();
+        if (!persistedState || typeof persistedState !== 'object' || version < 3) {
+          return {
+            products: [],
+            orders: [],
+            customers: [],
+            shippers: [],
+            stockLogs: [],
+            codSettlements: [],
+            initialized: true,
+          };
         }
 
-        // Migrate to version 2: ensure codSettlements and shiftStatus are populated
         if (!Array.isArray(persistedState.codSettlements)) {
           persistedState.codSettlements = [];
         }
@@ -975,7 +1109,6 @@ export const useManagerStore = create<ManagerState>()(
           }));
         }
 
-        // Ensure orders have fallback defaults
         if (Array.isArray(persistedState.orders)) {
           persistedState.orders = persistedState.orders.map((o: any) => ({
             ...o,

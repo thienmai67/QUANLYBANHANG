@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { MAndE_PRODUCTS } from "@/data/materialData";
 import { useAdminStore } from "@/store/useAdminStore";
-import { Eye, Calculator } from "lucide-react";
+import { Eye, Calculator, Package } from "lucide-react";
 import * as motion from "motion/react-client";
 
 interface MaterialProductShowcaseProps {
@@ -12,43 +11,40 @@ interface MaterialProductShowcaseProps {
 
 export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductShowcaseProps) {
   const adminProducts = useAdminStore((state) => state.products);
+  const productsLoading = useAdminStore((state) => state.productsLoading);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
 
   useEffect(() => {
-    if (adminProducts.length === 0) {
-      fetchProducts();
-    }
-  }, [adminProducts.length, fetchProducts]);
-  
-  // Merge products from Admin Store if available, fallback to default MAndE_PRODUCTS
-  const displayProducts = adminProducts && adminProducts.length > 0
-    ? adminProducts.map((p) => {
-        const rawPrice = p.basePrice ?? (typeof p.price === 'number' ? p.price : 0);
-        const priceStr = typeof p.price === 'string'
-          ? p.price
-          : `${rawPrice.toLocaleString('vi-VN')} ₫`;
-        
-        const specsArr = Array.isArray(p.specs)
-          ? p.specs
-          : typeof p.specs === 'string'
-            ? [p.specs]
-            : [`Thương hiệu: ${p.brand || 'Chính hãng'}`, `Đơn vị: ${p.unit || 'Chuẩn'}`];
+    fetchProducts();
+  }, [fetchProducts]);
 
-        return {
-          id: p.id,
-          sku: p.sku || "SKU-STD",
-          name: p.name,
-          brand: p.brand || "Cadivi",
-          category: p.category || "CABLE",
-          price: priceStr,
-          unit: p.unit || "Bộ",
-          image: p.image || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&auto=format&fit=crop&q=80",
-          badge: p.badge || "MỚI",
-          specs: specsArr,
-          discount: p.discountRate ?? p.discount ?? 15,
-        };
-      })
-    : MAndE_PRODUCTS.slice(0, 8);
+  const displayProducts = (adminProducts || []).slice(0, 8).map((p) => {
+    const rawPrice = p.basePrice ?? (typeof p.price === "number" ? p.price : 0);
+    const priceStr =
+      typeof p.price === "string"
+        ? p.price
+        : `${rawPrice.toLocaleString("vi-VN")} ₫`;
+
+    const specsArr = Array.isArray(p.specs)
+      ? p.specs
+      : typeof p.specs === "string"
+        ? [p.specs]
+        : [`Thương hiệu: ${p.brand || "Chính hãng"}`, `Đơn vị: ${p.unit || "Chuẩn"}`];
+
+    return {
+      id: p.id,
+      sku: p.sku || "SKU-STD",
+      name: p.name,
+      brand: p.brand || "Cadivi",
+      category: p.category || "CABLE",
+      price: priceStr,
+      unit: p.unit || "Bộ",
+      image: p.image || "/images/products/copper-cables.png",
+      badge: p.badge || "MỚI",
+      specs: specsArr,
+      discount: p.discountRate ?? p.discount ?? 15,
+    };
+  });
 
   return (
     <section className="w-full">
@@ -61,6 +57,18 @@ export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductSh
         </div>
       </div>
 
+      {productsLoading && displayProducts.length === 0 ? (
+        <div className="py-12 text-center text-slate-400 text-sm font-medium">
+          Đang tải danh sách sản phẩm...
+        </div>
+      ) : displayProducts.length === 0 ? (
+        <div className="py-16 text-center bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+          <Package className="w-10 h-10 text-slate-400 mx-auto opacity-50" />
+          <p className="text-base font-bold text-slate-700 dark:text-slate-200">
+            Chưa có sản phẩm
+          </p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {displayProducts.map((prod, idx) => (
           <motion.div
@@ -142,6 +150,7 @@ export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductSh
           </motion.div>
         ))}
       </div>
+      )}
     </section>
   );
 }

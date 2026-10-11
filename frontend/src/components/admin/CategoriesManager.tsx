@@ -1,13 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, FolderTree, Edit2, Trash2, X, Check } from 'lucide-react';
 import { useAdminStore } from '../../store/useAdminStore';
 import { Category, ProductCategoryType } from '../../types/admin';
 
 export function CategoriesManager() {
-  const { categories, addCategory, updateCategory, deleteCategory, addToast } =
-    useAdminStore();
+  const {
+    categories,
+    fetchCategories,
+    fetchProducts,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addToast,
+  } = useAdminStore();
+
+  useEffect(() => {
+    fetchProducts().then(() => fetchCategories());
+  }, [fetchProducts, fetchCategories]);
 
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -106,67 +117,74 @@ export function CategoriesManager() {
       </div>
 
       {/* Grid of Category Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
-        {filteredCategories.map((cat) => (
-          <div
-            key={cat.id}
-            className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-all"
-          >
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-cyan-100 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-400 rounded-xl">
-                    <FolderTree className="w-5 h-5" />
+      {filteredCategories.length === 0 ? (
+        <div className="p-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-slate-400">
+          <FolderTree className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Chưa có dữ liệu</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+          {filteredCategories.map((cat) => (
+            <div
+              key={cat.id}
+              className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-all"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-cyan-100 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-400 rounded-xl">
+                      <FolderTree className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
+                        {cat.name}
+                      </h3>
+                      <span className="text-[11px] font-mono text-slate-400">/{cat.slug}</span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
-                      {cat.name}
-                    </h3>
-                    <span className="text-[11px] font-mono text-slate-400">/{cat.slug}</span>
-                  </div>
+
+                  <span
+                    className={`px-3 py-1 text-xs font-bold rounded-full ${
+                      cat.status === 'Active'
+                        ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                    }`}
+                  >
+                    {cat.status === 'Active' ? 'Kinh doanh' : 'Tạm ngưng'}
+                  </span>
                 </div>
 
-                <span
-                  className={`px-3 py-1 text-xs font-bold rounded-full ${
-                    cat.status === 'Active'
-                      ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                  }`}
-                >
-                  {cat.status === 'Active' ? 'Kinh doanh' : 'Tạm ngưng'}
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-4 leading-relaxed">
+                  {cat.description}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 mt-6 border-t border-slate-100 dark:border-slate-800 text-xs">
+                <span className="font-bold text-slate-700 dark:text-slate-300">
+                  Tổng số SKU: <span className="text-cyan-600 dark:text-cyan-400 font-mono text-sm">{cat.skuCount}</span> sản phẩm
                 </span>
-              </div>
 
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-4 leading-relaxed">
-                {cat.description}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 mt-6 border-t border-slate-100 dark:border-slate-800 text-xs">
-              <span className="font-bold text-slate-700 dark:text-slate-300">
-                Tổng số SKU: <span className="text-cyan-600 dark:text-cyan-400 font-mono text-sm">{cat.skuCount}</span> sản phẩm
-              </span>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleOpenEdit(cat)}
-                  className="p-2 text-slate-500 hover:text-cyan-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
-                  title="Chỉnh sửa danh mục"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(cat.id, cat.name)}
-                  className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
-                  title="Xóa danh mục"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenEdit(cat)}
+                    className="p-2 text-slate-500 hover:text-cyan-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+                    title="Chỉnh sửa danh mục"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(cat.id, cat.name)}
+                    className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
+                    title="Xóa danh mục"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Add / Edit Category Modal */}
       {modalOpen && (

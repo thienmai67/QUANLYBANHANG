@@ -1,14 +1,19 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/auth';
 import { X, Trash2, Plus, Minus, ShoppingBag, CheckCircle2, ArrowRight } from 'lucide-react';
 import { api, getFriendlyErrorMessage } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { useAdminStore } from '@/store/useAdminStore';
 
 export default function CartDrawer() {
+  const router = useRouter();
   const toast = useToast();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const {
     items,
     isOpen,
@@ -28,8 +33,26 @@ export default function CartDrawer() {
 
   if (!isOpen) return null;
 
+  const ensureAuthenticatedOrRedirect = (): boolean => {
+    const token = getAccessToken();
+    if (!token && !isAuthenticated) {
+      setIsOpen(false);
+      setCheckoutStep('cart');
+      toast.warning('Vui lòng đăng nhập để đặt hàng');
+      router.push('/login?redirect=/shop');
+      return false;
+    }
+    return true;
+  };
+
+  const handleProceedToCheckout = () => {
+    if (!ensureAuthenticatedOrRedirect()) return;
+    setCheckoutStep('form');
+  };
+
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ensureAuthenticatedOrRedirect()) return;
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -323,7 +346,7 @@ export default function CartDrawer() {
 
               {checkoutStep === 'cart' ? (
                 <button
-                  onClick={() => setCheckoutStep('form')}
+                  onClick={handleProceedToCheckout}
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 text-sm flex items-center justify-center gap-2 transition-all"
                 >
                   Tiến Hành Đặt Hàng <ArrowRight className="w-4 h-4" />
