@@ -14,8 +14,9 @@ import {
 } from '@/store/useManagerStore';
 import { BrandMetric, TimeBucket, calculateDeliveredRevenue } from '@/lib/aggregates';
 import { getAccessToken } from '@/lib/auth';
+import { API_BASE_URL } from '@/lib/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE = API_BASE_URL;
 
 // Check whether mock mode is explicitly disabled. Defaults to true (mock mode active).
 const isMockMode = (): boolean => {

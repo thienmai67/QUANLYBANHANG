@@ -8,9 +8,8 @@ import AuthField from "@/components/auth/AuthField";
 import AuthActionRow from "@/components/auth/AuthActionRow";
 import AuthModal from "@/components/auth/AuthModal";
 import { saveTokens } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/api";
 import { validateRegisterForm, combineFullName, type ValidationError } from "@/lib/auth/validators";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export default function RegisterPage() {
   const [lastName, setLastName] = useState("");
@@ -79,7 +78,7 @@ export default function RegisterPage() {
     const fullName = combineFullName(lastName, firstName);
 
     try {
-      const res = await fetch(`${API_URL}/api/v1/auth/register`, {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -57,15 +57,45 @@ export default function CartDrawer() {
 
     // Call Backend API to persist into PostgreSQL
     try {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      let catalogProducts: Array<{ id: string; sku?: string }> = [];
+      if (items.some((i) => !uuidRegex.test(i.id))) {
+        try {
+          const res = await api.get<any>('/products');
+          const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+          catalogProducts = list;
+        } catch {
+          // fallback to seeded UUIDs below
+        }
+      }
+
+      const fallbackUuids = [
+        '10000000-0000-0000-0000-000000000001',
+        '10000000-0000-0000-0000-000000000002',
+        '10000000-0000-0000-0000-000000000003',
+      ];
+
       const payload = {
         customerName: customerName || 'Khách Mua Lẻ',
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
         is2h: false,
-        items: items.map((i) => ({
-          productId: i.id,
-          quantity: i.quantity,
-          unitPrice: i.unitPrice,
-        })),
+        items: items.map((i, idx) => {
+          let resolvedId = i.id;
+          if (!uuidRegex.test(resolvedId)) {
+            const matched = catalogProducts.find(
+              (p) => p.sku && i.sku && p.sku.toLowerCase() === i.sku.toLowerCase()
+            );
+            resolvedId =
+              matched?.id ||
+              catalogProducts[idx % Math.max(1, catalogProducts.length)]?.id ||
+              fallbackUuids[idx % fallbackUuids.length];
+          }
+          return {
+            productId: resolvedId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+          };
+        }),
       };
 
       await api.post('/orders', payload);

@@ -1,5 +1,6 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api";
 
 export interface AuthActionRowProps {
   submitText: string;
@@ -14,13 +15,11 @@ export default function AuthActionRow({
   onGoogleClick,
   className = "",
 }: AuthActionRowProps) {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-
   const handleGoogleRedirect = () => {
     if (onGoogleClick) {
       onGoogleClick();
     } else {
-      window.location.href = `${API_URL}/api/v1/auth/google/login`;
+      window.location.href = `${API_BASE_URL}/auth/google/login`;
     }
   };
 

@@ -11,9 +11,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/joho/godotenv"
 	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/auth"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
@@ -41,6 +42,10 @@ func main() {
 	db.SetMaxOpenConns(20)
 	db.SetMaxIdleConns(10)
 
+	if err := ensureSchemaAndSeed(db); err != nil {
+		log.Printf("warning: schema/seed initialization issue: %v", err)
+	}
+
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET is required")
@@ -49,7 +54,7 @@ func main() {
 	productRepo := repository.NewProductRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	jwtService := auth.NewJWTService(jwtSecret)
-	
+
 	// Create middlewares
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
@@ -82,7 +87,7 @@ func main() {
 			r.Post("/register", authHandler.HandleRegister)
 			r.Post("/login", authHandler.HandleLogin)
 			r.Post("/refresh", authHandler.HandleRefreshToken)
-			
+
 			// SSO Google
 			r.Route("/google", func(r chi.Router) {
 				r.Get("/login", ssoHandler.HandleGoogleLogin)
@@ -97,7 +102,7 @@ func main() {
 		r.Get("/units", productHandler.ListUnits)
 		r.Get("/brands", productHandler.ListBrands)
 		r.Get("/categories", productHandler.ListCategories)
-		
+
 		// Authenticated Routes (Any Logged In User / Customer)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
@@ -156,4 +161,262 @@ func healthHandler(db *sqlx.DB) http.HandlerFunc {
 		})
 	}
 }
+
+func ensureSchemaAndSeed(db *sqlx.DB) error {
+	ddl := `
+CREATE SCHEMA IF NOT EXISTS me_supplies;
+SET search_path TO me_supplies;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS categories (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code        VARCHAR(50)  NOT NULL UNIQUE,
+    name        VARCHAR(100) NOT NULL,
+    parent_id   UUID         REFERENCES categories(id),
+    type        VARCHAR(20)  NOT NULL CHECK (type IN ('PIPE', 'FITTING', 'CABLE', 'DEVICE', 'ACCESSORY')),
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS brands (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code            VARCHAR(30) NOT NULL UNIQUE,
+    name            VARCHAR(100) NOT NULL,
+    discount_rate   DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS units (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code                VARCHAR(20) NOT NULL UNIQUE,
+    name                VARCHAR(50) NOT NULL,
+    unit_type           VARCHAR(20) NOT NULL CHECK (unit_type IN ('LENGTH', 'COUNT', 'ROLL', 'TREE', 'BOX')),
+    to_meter_factor     DECIMAL(10,4) NOT NULL DEFAULT 1.0000,
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS unit_conversions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    from_unit_id    UUID NOT NULL REFERENCES units(id),
+    to_unit_id      UUID NOT NULL REFERENCES units(id),
+    factor          DECIMAL(12,4) NOT NULL,
+    price_adjustment DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_unit_conv UNIQUE (from_unit_id, to_unit_id)
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sku             VARCHAR(50)  NOT NULL UNIQUE,
+    name            VARCHAR(200) NOT NULL,
+    brand_id        UUID         NOT NULL REFERENCES brands(id),
+    category_id     UUID         NOT NULL REFERENCES categories(id),
+    base_price      DECIMAL(12,2) NOT NULL,
+    diameter_mm     DECIMAL(6,1),
+    pressure_class  VARCHAR(50),
+    cross_section_mm2 DECIMAL(6,2),
+    amp_rating      DECIMAL(6,2),
+    specifications  JSONB,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE products ADD COLUMN IF NOT EXISTS pressure_class VARCHAR(50);
+
+CREATE TABLE IF NOT EXISTS users (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email           VARCHAR(255)    NOT NULL UNIQUE,
+    full_name       VARCHAR(200)    NOT NULL,
+    avatar_url      TEXT,
+    google_id       VARCHAR(255)    UNIQUE,
+    role            VARCHAR(20)     NOT NULL DEFAULT 'CUSTOMER'
+                    CHECK (role IN ('CUSTOMER', 'SALE', 'MANAGER', 'SHIPPER', 'ADMIN')),
+    auth_provider   VARCHAR(50)     NOT NULL DEFAULT 'LOCAL'
+                    CHECK (auth_provider IN ('LOCAL', 'GOOGLE')),
+    password_hash   VARCHAR(255),
+    phone           VARCHAR(20),
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_number    VARCHAR(50) NOT NULL UNIQUE,
+    customer_name   VARCHAR(100) NOT NULL,
+    total_amount    DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+    status          VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+UPDATE orders SET status = 'PACKING' WHERE status = 'CONFIRMED';
+UPDATE orders SET status = 'SHIPPING' WHERE status = 'SHIPPED';
+
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
+ALTER TABLE orders ADD CONSTRAINT orders_status_check
+    CHECK (status IN ('PENDING', 'PACKING', 'SHIPPING', 'DELIVERED', 'CANCELLED'));
+
+ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES users(id),
+    ADD COLUMN IF NOT EXISTS shipper_id UUID REFERENCES users(id),
+    ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS is_2h BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS deadline_2h TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS cancellation_reason TEXT,
+    ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS pod_photo_url TEXT,
+    ADD COLUMN IF NOT EXISTS pod_recipient_name VARCHAR(120),
+    ADD COLUMN IF NOT EXISTS pod_confirmed_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS cod_collected DECIMAL(14,2) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS cod_remitted BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS cod_remitted_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS incident_detail TEXT,
+    ADD COLUMN IF NOT EXISTS incident_reported_by UUID REFERENCES users(id),
+    ADD COLUMN IF NOT EXISTS incident_reported_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id        UUID NOT NULL REFERENCES orders(id),
+    product_id      UUID NOT NULL REFERENCES products(id),
+    quantity        DECIMAL(12,4) NOT NULL,
+    unit_price      DECIMAL(12,2) NOT NULL,
+    converted_quantity DECIMAL(12,4),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cod_settlements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shipper_id UUID NOT NULL REFERENCES users(id),
+    total_amount DECIMAL(14,2) NOT NULL,
+    order_count INT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT chk_cod_settlements_total_amount CHECK (total_amount > 0),
+    CONSTRAINT chk_cod_settlements_order_count CHECK (order_count > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_orders_shipper_id ON orders(shipper_id);
+CREATE INDEX IF NOT EXISTS idx_cod_settlements_shipper_id ON cod_settlements(shipper_id);
+CREATE INDEX IF NOT EXISTS idx_orders_cod_remitted ON orders(cod_remitted, status, payment_method);
+
+INSERT INTO brands (code, name, discount_rate) VALUES
+    ('BINHMINH', 'Bình Minh', 18.00),
+    ('CADIVI',   'Cadivi', 22.00),
+    ('PANASONIC', 'Panasonic', 15.00)
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO units (code, name, unit_type, to_meter_factor) VALUES
+    ('MET',  'Mét',        'LENGTH', 1.0000),
+    ('CAY',  'Cây (4m)',   'TREE',   4.0000),
+    ('CUON', 'Cuộn (100m)', 'ROLL',   100.0000),
+    ('CAI',  'Cái',        'COUNT',  1.0000),
+    ('HOP',  'Hộp (10 cái)','BOX',    10.0000)
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO categories (code, name, type) VALUES
+    ('PIPE',       'Ống',       'PIPE'),
+    ('WATER_PIPE', 'Ống Nước',  'PIPE'),
+    ('CABLE',      'Dây Cáp',   'CABLE'),
+    ('DEVICE',     'Thiết bị',  'DEVICE')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO products (id, sku, name, brand_id, category_id, base_price, diameter_mm, cross_section_mm2, amp_rating, specifications) VALUES
+    ('10000000-0000-0000-0000-000000000001', 'BM-U-PVC-042', 'Ống uPVC Bình Minh Phi 42mm C1',
+        (SELECT id FROM brands WHERE code = 'BINHMINH'),
+        (SELECT id FROM categories WHERE code = 'WATER_PIPE'),
+        85000.00, 42.0, NULL, NULL,
+        '{"material": "PVC", "pressure_class": "C1", "length_per_cay": 4.0}'::JSONB),
+    ('10000000-0000-0000-0000-000000000002', 'CV-CV-2.5', 'Dây đơn Cadivi CV 2.5mm2',
+        (SELECT id FROM brands WHERE code = 'CADIVI'),
+        (SELECT id FROM categories WHERE code = 'CABLE'),
+        18500.00, NULL, 2.5, 20.0,
+        '{"type": "Cu/XLPE/PVC", "voltage": "0.6/1kV", "length_per_cuon": 100.0}'::JSONB),
+    ('10000000-0000-0000-0000-000000000003', 'PA-MCB-2P32', 'MCB Panasonic 2P 32A',
+        (SELECT id FROM brands WHERE code = 'PANASONIC'),
+        (SELECT id FROM categories WHERE code = 'DEVICE'),
+        220000.00, NULL, NULL, 32.0,
+        '{"poles": 2, "current_rating": 32, "breaking_capacity": "10kA", "trip_curve": "C"}'::JSONB)
+ON CONFLICT (sku) DO NOTHING;
+`
+	if _, err := db.Exec(ddl); err != nil {
+		return fmt.Errorf("apply schema DDL: %w", err)
+	}
+
+	type seedUser struct {
+		email    string
+		fullName string
+		role     string
+		password string
+		phone    string
+	}
+	demoUsers := []seedUser{
+		{email: "manager@tdt.vn", fullName: "Quản Lý Hải Đăng", role: "MANAGER", password: "Manager@123", phone: "0909000111"},
+		{email: "shipper@tdt.vn", fullName: "Trần Quốc Toản", role: "SHIPPER", password: "Shipper@123", phone: "0902345678"},
+		{email: "shipper1@tdt.vn", fullName: "Nguyễn Văn Hùng", role: "SHIPPER", password: "Shipper@123", phone: "0901234567"},
+		{email: "customer@tdt.vn", fullName: "Khách Hàng Bán Lẻ", role: "CUSTOMER", password: "Customer@123", phone: "0903456789"},
+		{email: "admin@tdt.vn", fullName: "Quản Trị Hệ Thống", role: "ADMIN", password: "Admin@123", phone: "0908888999"},
+	}
+
+	for _, u := range demoUsers {
+		hash, err := bcrypt.GenerateFromPassword([]byte(u.password), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("hash password for %s: %w", u.email, err)
+		}
+		_, err = db.Exec(`
+			INSERT INTO me_supplies.users (email, full_name, role, auth_provider, password_hash, phone)
+			VALUES ($1, $2, $3, 'LOCAL', $4, $5)
+			ON CONFLICT (email) DO UPDATE
+			SET password_hash = EXCLUDED.password_hash,
+			    role = EXCLUDED.role,
+			    full_name = EXCLUDED.full_name,
+			    phone = COALESCE(me_supplies.users.phone, EXCLUDED.phone)
+		`, u.email, u.fullName, u.role, string(hash), u.phone)
+		if err != nil {
+			return fmt.Errorf("upsert demo user %s: %w", u.email, err)
+		}
+	}
+
+	var orderCount int
+	if err := db.Get(&orderCount, `SELECT COUNT(*) FROM me_supplies.orders`); err == nil && orderCount == 0 {
+		_, _ = db.Exec(`
+			INSERT INTO me_supplies.orders (
+				order_number, customer_id, customer_name, shipper_id, payment_method,
+				is_2h, deadline_2h, total_amount, status, version
+			) VALUES
+			(
+				'ORD-261011-DEMO01',
+				(SELECT id FROM me_supplies.users WHERE email = 'customer@tdt.vn'),
+				'Công ty Xây Dựng Minh Phát',
+				NULL,
+				'COD',
+				TRUE,
+				NOW() + INTERVAL '90 minutes',
+				1850000,
+				'PENDING',
+				1
+			),
+			(
+				'ORD-261011-DEMO02',
+				(SELECT id FROM me_supplies.users WHERE email = 'customer@tdt.vn'),
+				'Nhà Thầu Cơ Điện Thành Công',
+				(SELECT id FROM me_supplies.users WHERE email = 'shipper@tdt.vn'),
+				'COD',
+				TRUE,
+				NOW() + INTERVAL '75 minutes',
+				2200000,
+				'SHIPPING',
+				2
+			)
+			ON CONFLICT (order_number) DO NOTHING
+		`)
+	}
+
+	return nil
+}
+
 

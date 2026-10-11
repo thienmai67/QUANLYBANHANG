@@ -1,2 +1,4 @@
+SET search_path TO me_supplies;
+
 ALTER TABLE products
-ADD COLUMN pressure_class VARCHAR(50);
+ADD COLUMN IF NOT EXISTS pressure_class VARCHAR(50);

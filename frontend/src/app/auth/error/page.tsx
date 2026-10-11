@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { XCircle } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api";
 
 const ERROR_MAP: Record<string, string> = {
   missing_google_client_id: "Hệ thống chưa cấu hình GOOGLE_CLIENT_ID trong file môi trường (.env). Vui lòng sử dụng Đăng nhập bằng Email/Mật khẩu hoặc chọn Vai trò ở thanh trên cùng.",
@@ -46,7 +47,7 @@ function ErrorContent() {
             Về trang chủ
           </Link>
           <button
-            onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"}/api/v1/auth/google/login`}
+            onClick={() => window.location.href = `${API_BASE_URL}/auth/google/login`}
             className="px-6 py-2.5 rounded-lg bg-white/8 hover:bg-white/15 text-white text-sm border border-white/10 transition-colors"
           >
             Thử lại

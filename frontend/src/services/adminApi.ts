@@ -17,8 +17,9 @@ import {
 } from '../data/adminMockData';
 
 import { getAccessToken } from '../lib/auth';
+import { API_BASE_URL } from '../lib/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE = API_BASE_URL;
 
 const apiClient = axios.create({
   baseURL: API_BASE,

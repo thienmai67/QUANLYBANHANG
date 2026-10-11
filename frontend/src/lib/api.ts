@@ -1,10 +1,18 @@
 import { HealthStatus, Product } from "@/types/api";
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from "@/lib/auth";
 
-const rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-export const API_BASE_URL = rawBase.endsWith("/api/v1")
-  ? rawBase
-  : `${rawBase.replace(/\/+$/, "")}/api/v1`;
+function normalizeApiBaseUrl(raw?: string): string {
+  const trimmed = (raw ?? "/api").trim().replace(/\/+$/, "");
+  if (!trimmed || trimmed === "/api") {
+    return "/api/v1";
+  }
+  if (trimmed.endsWith("/api/v1")) {
+    return trimmed;
+  }
+  return `${trimmed}/api/v1`;
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 
 export class ApiError extends Error {
   status: number;

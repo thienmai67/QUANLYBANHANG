@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+import { API_BASE_URL } from "@/lib/api";
 
 interface GoogleSignInButtonProps {
   className?: string;
@@ -18,7 +17,7 @@ export default function GoogleSignInButton({
       id="google-signin-btn"
       type="button"
       onClick={() => {
-        window.location.href = `${API_URL}/api/v1/auth/google/login`;
+        window.location.href = `${API_BASE_URL}/auth/google/login`;
       }}
       className={`group flex items-center justify-center gap-3 w-full px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all shadow-sm ${className}`}
     >
