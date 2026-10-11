@@ -17,7 +17,9 @@ export default function CartDrawer() {
   const {
     items,
     isOpen,
+    openToCheckout,
     setIsOpen,
+    setOpenToCheckout,
     removeItem,
     updateQuantity,
     clearCart,
@@ -30,6 +32,21 @@ export default function CartDrawer() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'BANK'>('COD');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen && openToCheckout) {
+      setOpenToCheckout(false);
+      const token = getAccessToken();
+      if (!token && !isAuthenticated) {
+        setIsOpen(false);
+        setCheckoutStep('cart');
+        toast.warning('Vui lòng đăng nhập để đặt hàng');
+        router.push('/login?redirect=/shop');
+      } else {
+        setCheckoutStep('form');
+      }
+    }
+  }, [isOpen, openToCheckout, isAuthenticated, router, setIsOpen, setOpenToCheckout, toast]);
 
   if (!isOpen) return null;
 

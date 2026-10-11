@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import { MATERIAL_PRODUCTS, MaterialProduct } from '@/data/materialData';
@@ -152,8 +153,9 @@ export default function ShopPage() {
         {/* Product Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredProducts.map((prod) => (
-            <div
+            <Link
               key={prod.id}
+              href={`/product/${prod.id}`}
               className="bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col justify-between"
             >
               <div>
@@ -172,7 +174,7 @@ export default function ShopPage() {
                   <span className="font-mono text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">
                     SKU: {prod.sku}
                   </span>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-2">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                     {prod.name}
                   </h3>
                   <p className="text-xs text-slate-500 line-clamp-2">{prod.description || prod.specs}</p>
@@ -195,7 +197,12 @@ export default function ShopPage() {
                 </div>
 
                 <button
-                  onClick={() => handleAddToCart(prod)}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleAddToCart(prod);
+                  }}
                   className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all ${
                     addedItemMap[prod.id]
                       ? 'bg-emerald-600 text-white'
@@ -213,7 +220,7 @@ export default function ShopPage() {
                   )}
                 </button>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </main>

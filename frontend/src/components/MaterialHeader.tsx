@@ -127,12 +127,10 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
               <div className="absolute top-full left-0 right-0 mt-3 bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50">
                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {searchResults.map((prod) => (
-                    <div
+                    <Link
                       key={prod.id}
-                      onClick={() => {
-                        setIsSearchFocused(false);
-                        window.location.href = `/shop`;
-                      }}
+                      href={`/product/${prod.id}`}
+                      onClick={() => setIsSearchFocused(false)}
                       className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer flex items-center gap-4 transition-colors"
                     >
                       <img
@@ -149,7 +147,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                         </p>
                       </div>
                       <span className="text-sm font-bold text-orange-500">{prod.price}</span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>

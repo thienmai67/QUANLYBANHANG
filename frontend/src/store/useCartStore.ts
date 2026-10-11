@@ -14,8 +14,10 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
+  openToCheckout: boolean;
   setIsOpen: (open: boolean) => void;
-  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  setOpenToCheckout: (openToCheckout: boolean) => void;
+  addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }, openDrawer?: boolean) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
   clearCart: () => void;
@@ -28,19 +30,39 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       isOpen: false,
+      openToCheckout: false,
 
-      setIsOpen: (open) => set({ isOpen: open }),
+      setIsOpen: (open) => set({ isOpen: open, ...(open ? {} : { openToCheckout: false }) }),
+      setOpenToCheckout: (openToCheckout) => set({ openToCheckout }),
 
-      addItem: (newItem) => {
+      addItem: (newItem, openDrawer = true) => {
+        const addQty = newItem.quantity && newItem.quantity > 0 ? newItem.quantity : 1;
         const currentItems = get().items;
         const existingIndex = currentItems.findIndex((i) => i.id === newItem.id);
 
         if (existingIndex > -1) {
           const updated = [...currentItems];
-          updated[existingIndex].quantity += 1;
-          set({ items: updated, isOpen: true });
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            quantity: updated[existingIndex].quantity + addQty,
+          };
+          set({ items: updated, isOpen: openDrawer });
         } else {
-          set({ items: [...currentItems, { ...newItem, quantity: 1 }], isOpen: true });
+          set({
+            items: [
+              ...currentItems,
+              {
+                id: newItem.id,
+                sku: newItem.sku,
+                name: newItem.name,
+                price: newItem.price,
+                unitPrice: newItem.unitPrice,
+                image: newItem.image,
+                quantity: addQty,
+              },
+            ],
+            isOpen: openDrawer,
+          });
         }
       },
 
@@ -62,7 +84,7 @@ export const useCartStore = create<CartState>()(
         set({ items: updated });
       },
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], openToCheckout: false }),
 
       getTotalPrice: () => {
         return get().items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
