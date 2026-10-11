@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
@@ -10,18 +10,97 @@ import FacebookSignInButton from '@/components/FacebookSignInButton';
 import {
   User,
   LogIn,
-  ShieldCheck,
-  Building2,
   LogOut,
   ShoppingBag,
-  MapPin,
   Clock,
-  CheckCircle2,
   Zap,
-  Store,
+  Package,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
-import { getCurrentUser } from '@/lib/auth';
+import {
+  getCurrentUser,
+  getAccessToken,
+  getRefreshToken,
+  saveTokens,
+  clearTokens,
+  decodeToken,
+} from '@/lib/auth';
+import { api, API_BASE_URL, getFriendlyErrorMessage } from '@/lib/api';
+
+interface AccountOrderItem {
+  id: string;
+  orderId: string;
+  productId: string;
+  product?: {
+    id: string;
+    sku: string;
+    name: string;
+  };
+  quantity: number;
+  unitPrice: number;
+}
+
+interface AccountOrder {
+  id: string;
+  orderNumber: string;
+  customerId?: string;
+  customerName: string;
+  paymentMethod?: string;
+  totalAmount: number;
+  status: 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED' | string;
+  items?: AccountOrderItem[];
+  createdAt: string;
+}
+
+function getOrderStatusBadge(status: string): { label: string; className: string } {
+  switch ((status || '').toUpperCase()) {
+    case 'PENDING':
+      return {
+        label: 'Chờ Xác Nhận',
+        className:
+          'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900',
+      };
+    case 'PACKING':
+      return {
+        label: 'Đang Đóng Gói',
+        className:
+          'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900',
+      };
+    case 'SHIPPING':
+      return {
+        label: 'Đang Giao Hàng',
+        className:
+          'bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-900',
+      };
+    case 'DELIVERED':
+      return {
+        label: 'Đã Giao Thành Công',
+        className:
+          'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900',
+      };
+    case 'CANCELLED':
+      return {
+        label: 'Đã Hủy',
+        className:
+          'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900',
+      };
+    default:
+      return {
+        label: status || 'Đang xử lý',
+        className:
+          'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
+      };
+  }
+}
+
+function formatPaymentMethod(method?: string): string {
+  const m = (method || 'COD').toUpperCase();
+  if (m === 'BANK_TRANSFER' || m === 'BANK') {
+    return 'Chuyển khoản ngân hàng';
+  }
+  return 'Thanh toán COD khi nhận';
+}
 
 export default function AccountPage() {
   const router = useRouter();
@@ -32,61 +111,180 @@ export default function AccountPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+
+  const [orders, setOrders] = useState<AccountOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState<boolean>(true);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+
+  const fetchMyOrders = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) {
+      setOrders([]);
+      setOrdersLoading(false);
+      return;
+    }
+    setOrdersLoading(true);
+    setOrdersError(null);
+    try {
+      const data = await api.get<AccountOrder[]>('/orders');
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setOrdersError(getFriendlyErrorMessage(err));
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    const accessToken = getAccessToken();
+    const refreshToken = getRefreshToken() || '';
     const decoded = getCurrentUser();
-    if (decoded && !user) {
+
+    if (decoded && accessToken) {
       const rawRole = (decoded.role || '').toUpperCase();
       let role: any = 'CUSTOMER';
       if (rawRole === 'ADMIN') role = 'ADMIN';
       else if (rawRole === 'MANAGER') role = 'MANAGER';
       else if (rawRole === 'SHIPPER') role = 'SHIPPER';
 
-      setAuth('jwt-token-sso', {
-        id: decoded.userId,
-        email: decoded.email,
-        name: decoded.email.split('@')[0],
-        role: role,
-      });
+      if (!user || user.id !== decoded.userId || user.email !== decoded.email) {
+        setAuth(
+          accessToken,
+          {
+            id: decoded.userId,
+            email: decoded.email,
+            name:
+              user && user.email === decoded.email && user.name
+                ? user.name
+                : decoded.email.split('@')[0],
+            role: role,
+          },
+          refreshToken
+        );
+      }
 
-      if (role === 'ADMIN') router.replace('/admin/dashboard');
-      else if (role === 'MANAGER') router.replace('/manager');
-      else if (role === 'SHIPPER') router.replace('/shipper');
+      if (role === 'ADMIN') {
+        router.replace('/admin/dashboard');
+        return;
+      } else if (role === 'MANAGER') {
+        router.replace('/manager');
+        return;
+      } else if (role === 'SHIPPER') {
+        router.replace('/shipper');
+        return;
+      }
+
+      fetchMyOrders();
     } else if (user) {
       if (user.role === 'ADMIN') router.replace('/admin/dashboard');
       else if (user.role === 'MANAGER') router.replace('/manager');
       else if (user.role === 'SHIPPER') router.replace('/shipper');
+      else fetchMyOrders();
     } else if (!decoded && !user && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [user, isAuthenticated, setAuth, router]);
+  }, [user, isAuthenticated, setAuth, router, fetchMyOrders]);
 
-  // Handle direct login & immediate redirect for ADMIN
-  const handleLoginRole = (role: 'ADMIN' | 'CUSTOMER') => {
-    if (role === 'ADMIN') {
-      const adminUser = {
-        id: 'adm-1',
-        email: 'admin@tdt-me.com.vn',
-        name: 'Nguyễn Văn Minh (Quản trị viên)',
-        role: 'ADMIN' as const,
-      };
-      setAuth('mock-token-admin', adminUser);
-      router.replace('/admin/dashboard');
-    } else {
-      const customerUser = {
-        id: 'cust-101',
-        email: email || 'khachhang@gmail.com',
-        name: fullName || email.split('@')[0] || 'Khách Hàng Mua Lẻ',
-        role: 'CUSTOMER' as const,
-      };
-      setAuth('mock-token-customer', customerUser);
-    }
-  };
+  useEffect(() => {
+    const handleOrdersUpdated = () => {
+      fetchMyOrders();
+    };
+    window.addEventListener('tdt-orders-updated', handleOrdersUpdated);
+    return () => {
+      window.removeEventListener('tdt-orders-updated', handleOrdersUpdated);
+    };
+  }, [fetchMyOrders]);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isAdmin = email.toLowerCase().includes('admin');
-    handleLoginRole(isAdmin ? 'ADMIN' : 'CUSTOMER');
+    setAuthError(null);
+    setAuthSubmitting(true);
+    try {
+      const endpoint = activeTab === 'login' ? '/auth/login' : '/auth/register';
+      const bodyPayload =
+        activeTab === 'login'
+          ? { email: email.trim().toLowerCase(), password }
+          : {
+              fullName: fullName.trim() || email.split('@')[0],
+              email: email.trim().toLowerCase(),
+              phone: phone.trim() || undefined,
+              password,
+            };
+
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.message || 'Xác thực không thành công. Vui lòng kiểm tra lại.');
+      }
+
+      const data = await res.json();
+      let accessToken = data.accessToken || data.access_token;
+      let refreshToken = data.refreshToken || data.refresh_token || '';
+
+      if (!accessToken && activeTab === 'register') {
+        const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+        });
+        if (loginRes.ok) {
+          const loginData = await loginRes.json();
+          accessToken = loginData.accessToken || loginData.access_token;
+          refreshToken = loginData.refreshToken || loginData.refresh_token || '';
+        }
+      }
+
+      if (accessToken) {
+        saveTokens(accessToken, refreshToken);
+        const decoded = decodeToken(accessToken);
+        if (decoded) {
+          const rawRole = (decoded.role || 'CUSTOMER').toUpperCase();
+          const role: any =
+            rawRole === 'ADMIN'
+              ? 'ADMIN'
+              : rawRole === 'MANAGER'
+                ? 'MANAGER'
+                : rawRole === 'SHIPPER'
+                  ? 'SHIPPER'
+                  : 'CUSTOMER';
+
+          setAuth(
+            accessToken,
+            {
+              id: decoded.userId,
+              email: decoded.email,
+              name: fullName.trim() || decoded.email.split('@')[0],
+              role,
+            },
+            refreshToken
+          );
+
+          if (role === 'ADMIN') {
+            router.replace('/admin/dashboard');
+            return;
+          } else if (role === 'MANAGER') {
+            router.replace('/manager');
+            return;
+          } else if (role === 'SHIPPER') {
+            router.replace('/shipper');
+            return;
+          }
+          await fetchMyOrders();
+        }
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || 'Đã xảy ra lỗi khi xác thực.');
+    } finally {
+      setAuthSubmitting(false);
+    }
   };
 
   return (
@@ -147,6 +345,12 @@ export default function AccountPage() {
                 </span>
               </div>
 
+              {authError && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 text-xs font-medium">
+                  {authError}
+                </div>
+              )}
+
               {/* Standard Registration & Login Form */}
               <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
                 {activeTab === 'register' && (
@@ -190,7 +394,7 @@ export default function AccountPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nguyenvana@gmail.com (Gõ 'admin' để đăng nhập Admin)"
+                    placeholder="nguyenvana@gmail.com"
                     className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-900 border border-transparent focus:border-blue-500 rounded-xl text-slate-900 dark:text-slate-100 outline-none font-medium"
                   />
                 </div>
@@ -211,22 +415,26 @@ export default function AccountPage() {
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2"
+                  disabled={authSubmitting}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2"
                 >
                   <LogIn className="w-4 h-4" />
-                  {activeTab === 'login' ? 'Đăng Nhập Mua Hàng' : 'Tạo Tài Khoản Ngay'}
+                  {authSubmitting
+                    ? 'Đang xử lý...'
+                    : activeTab === 'login'
+                      ? 'Đăng Nhập Mua Hàng'
+                      : 'Tạo Tài Khoản Ngay'}
                 </button>
               </form>
 
-              {/* Demo Helper Switcher for fast testing */}
               <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-                <span>Cần đăng nhập Admin?</span>
-                <button
-                  onClick={() => handleLoginRole('ADMIN')}
+                <span>Trang đăng nhập đầy đủ</span>
+                <Link
+                  href="/login"
                   className="font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1"
                 >
-                  <Zap className="w-3.5 h-3.5 text-amber-400" /> Đăng nhập Admin
-                </button>
+                  <Zap className="w-3.5 h-3.5 text-amber-400" /> Đi tới /login
+                </Link>
               </div>
             </div>
           </div>
@@ -263,7 +471,6 @@ export default function AccountPage() {
                 </Link>
                 <button
                   onClick={() => {
-                    const { clearTokens } = require('@/lib/auth');
                     clearTokens();
                     logout();
                     window.location.href = '/login';
@@ -287,40 +494,116 @@ export default function AccountPage() {
                   </p>
                 </div>
 
-                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-900">
-                  1 Đơn hàng vừa đặt
-                </span>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">
-                        DH-ONLINE-8899
-                      </span>
-                      <span className="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-full">
-                        Đang Đóng Gói
-                      </span>
-                    </div>
-                    <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 mt-1">
-                      1x Dây Cáp Điện Cadivi CV 2.5mm² (Cuộn 100m) + 2x Aptomat Schneider 32A
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-slate-400" /> Giao đến: Số 45 Đường số 12, P. Bình Trưng Đông, Q.2, TP.HCM
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="font-mono font-bold text-slate-900 dark:text-white text-base">
-                      1.220.000 VND
-                    </p>
-                    <span className="text-[11px] text-slate-500">
-                      Hình thức: Thanh toán COD khi nhận
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={fetchMyOrders}
+                    disabled={ordersLoading}
+                    className="p-2 text-slate-500 hover:text-blue-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    title="Làm mới danh sách đơn hàng"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${ordersLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-900">
+                    {orders.length} đơn hàng
+                  </span>
                 </div>
               </div>
+
+              {ordersLoading ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  Đang tải lịch sử đơn hàng...
+                </div>
+              ) : ordersError ? (
+                <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 text-xs font-medium">
+                  {ordersError}
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="py-12 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center mx-auto text-slate-400">
+                    <ShoppingBag className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                    Bạn chưa có đơn hàng nào
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Hãy khám phá kho vật tư M&amp;E chính hãng và đặt đơn hàng đầu tiên của bạn.
+                  </p>
+                  <div className="pt-2">
+                    <Link
+                      href="/shop"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                    >
+                      Mua Sắm Ngay
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orders.map((order) => {
+                    const badge = getOrderStatusBadge(order.status);
+                    const itemsList = Array.isArray(order.items) ? order.items : [];
+                    return (
+                      <div
+                        key={order.id}
+                        className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">
+                              {order.orderNumber}
+                            </span>
+                            <span
+                              className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${badge.className}`}
+                            >
+                              {badge.label}
+                            </span>
+                            {order.createdAt && (
+                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {new Date(order.createdAt).toLocaleString('vi-VN')}
+                              </span>
+                            )}
+                          </div>
+
+                          {itemsList.length > 0 ? (
+                            <div className="space-y-1 pt-0.5">
+                              {itemsList.map((item) => (
+                                <p
+                                  key={item.id}
+                                  className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"
+                                >
+                                  <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <span>
+                                    {Number(item.quantity)}x{' '}
+                                    {item.product?.name || `Sản phẩm (${item.productId.slice(0, 8)})`}
+                                    {item.product?.sku ? ` [${item.product.sku}]` : ''} —{' '}
+                                    <span className="font-mono text-slate-600 dark:text-slate-300">
+                                      {Number(item.unitPrice).toLocaleString('vi-VN')} ₫
+                                    </span>
+                                  </span>
+                                </p>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                              Khách nhận: {order.customerName}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="text-left sm:text-right shrink-0">
+                          <p className="font-mono font-bold text-slate-900 dark:text-white text-base">
+                            {Number(order.totalAmount || 0).toLocaleString('vi-VN')} VND
+                          </p>
+                          <span className="text-[11px] text-slate-500">
+                            Hình thức: {formatPaymentMethod(order.paymentMethod)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}

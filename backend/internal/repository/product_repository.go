@@ -408,6 +408,52 @@ func (r *productRepository) ListOrders(ctx context.Context, customerID *uuid.UUI
 		return nil, fmt.Errorf("iterate orders error: %w", err)
 	}
 
+	for i := range orders {
+		itemRows, err := r.db.QueryContext(ctx, `
+			SELECT oi.id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.converted_quantity, oi.created_at,
+			       p.id, p.sku, p.name, p.base_price
+			FROM me_supplies.order_items oi
+			LEFT JOIN me_supplies.products p ON oi.product_id = p.id
+			WHERE oi.order_id = $1
+			ORDER BY oi.created_at ASC
+		`, orders[i].ID)
+		if err == nil {
+			var items []domain.OrderItem
+			for itemRows.Next() {
+				var it domain.OrderItem
+				var convQty sql.NullFloat64
+				var pID uuid.NullUUID
+				var pSKU, pName sql.NullString
+				var pPrice sql.NullFloat64
+				if scanErr := itemRows.Scan(
+					&it.ID, &it.OrderID, &it.ProductID, &it.Quantity, &it.UnitPrice, &convQty, &it.CreatedAt,
+					&pID, &pSKU, &pName, &pPrice,
+				); scanErr == nil {
+					if convQty.Valid {
+						it.ConvertedQty = &convQty.Float64
+					}
+					if pID.Valid {
+						it.Product = domain.Product{
+							ID:        pID.UUID,
+							SKU:       pSKU.String,
+							Name:      pName.String,
+							BasePrice: pPrice.Float64,
+						}
+					}
+					items = append(items, it)
+				}
+			}
+			_ = itemRows.Close()
+			if items == nil {
+				items = []domain.OrderItem{}
+			}
+			orders[i].Items = items
+		}
+	}
+
+	if orders == nil {
+		orders = []domain.Order{}
+	}
 	return orders, nil
 }
 

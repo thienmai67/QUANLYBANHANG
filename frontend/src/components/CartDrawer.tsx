@@ -101,6 +101,9 @@ export default function CartDrawer() {
       await api.post('/orders', payload);
 
       useAdminStore.getState().addOrder(newOrder);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('tdt-orders-updated'));
+      }
       toast.success('Đặt hàng thành công! Đơn hàng đang được xử lý.');
       setCheckoutStep('success');
       clearCart();

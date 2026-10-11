@@ -9,7 +9,6 @@ import {
 } from '../types/admin';
 import {
   mockDashboardStats,
-  mockProducts,
   mockCategories,
   mockOrders,
   mockBomRequests,
@@ -54,7 +53,7 @@ export const adminApi = {
       const res = await apiClient.get('/products');
       return res.data;
     } catch {
-      return mockProducts;
+      return [];
     }
   },
 

@@ -99,15 +99,55 @@ export default function RegisterPage() {
       const data = await res.json();
       setShowOtpModal(false);
 
-      const accessToken = data.accessToken || data.access_token;
-      const refreshToken = data.refreshToken || data.refresh_token || "";
+      let accessToken = data.accessToken || data.access_token;
+      let refreshToken = data.refreshToken || data.refresh_token || "";
+
+      if (!accessToken) {
+        try {
+          const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: email.trim().toLowerCase(),
+              password,
+            }),
+          });
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            accessToken = loginData.accessToken || loginData.access_token;
+            refreshToken = loginData.refreshToken || loginData.refresh_token || "";
+          }
+        } catch {
+          // fallback to manual login redirect below
+        }
+      }
+
       if (accessToken) {
         saveTokens(accessToken, refreshToken);
-        setSuccessMsg("Xác thực OTP thành công! Đang chuyển hướng...");
+        const { decodeToken } = await import("@/lib/auth");
+        const { useAuthStore } = await import("@/store/useAuthStore");
+        const decoded = decodeToken(accessToken);
+        if (decoded) {
+          useAuthStore.getState().setAuth(
+            accessToken,
+            {
+              id: decoded.userId,
+              email: decoded.email,
+              name: fullName || decoded.email.split("@")[0],
+              role: "CUSTOMER",
+            },
+            refreshToken
+          );
+        }
+        setSuccessMsg("Đăng ký thành công! Đang chuyển hướng...");
         setTimeout(() => {
-          window.location.href = "/";
-        }, 1200);
+          window.location.href = "/account";
+        }, 1000);
       } else {
+        const { clearTokens } = await import("@/lib/auth");
+        const { useAuthStore } = await import("@/store/useAuthStore");
+        clearTokens();
+        useAuthStore.getState().logout();
         setSuccessMsg("Đăng ký thành công! Vui lòng đăng nhập.");
         setTimeout(() => {
           window.location.href = "/login";

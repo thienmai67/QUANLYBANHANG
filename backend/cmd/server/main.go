@@ -330,18 +330,29 @@ INSERT INTO products (id, sku, name, brand_id, category_id, base_price, diameter
         (SELECT id FROM brands WHERE code = 'BINHMINH'),
         (SELECT id FROM categories WHERE code = 'WATER_PIPE'),
         85000.00, 42.0, NULL, NULL,
-        '{"material": "PVC", "pressure_class": "C1", "length_per_cay": 4.0}'::JSONB),
+        '{"material": "PVC", "pressure_class": "C1", "length_per_cay": 4.0, "unit": "Cây (4m)", "image": "/images/products/pvc-pipes.png", "description": "Ống nhựa uPVC Bình Minh Phi 42mm Class 1 chính hãng, chịu áp lực cao cho hệ thống cấp thoát nước công trình."}'::JSONB),
     ('10000000-0000-0000-0000-000000000002', 'CV-CV-2.5', 'Dây đơn Cadivi CV 2.5mm2',
         (SELECT id FROM brands WHERE code = 'CADIVI'),
         (SELECT id FROM categories WHERE code = 'CABLE'),
         18500.00, NULL, 2.5, 20.0,
-        '{"type": "Cu/XLPE/PVC", "voltage": "0.6/1kV", "length_per_cuon": 100.0}'::JSONB),
+        '{"type": "Cu/XLPE/PVC", "voltage": "0.6/1kV", "length_per_cuon": 100.0, "unit": "Mét", "image": "/images/products/copper-cables.png", "description": "Dây cáp điện đơn ruột đồng cách điện PVC Cadivi CV 2.5mm², dẫn điện tốt, an toàn chống cháy."}'::JSONB),
     ('10000000-0000-0000-0000-000000000003', 'PA-MCB-2P32', 'MCB Panasonic 2P 32A',
         (SELECT id FROM brands WHERE code = 'PANASONIC'),
         (SELECT id FROM categories WHERE code = 'DEVICE'),
         220000.00, NULL, NULL, 32.0,
-        '{"poles": 2, "current_rating": 32, "breaking_capacity": "10kA", "trip_curve": "C"}'::JSONB)
-ON CONFLICT (sku) DO NOTHING;
+        '{"poles": 2, "current_rating": 32, "breaking_capacity": "10kA", "trip_curve": "C", "unit": "Cái", "image": "/images/products/mcb-breakers.png", "description": "Aptomat MCB tép 2 pha 32A Panasonic dòng cắt 10kA bảo vệ quá tải và ngắn mạch chuẩn IEC."}'::JSONB)
+ON CONFLICT (sku) DO UPDATE
+SET specifications = EXCLUDED.specifications,
+    name = EXCLUDED.name,
+    base_price = EXCLUDED.base_price;
+
+DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'ORD-TEST-%' OR customer_id IN (SELECT id FROM users WHERE email LIKE 'e2e_%@tdt.vn' OR email LIKE 'verify_e2e_%@tdt.vn'));
+DELETE FROM orders WHERE order_number LIKE 'ORD-TEST-%' OR customer_id IN (SELECT id FROM users WHERE email LIKE 'e2e_%@tdt.vn' OR email LIKE 'verify_e2e_%@tdt.vn');
+DELETE FROM users WHERE email LIKE 'e2e_%@tdt.vn' OR email LIKE 'verify_e2e_%@tdt.vn';
+UPDATE order_items
+SET product_id = (SELECT id FROM products WHERE sku = 'CV-CV-2.5' LIMIT 1)
+WHERE product_id IN (SELECT id FROM products WHERE sku LIKE 'TEST-SKU-%');
+DELETE FROM products WHERE sku LIKE 'TEST-SKU-%';
 `
 	if _, err := db.Exec(ddl); err != nil {
 		return fmt.Errorf("apply schema DDL: %w", err)

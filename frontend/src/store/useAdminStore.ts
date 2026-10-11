@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import {
   Product,
+  ProductBrand,
+  ProductCategoryType,
+  ProductUnit,
   Category,
   Order,
   BomRequest,
@@ -9,17 +12,120 @@ import {
   BomStatus,
 } from '../types/admin';
 import {
-  mockProducts,
   mockCategories,
   mockOrders,
   mockBomRequests,
   mockCustomers,
 } from '../data/adminMockData';
+import { api } from '../lib/api';
 
 export interface ToastMessage {
   id: string;
   message: string;
   type: 'success' | 'info' | 'warning' | 'error';
+}
+
+function mapApiProductToAdminProduct(raw: any): Product {
+  const specsObj =
+    raw && typeof raw.specifications === 'object' && raw.specifications !== null
+      ? raw.specifications
+      : {};
+
+  const brandName: ProductBrand =
+    (typeof raw.brand === 'object' && raw.brand !== null
+      ? raw.brand.name
+      : raw.brand) || 'Cadivi';
+
+  const discountRate: number =
+    typeof raw.brand === 'object' &&
+    raw.brand !== null &&
+    typeof raw.brand.discountRate === 'number'
+      ? raw.brand.discountRate
+      : typeof raw.discountRate === 'number'
+        ? raw.discountRate
+        : 15;
+
+  const catCode =
+    typeof raw.category === 'object' && raw.category !== null
+      ? raw.category.code || raw.category.type || ''
+      : '';
+  const catNameRaw =
+    typeof raw.category === 'object' && raw.category !== null
+      ? raw.category.name || ''
+      : typeof raw.category === 'string'
+        ? raw.category
+        : '';
+
+  let category: ProductCategoryType = 'Dây & Cáp Điện';
+  if (catCode === 'WATER_PIPE' || catCode === 'PIPE' || catNameRaw.includes('Ống')) {
+    category = 'Ống & Phụ Kiện Nhựa';
+  } else if (catCode === 'DEVICE' || catNameRaw.includes('Thiết bị') || catNameRaw.includes('Tủ')) {
+    category = 'Tủ & Thiết Bị Đóng Cắt';
+  } else if (catCode === 'CABLE' || catNameRaw.includes('Cáp') || catNameRaw.includes('Dây')) {
+    category = 'Dây & Cáp Điện';
+  }
+
+  const basePrice = Number(raw.basePrice ?? raw.base_price ?? raw.price ?? 0);
+
+  let unit: ProductUnit = 'Cái';
+  if (specsObj.unit) {
+    unit = specsObj.unit as ProductUnit;
+  } else if (raw.unit) {
+    unit = raw.unit as ProductUnit;
+  } else if (specsObj.length_per_cay) {
+    unit = 'Cây';
+  } else if (specsObj.length_per_cuon) {
+    unit = 'Mét';
+  }
+
+  const defaultImage =
+    catCode === 'WATER_PIPE' || catCode === 'PIPE'
+      ? '/images/products/pvc-pipes.png'
+      : catCode === 'CABLE'
+        ? '/images/products/copper-cables.png'
+        : '/images/products/mcb-breakers.png';
+
+  const image: string = specsObj.image || raw.image || defaultImage;
+
+  const specsList: string[] = [];
+  if (specsObj.material) specsList.push(`Chất liệu: ${specsObj.material}`);
+  if (raw.diameterMm) specsList.push(`Đường kính: Ø${raw.diameterMm}mm`);
+  if (specsObj.pressure_class || raw.pressureClass) {
+    specsList.push(`Cấp áp lực: ${specsObj.pressure_class || raw.pressureClass}`);
+  }
+  if (specsObj.type) specsList.push(`Quy cách: ${specsObj.type}`);
+  if (raw.crossSectionMm2) specsList.push(`Tiết diện: ${raw.crossSectionMm2}mm²`);
+  if (specsObj.voltage) specsList.push(`Điện áp: ${specsObj.voltage}`);
+  if (specsObj.poles) specsList.push(`Số cực: ${specsObj.poles}P`);
+  if (raw.ampRating || specsObj.current_rating) {
+    specsList.push(`Dòng định mức: ${raw.ampRating ?? specsObj.current_rating}A`);
+  }
+  if (specsObj.breaking_capacity) specsList.push(`Dòng cắt: ${specsObj.breaking_capacity}`);
+  if (specsList.length === 0) {
+    specsList.push(`Thương hiệu: ${brandName}`, `Đơn vị: ${unit}`);
+  }
+
+  const description: string =
+    specsObj.description || raw.description || specsList.join(' • ') || raw.name;
+
+  return {
+    id: String(raw.id),
+    sku: String(raw.sku || 'SKU-STD'),
+    name: String(raw.name || ''),
+    brand: brandName,
+    category,
+    basePrice,
+    discountRate,
+    unit,
+    stock: typeof raw.stock === 'number' ? raw.stock : 100,
+    status: 'InStock',
+    image,
+    description,
+    specs: specsList,
+    createdAt: raw.createdAt
+      ? String(raw.createdAt).slice(0, 10)
+      : new Date().toISOString().split('T')[0],
+  };
 }
 
 interface AdminState {
@@ -41,6 +147,9 @@ interface AdminState {
 
   // Data
   products: Product[];
+  productsLoading: boolean;
+  productsError: boolean;
+  fetchProducts: () => Promise<void>;
   categories: Category[];
   orders: Order[];
   bomRequests: BomRequest[];
@@ -89,7 +198,23 @@ export const useAdminStore = create<AdminState>((set) => ({
   selectedPeriod: '7days',
   setSelectedPeriod: (period) => set({ selectedPeriod: period }),
 
-  products: mockProducts,
+  products: [],
+  productsLoading: false,
+  productsError: false,
+  fetchProducts: async () => {
+    set({ productsLoading: true, productsError: false });
+    try {
+      const data = await api.get<any[]>('/products');
+      if (Array.isArray(data)) {
+        const mapped = data.map(mapApiProductToAdminProduct);
+        set({ products: mapped, productsLoading: false, productsError: false });
+      } else {
+        set({ products: [], productsLoading: false, productsError: true });
+      }
+    } catch {
+      set({ productsLoading: false, productsError: true });
+    }
+  },
   categories: mockCategories,
   orders: mockOrders,
   bomRequests: mockBomRequests,

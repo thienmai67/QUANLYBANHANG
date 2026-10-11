@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { saveTokens, clearTokens } from '@/lib/auth';
+import { saveTokens, clearTokens, getAccessToken, getRefreshToken } from '@/lib/auth';
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'SHIPPER' | 'CUSTOMER' | 'CONTRACTOR';
 
@@ -34,12 +34,28 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       setAuth: (token, user, refreshToken) => {
+        let finalToken = token;
+        let finalRefresh = refreshToken;
         if (typeof window !== 'undefined') {
-          saveTokens(token, refreshToken || '');
+          const existingAccess = getAccessToken();
+          const existingRefresh = getRefreshToken();
+          const isPlaceholder =
+            !token ||
+            token === 'jwt-token-sso' ||
+            token.startsWith('mock-token-');
+          if (isPlaceholder && existingAccess) {
+            finalToken = existingAccess;
+          }
+          if (!finalRefresh && existingRefresh) {
+            finalRefresh = existingRefresh;
+          }
+          if (finalToken) {
+            saveTokens(finalToken, finalRefresh || '');
+          }
         }
         set({
-          token,
-          refreshToken: refreshToken || null,
+          token: finalToken,
+          refreshToken: finalRefresh || null,
           user,
           isAuthenticated: true,
         });

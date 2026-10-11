@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { MAndE_PRODUCTS } from "@/data/materialData";
 import { useAdminStore } from "@/store/useAdminStore";
 import { Eye, Calculator } from "lucide-react";
@@ -12,6 +12,13 @@ interface MaterialProductShowcaseProps {
 
 export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductShowcaseProps) {
   const adminProducts = useAdminStore((state) => state.products);
+  const fetchProducts = useAdminStore((state) => state.fetchProducts);
+
+  useEffect(() => {
+    if (adminProducts.length === 0) {
+      fetchProducts();
+    }
+  }, [adminProducts.length, fetchProducts]);
   
   // Merge products from Admin Store if available, fallback to default MAndE_PRODUCTS
   const displayProducts = adminProducts && adminProducts.length > 0

@@ -147,13 +147,17 @@ export default function LoginPage() {
           else if (rawRole === "MANAGER") role = "MANAGER";
           else if (rawRole === "SHIPPER") role = "SHIPPER";
 
-          useAuthStore.getState().setAuth(accessToken, {
-            id: user.userId,
-            email: user.email,
-            name: user.email.split("@")[0],
-            role: role,
-            ...(role === "SHIPPER" ? { shipperId: user.userId } : {}),
-          });
+          useAuthStore.getState().setAuth(
+            accessToken,
+            {
+              id: user.userId,
+              email: user.email,
+              name: user.email.split("@")[0],
+              role: role,
+              ...(role === "SHIPPER" ? { shipperId: user.userId } : {}),
+            },
+            refreshToken
+          );
 
           if (role === "ADMIN") {
             window.location.href = "/admin/dashboard";

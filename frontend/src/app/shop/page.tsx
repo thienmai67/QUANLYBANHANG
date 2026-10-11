@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import RFQModal from '@/components/RFQModal';
@@ -18,7 +18,13 @@ export default function ShopPage() {
   const [addedItemMap, setAddedItemMap] = useState<Record<string, boolean>>({});
 
   const adminProducts = useAdminStore((state) => state.products);
+  const productsError = useAdminStore((state) => state.productsError);
+  const fetchProducts = useAdminStore((state) => state.fetchProducts);
   const { addItem } = useCartStore();
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const allProducts: MaterialProduct[] = useMemo(() => {
     if (adminProducts && adminProducts.length > 0) {
@@ -45,17 +51,20 @@ export default function ShopPage() {
           price: priceStr,
           rawPrice: rawPrice,
           unit: p.unit || 'Bộ',
-          conversion: '1 bộ',
+          conversion: `1 ${p.unit || 'bộ'}`,
           description: p.description || p.name,
-          image: p.image || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&auto=format&fit=crop&q=80',
+          image: p.image || '/images/products/copper-cables.png',
           badge: (p.badge as any) || 'NEW',
           specs: specsArr,
           discount: p.discountRate ?? p.discount ?? 15,
         };
       });
     }
-    return MATERIAL_PRODUCTS;
-  }, [adminProducts]);
+    if (productsError) {
+      return MATERIAL_PRODUCTS;
+    }
+    return [];
+  }, [adminProducts, productsError]);
 
   const filteredProducts = useMemo(() => {
     return allProducts.filter((p) => {

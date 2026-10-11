@@ -107,9 +107,9 @@ func TestProductRepository_Products_Queries(t *testing.T) {
 		t.Fatalf("failed to insert test product: %v", err)
 	}
 
-	t.Cleanup(func() {
+	defer func() {
 		_, _ = db.ExecContext(context.Background(), "DELETE FROM products WHERE id = $1", testProdID)
-	})
+	}()
 
 	// 3. GetProductByID
 	byID, err := repo.GetProductByID(ctx, testProdID)
@@ -206,10 +206,10 @@ func TestProductRepository_OrderLifecycle(t *testing.T) {
 		t.Fatalf("failed to create order in db: %v", err)
 	}
 
-	t.Cleanup(func() {
+	defer func() {
 		_, _ = db.Exec("DELETE FROM me_supplies.order_items WHERE order_id = $1", orderID)
 		_, _ = db.Exec("DELETE FROM me_supplies.orders WHERE id = $1", orderID)
-	})
+	}()
 
 	// ListOrders and find created order
 	orders, err := repo.ListOrders(ctx, nil, 20, 0)
