@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getAccessToken } from '@/lib/auth';
 
 export interface CartItem {
   id: string;
@@ -36,6 +37,9 @@ export const useCartStore = create<CartState>()(
       setOpenToCheckout: (openToCheckout) => set({ openToCheckout }),
 
       addItem: (newItem, openDrawer = true) => {
+        if (typeof window !== 'undefined' && !getAccessToken()) {
+          return;
+        }
         const addQty = newItem.quantity && newItem.quantity > 0 ? newItem.quantity : 1;
         const currentItems = get().items;
         const existingIndex = currentItems.findIndex((i) => i.id === newItem.id);
@@ -96,6 +100,17 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'tdt-cart-storage',
+      version: 2,
+      migrate: () => ({
+        items: [],
+        isOpen: false,
+        openToCheckout: false,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (typeof window !== 'undefined' && !getAccessToken() && state && state.items.length > 0) {
+          state.clearCart();
+        }
+      },
     }
   )
 );

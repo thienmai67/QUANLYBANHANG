@@ -2,14 +2,21 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import { MATERIAL_PRODUCTS, MaterialProduct } from '@/data/materialData';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/auth';
+import { useToast } from '@/hooks/useToast';
 import { Search, Filter, ShoppingBag, Check } from 'lucide-react';
 
 export default function ShopPage() {
+  const router = useRouter();
+  const toast = useToast();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [selectedCat, setSelectedCat] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
@@ -83,6 +90,13 @@ export default function ShopPage() {
   }, [allProducts, search, selectedBrand, selectedCat]);
 
   const handleAddToCart = (prod: MaterialProduct) => {
+    const token = getAccessToken();
+    if (!token && !isAuthenticated) {
+      toast.warning('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng');
+      router.push('/login?redirect=/shop');
+      return;
+    }
+
     const rawPrice = parseInt(prod.price.replace(/[^\d]/g, ''), 10) || 100000;
 
     addItem({

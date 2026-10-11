@@ -36,10 +36,16 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
   const searchRef = useRef<HTMLDivElement>(null);
 
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { getTotalItems, setIsOpen } = useCartStore();
+  const { items, getTotalItems, setIsOpen, clearCart } = useCartStore();
   const adminProducts = useAdminStore((state) => state.products);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
-  const cartCount = getTotalItems();
+  const cartCount = isAuthenticated ? getTotalItems() : 0;
+
+  useEffect(() => {
+    if (!isAuthenticated && items.length > 0) {
+      clearCart();
+    }
+  }, [isAuthenticated, items.length, clearCart]);
 
   useEffect(() => {
     if (adminProducts.length === 0) {

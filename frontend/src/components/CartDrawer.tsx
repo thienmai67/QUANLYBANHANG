@@ -34,9 +34,12 @@ export default function CartDrawer() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
+    const token = getAccessToken();
+    if (!token && !isAuthenticated && items.length > 0) {
+      clearCart();
+    }
     if (isOpen && openToCheckout) {
       setOpenToCheckout(false);
-      const token = getAccessToken();
       if (!token && !isAuthenticated) {
         setIsOpen(false);
         setCheckoutStep('cart');
@@ -46,7 +49,7 @@ export default function CartDrawer() {
         setCheckoutStep('form');
       }
     }
-  }, [isOpen, openToCheckout, isAuthenticated, router, setIsOpen, setOpenToCheckout, toast]);
+  }, [isOpen, openToCheckout, isAuthenticated, items.length, clearCart, router, setIsOpen, setOpenToCheckout, toast]);
 
   if (!isOpen) return null;
 
