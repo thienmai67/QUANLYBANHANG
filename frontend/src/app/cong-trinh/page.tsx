@@ -13,7 +13,7 @@ export default function CongTrinhPage() {
       title: "Gói Cơ Điện Căn Hộ (2PN)",
       desc: "Bộ vật tư tính sẵn gồm dây điện Cadivi, ống thoát nước uPVC Bình Minh & aptomat chống giật Panasonic cho căn hộ 2 phòng ngủ.",
       icon: Home,
-      image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=800&auto=format&fit=crop",
+      image: "/images/products/day-cap-don-1.jpg",
       estCost: "45,000,000 VND"
     },
     {
@@ -21,7 +21,7 @@ export default function CongTrinhPage() {
       title: "Gói Cấp Nước Biệt Thự Cao Cấp",
       desc: "Hệ thống ống nước uPVC C2 áp lực cao + ống nước nóng PPR Tiền Phong chịu nhiệt cho biệt thự sang trọng.",
       icon: Landmark,
-      image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=800&auto=format&fit=crop",
+      image: "/images/products/ong-binh-minh-1.jpg",
       estCost: "120,000,000 VND"
     },
     {
@@ -29,7 +29,7 @@ export default function CongTrinhPage() {
       title: "Gói Điện Xưởng Sản Xuất Công Nghiệp",
       desc: "Ống luồn dây điện Nano chống cháy + cáp ngầm CXV Cadivi đảm bảo an toàn tuyệt đối cho nhà xưởng sản xuất.",
       icon: Building2,
-      image: "https://images.unsplash.com/photo-1541888081198-500bdf19c016?q=80&w=800&auto=format&fit=crop",
+      image: "/images/products/schneider-mcb-1.jpg",
       estCost: "Liên Hệ Báo Giá"
     }
   ];

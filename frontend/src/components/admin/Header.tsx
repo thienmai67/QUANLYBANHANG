@@ -14,6 +14,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { useAdminStore } from '../../store/useAdminStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export function Header() {
   const {
@@ -24,6 +25,7 @@ export function Header() {
     setSearchQuery,
     orders,
   } = useAdminStore();
+  const user = useAuthStore((state) => state.user);
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -134,15 +136,15 @@ export function Header() {
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-3 p-1.5 pl-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-600 text-white font-bold text-sm shadow-sm">
-              A
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-600 text-white font-bold text-sm shadow-sm uppercase">
+              {(user?.name || user?.email || 'A').charAt(0)}
             </div>
             <div className="hidden sm:flex flex-col text-left">
               <span className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-none">
-                TDT Admin
+                {user?.name || 'TDT Admin'}
               </span>
               <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Quản trị viên M&E
+                {user?.email || 'admin@tdt.vn'}
               </span>
             </div>
           </button>
@@ -152,10 +154,10 @@ export function Header() {
             <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50">
               <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-700">
                 <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  TDT M&E Manager
+                  {user?.name || 'TDT Admin'}
                 </p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  admin@tdt-me.com.vn
+                  {user?.email || 'admin@tdt.vn'}
                 </p>
               </div>
 

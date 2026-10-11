@@ -40,7 +40,7 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
       category: p.category || "CABLE",
       price: priceStr,
       unit: p.unit || "Bộ",
-      image: p.image || "/images/products/copper-cables.png",
+      image: p.image || "/images/products/day-cap-don-1.jpg",
       badge: p.badge || "MỚI",
       specs: specsArr,
       discount: p.discountRate ?? p.discount ?? 15,

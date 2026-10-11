@@ -27,9 +27,9 @@ export default function HomePage() {
         {/* 2. Hero Banner 3D Interactive */}
         <TDTInteractiveBanner />
 
-        {/* 3. Product Category Showcase Grid (7 Danh Mục Vật Tư Điện Nước M&E) */}
-        <MaterialCategoryGrid onSelectCategory={() => {
-          window.location.href = `/shop`;
+        {/* 3. Product Category Showcase Grid */}
+        <MaterialCategoryGrid onSelectCategory={(catId) => {
+          window.location.href = `/shop?cat=${encodeURIComponent(catId)}`;
         }} />
 
         {/* 4. Categorized Product Showcases */}

@@ -12,9 +12,11 @@ import {
   Percent,
 } from 'lucide-react';
 import { useAdminStore } from '../../store/useAdminStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export function SettingsView() {
   const { addToast, darkMode, toggleDarkMode } = useAdminStore();
+  const user = useAuthStore((state) => state.user);
   const [activeTab, setActiveTab] = useState<'general' | 'discounts' | 'profile' | 'security'>('general');
 
   // Form states
@@ -34,10 +36,10 @@ export function SettingsView() {
   });
 
   const [profileData, setProfileData] = useState({
-    name: 'Nguyễn Văn Minh',
-    email: 'admin@tdt-me.com.vn',
+    name: user?.name || 'Quản Trị Viên TDT',
+    email: user?.email || 'admin@tdt.vn',
     phone: '0903 888 999',
-    role: 'Giám Đốc Kinh Doanh Vật Tư M&E',
+    role: 'Quản Trị Viên Hệ Thống M&E',
   });
 
   const handleSave = (e: React.FormEvent) => {

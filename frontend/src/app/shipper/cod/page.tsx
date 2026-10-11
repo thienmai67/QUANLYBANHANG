@@ -47,7 +47,7 @@ export default function ShipperCodLedgerPage() {
   const [createdReceipt, setCreatedReceipt] = useState<CODSettlement | null>(null);
   const [isSettling, setIsSettling] = useState(false);
 
-  const currentShipperId = user?.shipperId || 'ship-02';
+  const currentShipperId = user?.shipperId || user?.id || '';
 
   // Fetch live orders and settlements on mount
   useEffect(() => {

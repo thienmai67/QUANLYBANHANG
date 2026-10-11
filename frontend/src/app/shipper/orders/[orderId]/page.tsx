@@ -84,11 +84,11 @@ export default function ShipperOrderDetailPage() {
     };
   }, [orderId]);
 
-  const currentShipperId = user?.shipperId || user?.id || 'ship-02';
+  const currentShipperId = user?.shipperId || user?.id || '';
   const currentShipperName =
-    user?.name ||
     shippers.find((s) => s.id === currentShipperId)?.name ||
-    'Trần Quốc Toản';
+    user?.name ||
+    'Nhân viên giao hàng';
 
   const storeOrder = orders.find((o) => o.id === orderId);
   const order = detailOrder

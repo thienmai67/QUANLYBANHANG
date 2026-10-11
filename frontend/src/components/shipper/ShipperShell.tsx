@@ -30,13 +30,13 @@ export default function ShipperShell({ children }: ShipperShellProps) {
   const { isHighContrast, toggleHighContrast } = useShipperUIStore();
   const { shippers, orders, getShipperUnsettledCod } = useManagerStore();
 
-  const currentShipperId = user?.shipperId || 'ship-02';
+  const currentShipperId = user?.shipperId || user?.id || '';
   const shipperInfo =
     shippers.find((s) => s.id === currentShipperId) || {
-      name: user?.name || 'Trần Quốc Toản',
-      vehicle: 'Xe ba gác chở hàng',
+      name: user?.name || 'Nhân viên giao hàng',
+      vehicle: 'Xe máy giao hàng',
       shiftStatus: 'available',
-      activeOrders: 4,
+      activeOrders: 0,
     };
 
   const activeOrdersCount = orders.filter(

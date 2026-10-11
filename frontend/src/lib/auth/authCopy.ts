@@ -38,7 +38,7 @@ export const AUTH_COPY: Record<"login" | "register", AuthVariantCopy> = {
     headlineLine1: "Tính khối lượng",
     headlineLine2: "trong 60 giây",
     badge: "2.400+ đơn vị quy đổi sẵn",
-    imageAlt: "Bóc tách khối lượng BOM vật tư tự động cho nhà thầu",
+    imageAlt: "Cung ứng vật tư cơ điện M&E chính hãng cho nhà thầu",
     topLinkText: "Đăng nhập",
     topLinkHref: "/login",
     formTitle: "Tạo tài khoản mới.",

@@ -73,10 +73,10 @@ function mapApiProductToAdminProduct(raw: any): Product {
 
   const defaultImage =
     catCode === 'WATER_PIPE' || catCode === 'PIPE'
-      ? '/images/products/pvc-pipes.png'
+      ? '/images/products/ong-binh-minh-1.jpg'
       : catCode === 'CABLE'
-        ? '/images/products/copper-cables.png'
-        : '/images/products/mcb-breakers.png';
+        ? '/images/products/day-cap-don-1.jpg'
+        : '/images/products/schneider-mcb-1.jpg';
 
   const image: string = specsObj.image || raw.image || defaultImage;
 
@@ -254,6 +254,8 @@ interface AdminState {
   orders: Order[];
   fetchOrders: () => Promise<void>;
   customers: Customer[];
+  shippers: Array<{ id: string; fullName: string; phone?: string; activeOrderCount: number }>;
+  fetchShippers: () => Promise<void>;
 
   // Toasts
   toasts: ToastMessage[];
@@ -272,8 +274,8 @@ interface AdminState {
 
   // Order actions
   addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'code'>) => void;
-  updateOrderStatus: (id: string, status: OrderStatus) => void;
-  assignShipper: (orderId: string, shipperId: string, shipperName: string) => void;
+  updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
+  assignShipper: (orderId: string, shipperId: string, shipperName: string) => Promise<void>;
 
   // Customer CRUD
   addCustomer: (customer: Omit<Customer, 'id' | 'ordersCount' | 'totalSpent' | 'currentDebt'>) => void;
@@ -358,6 +360,22 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
   },
   customers: [],
+  shippers: [],
+  fetchShippers: async () => {
+    try {
+      const res = await api.get<any>('/shippers');
+      const rawList = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+      const mapped = rawList.map((s: any) => ({
+        id: String(s.id),
+        fullName: String(s.fullName || s.full_name || s.name || 'Shipper'),
+        phone: s.phone ? String(s.phone) : undefined,
+        activeOrderCount: Number(s.activeOrderCount ?? s.active_order_count ?? 0),
+      }));
+      set({ shippers: mapped });
+    } catch {
+      // keep existing or empty on error
+    }
+  },
 
   toasts: [],
   addToast: (message, type = 'success') => {
@@ -451,12 +469,32 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     };
     set((state) => ({ orders: [order, ...state.orders] }));
   },
-  updateOrderStatus: (id, status) => {
+  updateOrderStatus: async (id, status) => {
     set((state) => ({
       orders: state.orders.map((o) => (o.id === id ? { ...o, status } : o)),
     }));
+    try {
+      const detail = await api.get<any>(`/orders/${id}`);
+      const currentVersion = Number(detail?.version ?? 1);
+      const apiStatusMap: Record<string, string> = {
+        Pending: 'PENDING',
+        Preparing: 'PACKING',
+        Shipping2H: 'SHIPPING',
+        Completed: 'DELIVERED',
+        Cancelled: 'CANCELLED',
+      };
+      const targetApiStatus = apiStatusMap[status] || 'PACKING';
+      await api.patch(`/orders/${id}/status`, {
+        status: targetApiStatus,
+        version: currentVersion,
+        ...(targetApiStatus === 'SHIPPING' && detail?.shipperId ? { shipper_id: detail.shipperId } : {}),
+      });
+      await get().fetchOrders();
+    } catch {
+      // keep optimistic state if transition requires intermediate step
+    }
   },
-  assignShipper: (orderId, shipperId, shipperName) => {
+  assignShipper: async (orderId, shipperId, shipperName) => {
     set((state) => ({
       orders: state.orders.map((o) =>
         o.id === orderId
@@ -464,11 +502,32 @@ export const useAdminStore = create<AdminState>((set, get) => ({
               ...o,
               assignedShipperId: shipperId,
               assignedShipperName: shipperName,
-              status: o.status === 'Pending' ? 'Preparing' : o.status,
+              status: o.status === 'Pending' || o.status === 'Preparing' ? 'Shipping2H' : o.status,
             }
           : o
       ),
     }));
+    try {
+      let detail = await api.get<any>(`/orders/${orderId}`);
+      let version = Number(detail?.version ?? 1);
+      const rawStatus = String(detail?.status || 'PENDING').toUpperCase();
+      if (rawStatus === 'PENDING') {
+        const approved = await api.patch<any>(`/orders/${orderId}/status`, {
+          status: 'PACKING',
+          version,
+        });
+        version = Number(approved?.version ?? version + 1);
+      }
+      await api.patch(`/orders/${orderId}/status`, {
+        status: 'SHIPPING',
+        version,
+        shipper_id: shipperId,
+      });
+      await get().fetchOrders();
+      await get().fetchShippers();
+    } catch {
+      // keep optimistic state if already shipping
+    }
   },
 
   // Customer actions

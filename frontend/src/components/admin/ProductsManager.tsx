@@ -72,7 +72,7 @@ export function ProductsManager() {
     discountRate: 20,
     unit: 'Cuộn 100m',
     stock: 100,
-    image: '/images/products/copper-cables.png',
+      image: '/images/products/day-cap-don-1.jpg',
     description: '',
   });
 
@@ -85,7 +85,10 @@ export function ProductsManager() {
         const matchesQuery =
           p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.sku.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesBrand = filterBrand === 'ALL' || p.brand === filterBrand;
+        const matchesBrand =
+          filterBrand === 'ALL' ||
+          p.brand === filterBrand ||
+          p.brand.toLowerCase().includes(filterBrand.toLowerCase());
         const matchesCat = filterCategory === 'ALL' || p.category === filterCategory;
         return matchesQuery && matchesBrand && matchesCat;
       })
@@ -116,7 +119,7 @@ export function ProductsManager() {
       discountRate: 20,
       unit: 'Cuộn 100m',
       stock: 100,
-      image: '/images/products/copper-cables.png',
+      image: '/images/products/day-cap-don-1.jpg',
       description: '',
     });
     setFormErrors({});
@@ -135,7 +138,7 @@ export function ProductsManager() {
       discountRate: product.discountRate,
       unit: product.unit,
       stock: product.stock,
-      image: product.image || '/images/products/copper-cables.png',
+      image: product.image || '/images/products/day-cap-don-1.jpg',
       description: product.description || '',
     });
     setFormErrors({});
@@ -604,7 +607,7 @@ export function ProductsManager() {
                   type="text"
                   value={formData.image}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  placeholder="/images/products/copper-cables.png"
+                  placeholder="/images/products/day-cap-don-1.jpg"
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 font-mono focus:border-cyan-500 focus:outline-none"
                 />
               </div>

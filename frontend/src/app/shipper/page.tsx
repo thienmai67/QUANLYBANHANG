@@ -23,26 +23,28 @@ import {
 
 export default function ShipperDispatchFeedPage() {
   const { user } = useAuthStore();
-  const { orders, shippers, fetchOrders } = useManagerStore();
+  const { orders, shippers, fetchOrders, fetchShippers } = useManagerStore();
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    fetchShippers();
+  }, [fetchOrders, fetchShippers]);
   const { activeTab, isHighContrast } = useShipperUIStore();
 
   const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
   const [selectedIncidentOrder, setSelectedIncidentOrder] = useState<Order | null>(null);
   const [completedPageSize, setCompletedPageSize] = useState<number>(5);
 
-  const currentShipperId = user?.shipperId || 'ship-02';
+  const currentShipperId = user?.shipperId || user?.id || '';
   const currentShipperName =
-    user?.name ||
     shippers.find((s) => s.id === currentShipperId)?.name ||
-    'Trần Quốc Toản';
+    user?.name ||
+    'Nhân viên giao hàng';
 
   // STRICT DATA ISOLATION: Shipper only sees orders assigned to their shipperId
   const myOrders = useMemo(() => {
-    return orders.filter((o) => o.shipperId === currentShipperId);
+    if (!currentShipperId) return orders;
+    return orders.filter((o) => !o.shipperId || o.shipperId === currentShipperId);
   }, [orders, currentShipperId]);
 
   // Tab counts

@@ -112,14 +112,10 @@ export default function CartDrawer() {
         }
       }
 
-      const fallbackUuids = [
-        '10000000-0000-0000-0000-000000000001',
-        '10000000-0000-0000-0000-000000000002',
-        '10000000-0000-0000-0000-000000000003',
-      ];
-
       const payload = {
         customerName: customerName || 'Khách Mua Lẻ',
+        customerPhone: customerPhone || undefined,
+        shippingAddress: customerAddress || undefined,
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
         is2h: false,
         items: items.map((i, idx) => {
@@ -131,7 +127,7 @@ export default function CartDrawer() {
             resolvedId =
               matched?.id ||
               catalogProducts[idx % Math.max(1, catalogProducts.length)]?.id ||
-              fallbackUuids[idx % fallbackUuids.length];
+              i.id;
           }
           return {
             productId: resolvedId,

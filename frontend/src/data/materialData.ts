@@ -288,7 +288,7 @@ export const MATERIAL_NEWS: MaterialNewsItem[] = [
     title: "Cập nhật Biểu phí Chiết khấu Vật tư Điện Nước Tháng 9/2026",
     category: "BÁO GIÁ ĐẠI LÝ",
     date: "25/09/2026",
-    image: "https://images.unsplash.com/photo-1581091228480-9337af036f3b?q=80&w=600&h=400",
+    image: "/images/products/day-dien-cong-trinh.jpg",
     desc: "TDT Platform áp dụng bảng chiết khấu đại lý Cấp 1 mới nhất: Cadivi -22%, Nhựa Bình Minh -18%, Panasonic -15% cho nhà thầu.",
   },
   {
@@ -296,7 +296,7 @@ export const MATERIAL_NEWS: MaterialNewsItem[] = [
     title: "Hướng dẫn chọn Tiết diện Dây Cáp Điện Cadivi chuẩn TCVN cho Nhà Phố",
     category: "KỸ THUẬT M&E",
     date: "20/09/2026",
-    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&h=400",
+    image: "/images/products/day-cap-cuon.jpg",
     desc: "Cách tính toán công suất tải điện P(kW) để chọn dây Cadivi CV 2.5mm², 4.0mm² hay 6.0mm² tránh quá tải gây cháy nổ.",
   },
   {
@@ -304,7 +304,7 @@ export const MATERIAL_NEWS: MaterialNewsItem[] = [
     title: "Phân biệt Ống uPVC C1, C2, C3 Bình Minh & Cách thử áp lực nghiệm thu",
     category: "CẨM NANG VẬT TƯ",
     date: "15/09/2026",
-    image: "https://images.unsplash.com/photo-1581092335878-2d9ff86ca2bf?q=80&w=600&h=400",
+    image: "/images/products/ong-binh-minh-2.jpg",
     desc: "Phân biệt các cấp độ dày và áp lực làm việc PN10, PN16 của ống nước uPVC Bình Minh giúp tối ưu chi phí dự toán.",
   },
 ];
@@ -320,28 +320,28 @@ export interface MaterialService {
 export const MATERIAL_SERVICES: MaterialService[] = [
   {
     id: "svc_1",
-    title: "BÓC TÁCH DỰ TOÁN BOM M&E",
-    desc: "Tự động quy đổi khối lượng từ bản vẽ kỹ thuật sang quy cách cây 4m/cuộn 100m kèm chiết khấu nhà máy.",
+    title: "CUNG ỨNG VẬT TƯ ĐỒNG BỘ M&E",
+    desc: "Cung cấp trọn gói dây cáp điện Cadivi, ống nhựa Bình Minh và thiết bị đóng cắt chuẩn quy cách kèm chiết khấu đại lý cấp 1.",
     badge: "HOT",
-    image: "https://images.unsplash.com/photo-1581091228480-9337af036f3b?q=80&w=600&h=400",
+    image: "/images/products/day-dien-cong-trinh.jpg",
   },
   {
     id: "svc_2",
-    title: "BỘ CÔNG CỤ TÍNH CÁP & ỐNG",
-    desc: "Máy tính kỹ thuật tra cứu tiết diện cáp điện Cadivi và cỡ ống nước uPVC/PPR theo TCVN 1-click.",
-    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&h=400",
+    title: "TƯ VẤN TIẾT DIỆN CÁP & CỠ ỐNG",
+    desc: "Hỗ trợ kỹ thuật tra cứu tiết diện cáp điện Cadivi và cỡ ống nước uPVC/PPR theo tiêu chuẩn TCVN cho từng hạng mục.",
+    image: "/images/products/day-cap-doi.jpg",
   },
   {
     id: "svc_3",
     title: "HỒ SƠ NGHIỆM THU CO/CQ",
     desc: "Cung cấp đầy đủ chứng chỉ xuất xưởng, hóa đơn VAT và phiếu kiểm định chất lượng cho công trình.",
-    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=600&h=400",
+    image: "/images/products/schneider-switch-1.jpg",
   },
   {
     id: "svc_4",
     title: "GIAO HÀNG TẬN CÔNG TRÌNH 2H",
     desc: "Đội xe tải cẩu giao nhanh vật tư ống nước, dây cáp điện tới tận chân công trình tại TP.HCM & các tỉnh lân cận.",
     badge: "2H SLA",
-    image: "https://images.unsplash.com/photo-1545459720-aac8509eb02c?q=80&w=600&h=400",
+    image: "/images/products/ong-upvc-chong.jpg",
   },
 ];

@@ -47,13 +47,15 @@ const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
 function OrdersManagementContent() {
   const searchParams = useSearchParams();
   const toast = useToast();
-  const { orders, ordersLoading, ordersError, fetchOrders, approveOrder, deliverOrder } = useManagerStore();
+  const { orders, ordersLoading, ordersError, fetchOrders, fetchProducts, fetchShippers, approveOrder, deliverOrder } = useManagerStore();
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
 
-  // Fetch orders from API on mount
+  // Fetch orders, products, and shippers from API on mount
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    fetchProducts();
+    fetchShippers();
+  }, [fetchOrders, fetchProducts, fetchShippers]);
 
   // Filter states
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('ALL');

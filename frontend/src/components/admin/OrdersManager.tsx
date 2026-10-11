@@ -17,11 +17,12 @@ import { useAdminStore } from '../../store/useAdminStore';
 import { Order, OrderStatus } from '../../types/admin';
 
 export function OrdersManager() {
-  const { orders, fetchOrders, updateOrderStatus, addToast, searchQuery } = useAdminStore();
+  const { orders, shippers, fetchOrders, fetchShippers, updateOrderStatus, addToast, searchQuery } = useAdminStore();
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    fetchShippers();
+  }, [fetchOrders, fetchShippers]);
 
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -266,23 +267,35 @@ export function OrdersManager() {
 
               {/* Shipper Assignment */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                <p className="font-bold text-slate-700 dark:text-slate-300">Phân công Shipper giao 2H:</p>
+                <p className="font-bold text-slate-700 dark:text-slate-300">Phân công Shipper giao hàng:</p>
                 <div className="flex flex-wrap items-center gap-3">
                   <select
                     value={selectedOrder.assignedShipperId || ''}
                     onChange={(e) => {
                       const sId = e.target.value;
-                      const sName = sId === 'u-ship-001' ? 'Tài Xế Hoàng Nam' : sId === 'u-ship-002' ? 'Tài Xế Quốc Bảo' : 'Tài Xế Minh Tuấn';
+                      if (!sId) return;
+                      const found = shippers.find((s) => s.id === sId);
+                      const sName = found ? found.fullName : 'Nhân viên giao hàng';
                       useAdminStore.getState().assignShipper(selectedOrder.id, sId, sName);
-                      setSelectedOrder({ ...selectedOrder, assignedShipperId: sId, assignedShipperName: sName, status: selectedOrder.status === 'Pending' ? 'Preparing' : selectedOrder.status });
+                      setSelectedOrder({
+                        ...selectedOrder,
+                        assignedShipperId: sId,
+                        assignedShipperName: sName,
+                        status:
+                          selectedOrder.status === 'Pending' || selectedOrder.status === 'Preparing'
+                            ? 'Shipping2H'
+                            : selectedOrder.status,
+                      });
                       addToast(`Đã phân công đơn ${selectedOrder.code} cho ${sName}`, 'success');
                     }}
                     className="px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-900 dark:text-white outline-none focus:border-cyan-500"
                   >
                     <option value="">-- Chọn Shipper Giao Hàng --</option>
-                    <option value="u-ship-001">Tài Xế Hoàng Nam (Đội Xe Cẩu 1)</option>
-                    <option value="u-ship-002">Tài Xế Quốc Bảo (Giao Siêu Tốc 2H)</option>
-                    <option value="u-ship-003">Tài Xế Minh Tuấn (Xe Tải 2 Tấn)</option>
+                    {shippers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.fullName} {s.phone ? `(${s.phone})` : ''} — {s.activeOrderCount}/5 đơn
+                      </option>
+                    ))}
                   </select>
                   {selectedOrder.assignedShipperName && (
                     <span className="text-emerald-500 font-bold text-xs">

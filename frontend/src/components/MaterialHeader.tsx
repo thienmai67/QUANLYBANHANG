@@ -67,7 +67,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
         sku: p.sku,
         brand: p.brand || 'Cadivi',
         price: typeof p.price === 'string' ? p.price : `${p.basePrice?.toLocaleString('vi-VN')} ₫`,
-        image: p.image || '/images/products/pvc-pipes.png',
+        image: p.image || '/images/products/day-cap-don-1.jpg',
       }));
 
       const filtered = combined

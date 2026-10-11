@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
-import { MATERIAL_PRODUCTS, MaterialProduct } from '@/data/materialData';
+import { MaterialProduct } from '@/data/materialData';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -23,12 +23,18 @@ export default function ShopPage() {
   const [addedItemMap, setAddedItemMap] = useState<Record<string, boolean>>({});
 
   const adminProducts = useAdminStore((state) => state.products);
-  const productsError = useAdminStore((state) => state.productsError);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
   const { addItem } = useCartStore();
 
   useEffect(() => {
     fetchProducts();
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const catParam = params.get('cat');
+      const brandParam = params.get('brand');
+      if (catParam) setSelectedCat(catParam);
+      if (brandParam) setSelectedBrand(brandParam);
+    }
   }, [fetchProducts]);
 
   const allProducts: MaterialProduct[] = useMemo(() => {
@@ -58,18 +64,24 @@ export default function ShopPage() {
           unit: p.unit || 'Bộ',
           conversion: `1 ${p.unit || 'bộ'}`,
           description: p.description || p.name,
-          image: p.image || '/images/products/copper-cables.png',
+          image: p.image || '/images/products/day-cap-don-1.jpg',
           badge: (p.badge as any) || 'NEW',
           specs: specsArr,
           discount: p.discountRate ?? p.discount ?? 15,
         };
       });
     }
-    if (productsError) {
-      return MATERIAL_PRODUCTS;
-    }
     return [];
-  }, [adminProducts, productsError]);
+  }, [adminProducts]);
+
+  const availableCategories = useMemo(() => {
+    const cats = Array.from(
+      new Set(allProducts.map((p) => p.categoryName || String(p.category)).filter(Boolean))
+    );
+    return cats.length > 0
+      ? cats
+      : ['Dây & Cáp Điện', 'Ống & Phụ Kiện Nhựa', 'Tủ & Thiết Bị Đóng Cắt'];
+  }, [allProducts]);
 
   const availableBrands = useMemo(() => {
     const brands = Array.from(new Set(allProducts.map((p) => p.brand).filter(Boolean)));
@@ -84,7 +96,10 @@ export default function ShopPage() {
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.sku.toLowerCase().includes(search.toLowerCase());
       const matchesBrand = selectedBrand === 'ALL' || p.brand === selectedBrand;
-      const matchesCat = selectedCat === 'ALL' || p.category === selectedCat;
+      const matchesCat =
+        selectedCat === 'ALL' ||
+        p.category === selectedCat ||
+        p.categoryName === selectedCat;
       return matchesSearch && matchesBrand && matchesCat;
     });
   }, [allProducts, search, selectedBrand, selectedCat]);
@@ -147,7 +162,23 @@ export default function ShopPage() {
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto text-xs">
             <div className="flex items-center gap-2 font-semibold text-slate-500">
-              <Filter className="w-4 h-4" /> Thương hiệu:
+              <Filter className="w-4 h-4" /> Danh mục:
+            </div>
+            <select
+              value={selectedCat}
+              onChange={(e) => setSelectedCat(e.target.value)}
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
+            >
+              <option value="ALL">Tất cả danh mục</option>
+              {availableCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex items-center gap-2 font-semibold text-slate-500 ml-1">
+              Thương hiệu:
             </div>
             <select
               value={selectedBrand}

@@ -41,10 +41,10 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
 
   const shipper = shippers.find((s) => s.id === shipperId) || {
     id: shipperId,
-    name: 'Trần Quốc Toản',
+    name: 'Nhân viên giao hàng',
     shiftStatus: 'available',
     status: 'available',
-    activeOrders: 4,
+    activeOrders: 0,
   };
 
   const currentShift = shipper.shiftStatus || (shipper.status?.toLowerCase() === 'offline' ? 'offline' : shipper.status?.toLowerCase() === 'busy' ? 'busy' : 'available');

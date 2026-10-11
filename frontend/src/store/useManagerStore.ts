@@ -169,10 +169,15 @@ function mapApiProductToManagerProduct(raw: any): Product {
     typeof raw.brand === 'object' && raw.brand !== null
       ? raw.brand.name
       : raw.brand;
-  const brand: Brand =
-    brandRaw === 'Bình Minh' || brandRaw === 'Schneider' || brandRaw === 'Panasonic'
-      ? brandRaw
-      : 'Cadivi';
+  const brandStr = String(brandRaw || '');
+  let brand: Brand = 'Cadivi';
+  if (brandStr.includes('Bình Minh')) {
+    brand = 'Bình Minh';
+  } else if (brandStr.includes('Schneider')) {
+    brand = 'Schneider';
+  } else if (brandStr.includes('Panasonic')) {
+    brand = 'Panasonic';
+  }
   const discountPercent =
     typeof specsObj.discountRate === 'number'
       ? specsObj.discountRate
@@ -283,10 +288,23 @@ export const useManagerStore = create<ManagerState>()(
         set({ ordersLoading: true, ordersError: null });
         try {
           const data = await api.get<any[]>('/orders');
-          const mapped = (Array.isArray(data) ? data : []).map(mapOrderFromApi);
-          const derivedCustomers = deriveCustomersFromOrders(mapped);
+          const rawList = Array.isArray(data) ? data : [];
+          const enriched = await Promise.all(
+            rawList.map(async (rawOrder) => {
+              if (Array.isArray(rawOrder.items) && rawOrder.items.length > 0) {
+                return mapOrderFromApi(rawOrder);
+              }
+              try {
+                const detail = await api.get<any>(`/orders/${rawOrder.id}`);
+                return mapOrderFromApi({ ...rawOrder, ...detail });
+              } catch {
+                return mapOrderFromApi(rawOrder);
+              }
+            })
+          );
+          const derivedCustomers = deriveCustomersFromOrders(enriched);
           set({
-            orders: mapped,
+            orders: enriched,
             customers: derivedCustomers,
             ordersLoading: false,
             ordersError: null,
@@ -925,6 +943,29 @@ export const useManagerStore = create<ManagerState>()(
           stockLogs: [log, ...prev.stockLogs],
         }));
 
+        if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
+          api
+            .put(`/products/${productId}`, {
+              sku: prod.sku || prod.code,
+              name: prod.name,
+              brand: prod.brand,
+              category: prod.category,
+              basePrice: prod.basePrice,
+              unit: prod.unit,
+              image: prod.imageUrl,
+              description: prod.description,
+              specifications: {
+                unit: prod.unit,
+                image: prod.imageUrl,
+                description: prod.description,
+                discountRate: prod.discountPercent,
+                stock: newQuantity,
+                minStockLevel: prod.minStockLevel,
+              },
+            })
+            .catch(() => {});
+        }
+
         return { success: true };
       },
 
@@ -969,6 +1010,30 @@ export const useManagerStore = create<ManagerState>()(
           products: [newProd, ...prev.products],
           stockLogs: [...logs, ...prev.stockLogs],
         }));
+
+        if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
+          api
+            .post('/products', {
+              sku: newProd.sku || newProd.code,
+              name: newProd.name,
+              brand: newProd.brand,
+              category: newProd.category || 'Vật tư M&E',
+              basePrice: newProd.basePrice,
+              unit: newProd.unit || 'cái',
+              image: newProd.imageUrl || '/images/products/day-cap-don-1.jpg',
+              description: newProd.description || newProd.name,
+              specifications: {
+                unit: newProd.unit || 'cái',
+                image: newProd.imageUrl || '/images/products/day-cap-don-1.jpg',
+                description: newProd.description || newProd.name,
+                discountRate: newProd.discountPercent ?? 10,
+                stock: newProd.stockQuantity,
+                minStockLevel: newProd.minStockLevel,
+              },
+            })
+            .then(() => get().fetchProducts())
+            .catch(() => {});
+        }
 
         return { success: true, product: newProd };
       },
