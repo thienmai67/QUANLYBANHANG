@@ -3,7 +3,6 @@ import {
   Product,
   Category,
   Order,
-  BomRequest,
   Customer,
   DashboardStats,
 } from '../types/admin';
@@ -90,16 +89,6 @@ export const adminApi = {
     }
   },
 
-  // BOM Requests
-  getBomRequests: async (): Promise<BomRequest[]> => {
-    try {
-      const res = await apiClient.get('/admin/bom-requests');
-      return res.data;
-    } catch {
-      return [];
-    }
-  },
-
   // Customers
   getCustomers: async (): Promise<Customer[]> => {
     try {
@@ -110,4 +99,3 @@ export const adminApi = {
     }
   },
 };
-

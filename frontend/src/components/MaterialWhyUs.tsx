@@ -11,10 +11,10 @@ import {
 } from "lucide-react";
 
 interface MaterialWhyUsProps {
-  onOpenRFQ: (note?: string) => void;
+  onOpenRFQ?: (note?: string) => void;
 }
 
-export default function MaterialWhyUs({ onOpenRFQ }: MaterialWhyUsProps) {
+export default function MaterialWhyUs(_props: MaterialWhyUsProps) {
   const pillars = [
     {
       icon: <ShieldCheck className="w-6 h-6 text-white" />,
@@ -23,8 +23,8 @@ export default function MaterialWhyUs({ onOpenRFQ }: MaterialWhyUsProps) {
     },
     {
       icon: <Award className="w-6 h-6 text-white" />,
-      title: "Kỹ Sư Bóc Tách Dự Toán M&E",
-      desc: "Đội ngũ kỹ sư Cơ Điện hỗ trợ đọc bản vẽ, bóc tách bảng khối lượng cáp điện, ống nước chính xác, tránh lãng phí vật tư.",
+      title: "Kỹ Sư Tư Vấn Kỹ Thuật M&E",
+      desc: "Đội ngũ kỹ sư Cơ Điện hỗ trợ tư vấn chọn đúng quy cách cáp điện, ống nước chính xác, tránh lãng phí vật tư.",
     },
     {
       icon: <BadgeDollarSign className="w-6 h-6 text-white" />,
@@ -75,13 +75,13 @@ export default function MaterialWhyUs({ onOpenRFQ }: MaterialWhyUsProps) {
             </div>
 
             <div className="pt-2">
-              <button
-                onClick={() => onOpenRFQ("Yêu cầu tư vấn & báo giá vật tư công trình M&E")}
-                className="px-6 py-3 rounded-full bg-gradient-to-r from-amber-600 via-orange-600 to-amber-500 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-orange-600/30 hover:shadow-orange-600/50 transition-all flex items-center gap-2 group"
+              <a
+                href="/shop"
+                className="inline-flex px-6 py-3 rounded-full bg-gradient-to-r from-amber-600 via-orange-600 to-amber-500 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-orange-600/30 hover:shadow-orange-600/50 transition-all items-center gap-2 group"
               >
-                <span>Đề nghị báo giá dự toán</span>
+                <span>Khám phá cửa hàng vật tư</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
+              </a>
             </div>
           </div>
 

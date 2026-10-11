@@ -406,13 +406,13 @@ func TestListProducts_CustomPagination(t *testing.T) {
 
 func TestListProducts_LimitClamping(t *testing.T) {
 	repo := newMockProductRepo()
-	for i := 1; i <= 60; i++ {
+	for i := 1; i <= 110; i++ {
 		id := uuid.New()
 		repo.products[id] = domain.Product{ID: id, SKU: fmt.Sprintf("SKU-%03d", i)}
 	}
 
 	h := New(repo)
-	// Query with limit 500 should clamp to default 50
+	// Query with limit 500 should clamp to default 100
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/products?limit=500", nil)
 	rr := httptest.NewRecorder()
 
@@ -426,8 +426,8 @@ func TestListProducts_LimitClamping(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &results); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if len(results) != 50 {
-		t.Errorf("expected 50 products after clamping, got %d", len(results))
+	if len(results) != 100 {
+		t.Errorf("expected 100 products after clamping, got %d", len(results))
 	}
 }
 

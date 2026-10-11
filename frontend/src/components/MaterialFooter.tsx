@@ -43,9 +43,8 @@ export default function MaterialFooter() {
           <div className="space-y-6">
             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Danh Mục Vật Tư</h4>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400 font-medium">
-              <li><a href="#catalog" className="hover:text-blue-600 transition-colors">Tra Cứu Bảng Giá Vật Tư</a></li>
+              <li><a href="/shop" className="hover:text-blue-600 transition-colors">Tra Cứu Bảng Giá Vật Tư</a></li>
               <li><a href="/cong-trinh" className="hover:text-blue-600 transition-colors">Gói Vật Tư Công Trình</a></li>
-              <li><a href="/cong-cu" className="hover:text-blue-600 transition-colors">Công Cụ Tính Dự Toán BOM</a></li>
             </ul>
           </div>
 

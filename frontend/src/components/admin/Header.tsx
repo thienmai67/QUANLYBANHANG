@@ -10,7 +10,7 @@ import {
   Bell,
   User,
   LogOut,
-  FileText,
+  ShoppingBag,
   CheckCircle,
 } from 'lucide-react';
 import { useAdminStore } from '../../store/useAdminStore';
@@ -22,13 +22,13 @@ export function Header() {
     setMobileDrawerOpen,
     searchQuery,
     setSearchQuery,
-    bomRequests,
+    orders,
   } = useAdminStore();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  const pendingBoms = bomRequests.filter((b) => b.status === 'PendingReview');
+  const pendingOrders = orders.filter((o) => o.status === 'Pending');
 
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between h-16 px-4 lg:px-8 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
@@ -72,7 +72,7 @@ export function Header() {
             className="relative p-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
           >
             <Bell className="w-5 h-5" />
-            {pendingBoms.length > 0 && (
+            {pendingOrders.length > 0 && (
               <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-cyan-500 rounded-full ring-2 ring-white dark:ring-slate-900 animate-pulse" />
             )}
           </button>
@@ -82,10 +82,10 @@ export function Header() {
             <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 py-3 z-50 animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center justify-between px-4 pb-2 border-b border-slate-100 dark:border-slate-700">
                 <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-                  Yêu cầu BOM mới ({pendingBoms.length})
+                  Đơn hàng chờ duyệt ({pendingOrders.length})
                 </span>
                 <Link
-                  href="/admin/bom-requests"
+                  href="/admin/orders"
                   onClick={() => setShowNotifications(false)}
                   className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
                 >
@@ -94,30 +94,30 @@ export function Header() {
               </div>
 
               <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50">
-                {pendingBoms.length === 0 ? (
+                {pendingOrders.length === 0 ? (
                   <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-500" /> Không có yêu cầu BOM mới
+                    <CheckCircle className="w-4 h-4 text-emerald-500" /> Không có đơn hàng chờ duyệt
                   </div>
                 ) : (
-                  pendingBoms.map((bom) => (
+                  pendingOrders.map((order) => (
                     <Link
-                      key={bom.id}
-                      href="/admin/bom-requests"
+                      key={order.id}
+                      href="/admin/orders"
                       onClick={() => setShowNotifications(false)}
                       className="flex items-start gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                     >
                       <div className="p-2 bg-cyan-100 dark:bg-cyan-950 text-cyan-600 rounded-lg shrink-0">
-                        <FileText className="w-4 h-4" />
+                        <ShoppingBag className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                          {bom.code} - {bom.contractorName}
+                          {order.code} - {order.contractorName}
                         </p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                          {bom.projectName} ({bom.itemsCount} vật tư)
+                          {order.finalAmount.toLocaleString('vi-VN')} VND
                         </p>
                         <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-medium">
-                          {bom.createdAt}
+                          {order.createdAt}
                         </span>
                       </div>
                     </Link>

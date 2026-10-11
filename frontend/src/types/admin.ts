@@ -63,31 +63,6 @@ export interface Order {
   assignedShipperName?: string;
 }
 
-export interface BomItem {
-  id: string;
-  materialName: string;
-  suggestedSku?: string;
-  quantity: number;
-  unit: ProductUnit;
-  estimatedPrice: number;
-}
-
-export type BomStatus = 'PendingReview' | 'Quoted' | 'ConvertedToOrder' | 'Rejected';
-
-export interface BomRequest {
-  id: string;
-  code: string;
-  contractorName: string;
-  projectName: string;
-  phone: string;
-  email: string;
-  itemsCount: number;
-  estimatedTotal: number;
-  status: BomStatus;
-  createdAt: string;
-  items: BomItem[];
-}
-
 export type CustomerTier = 'Khách mua lẻ' | 'Thợ điện nước' | 'Hộ gia đình' | 'Khách công trình';
 
 export interface Customer {

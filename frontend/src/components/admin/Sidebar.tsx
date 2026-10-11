@@ -8,7 +8,6 @@ import {
   Package,
   FolderTree,
   ShoppingBag,
-  FileSpreadsheet,
   Users,
   BarChart3,
   Settings,
@@ -26,22 +25,13 @@ export function Sidebar() {
     toggleSidebar,
     mobileDrawerOpen,
     setMobileDrawerOpen,
-    bomRequests,
   } = useAdminStore();
-
-  const pendingBomCount = bomRequests.filter((b) => b.status === 'PendingReview').length;
 
   const navItems = [
     { name: 'Tổng quan', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Vật tư M&E', href: '/admin/products', icon: Package },
     { name: 'Danh mục', href: '/admin/categories', icon: FolderTree },
     { name: 'Đơn hàng công trình', href: '/admin/orders', icon: ShoppingBag },
-    {
-      name: 'Yêu cầu BOM',
-      href: '/admin/bom-requests',
-      icon: FileSpreadsheet,
-      badge: pendingBomCount > 0 ? pendingBomCount : undefined,
-    },
     { name: 'Nhà thầu & Đại lý', href: '/admin/customers', icon: Users },
     { name: 'Báo cáo & Phân tích', href: '/admin/analytics', icon: BarChart3 },
     { name: 'Cấu hình hệ thống', href: '/admin/settings', icon: Settings },
@@ -97,11 +87,6 @@ export function Sidebar() {
               <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
               {!sidebarCollapsed && (
                 <span className="flex-1 truncate">{item.name}</span>
-              )}
-              {!sidebarCollapsed && item.badge !== undefined && (
-                <span className="px-2 py-0.5 text-xs font-bold bg-amber-500 text-slate-950 rounded-full animate-pulse">
-                  {item.badge}
-                </span>
               )}
             </Link>
           );

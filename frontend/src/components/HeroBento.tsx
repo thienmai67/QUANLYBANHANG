@@ -17,7 +17,7 @@ interface HeroBentoProps {
 
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
-export default function HeroBento({ onOpenRFQ }: HeroBentoProps) {
+export default function HeroBento(_props: HeroBentoProps) {
   return (
     <section className="relative w-full rounded-3xl overflow-hidden border border-border shadow-2xl bg-surface transition-colors duration-300">
       {/* Background Industrial Fuel & Pipeline Hero Banner */}
@@ -64,10 +64,10 @@ export default function HeroBento({ onOpenRFQ }: HeroBentoProps) {
             transition={{ duration: 0.8, delay: 0.25, ease: EASE_OUT_EXPO }}
             className="text-sm sm:text-base text-muted font-medium leading-relaxed max-w-2xl mx-auto"
           >
-            Nền tảng thông minh cho bóc tách BOM tự động, chiết khấu xuất xưởng cấp 1 trực tiếp và quản lý tiến độ cung ứng vật tư thời gian thực.
+            Nền tảng phân phối vật tư cơ điện M&amp;E chính hãng, chiết khấu xuất xưởng cấp 1 trực tiếp và quản lý tiến độ cung ứng vật tư thời gian thực.
           </motion.p>
 
-          {/* CTAs (Single-line desktop buttons with strong contrast) */}
+          {/* CTAs */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -75,21 +75,12 @@ export default function HeroBento({ onOpenRFQ }: HeroBentoProps) {
             className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full sm:w-auto"
           >
             <a
-              href="#catalog"
+              href="/shop"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-accent-blue hover:bg-accent-blue/90 text-white font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-accent-blue/25 active:scale-[0.98]"
             >
               <span>KHÁM PHÁ SẢN PHẨM</span>
               <ArrowRight className="w-4 h-4" />
             </a>
-
-            <button
-              onClick={onOpenRFQ}
-              type="button"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-accent-orange hover:bg-accent-orange/90 text-white font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-accent-orange/25 active:scale-[0.98]"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>BÁO GIÁ SIÊU TỐC 15 PHÚT</span>
-            </button>
           </motion.div>
 
           {/* Quick SLA points */}
@@ -129,17 +120,17 @@ export default function HeroBento({ onOpenRFQ }: HeroBentoProps) {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-[10px] tracking-widest text-accent-blue uppercase font-bold font-mono px-2.5 py-1 rounded bg-accent-blue/10 border border-accent-blue/20">
-                  AUTOMATION &amp; BIM
+                  SUPPLY CHAIN
                 </span>
                 <div className="w-10 h-10 rounded-xl bg-accent-blue/10 text-accent-blue flex items-center justify-center border border-accent-blue/20">
                   <FileSpreadsheet className="w-5 h-5 stroke-[2]" />
                 </div>
               </div>
               <h3 className="font-display text-lg sm:text-xl font-bold text-foreground group-hover:text-accent-blue transition-colors">
-                Bóc Tách Khối Lượng Tự Động
+                Tra Cứu Quy Cách Vật Tư Chuẩn
               </h3>
               <p className="text-xs sm:text-sm text-muted mt-2 font-medium leading-relaxed">
-                Tải lên bản vẽ hoặc bảng tính Excel/BIM. Thuật toán tự động nhận diện quy cách, chuyển đổi cây/cuộn sang mét và áp chiết khấu nhà máy tức thì.
+                Hệ thống danh mục vật tư M&amp;E chuẩn hóa quy cách kỹ thuật, chuyển đổi cây/cuộn sang mét và áp chiết khấu nhà máy tức thì.
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs">

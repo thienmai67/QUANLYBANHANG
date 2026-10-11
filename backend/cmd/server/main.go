@@ -337,39 +337,32 @@ INSERT INTO categories (code, name, type) VALUES
     ('CABLE',      'Dây Cáp',   'CABLE'),
     ('DEVICE',     'Thiết bị',  'DEVICE')
 ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO products (id, sku, name, brand_id, category_id, base_price, diameter_mm, cross_section_mm2, amp_rating, specifications) VALUES
-    ('10000000-0000-0000-0000-000000000001', 'BM-U-PVC-042', 'Ống uPVC Bình Minh Phi 42mm C1',
-        (SELECT id FROM brands WHERE code = 'BINHMINH'),
-        (SELECT id FROM categories WHERE code = 'WATER_PIPE'),
-        85000.00, 42.0, NULL, NULL,
-        '{"material": "PVC", "pressure_class": "C1", "length_per_cay": 4.0, "unit": "Cây (4m)", "image": "/images/products/pvc-pipes.png", "description": "Ống nhựa uPVC Bình Minh Phi 42mm Class 1 chính hãng, chịu áp lực cao cho hệ thống cấp thoát nước công trình."}'::JSONB),
-    ('10000000-0000-0000-0000-000000000002', 'CV-CV-2.5', 'Dây đơn Cadivi CV 2.5mm2',
-        (SELECT id FROM brands WHERE code = 'CADIVI'),
-        (SELECT id FROM categories WHERE code = 'CABLE'),
-        18500.00, NULL, 2.5, 20.0,
-        '{"type": "Cu/XLPE/PVC", "voltage": "0.6/1kV", "length_per_cuon": 100.0, "unit": "Mét", "image": "/images/products/copper-cables.png", "description": "Dây cáp điện đơn ruột đồng cách điện PVC Cadivi CV 2.5mm², dẫn điện tốt, an toàn chống cháy."}'::JSONB),
-    ('10000000-0000-0000-0000-000000000003', 'PA-MCB-2P32', 'MCB Panasonic 2P 32A',
-        (SELECT id FROM brands WHERE code = 'PANASONIC'),
-        (SELECT id FROM categories WHERE code = 'DEVICE'),
-        220000.00, NULL, NULL, 32.0,
-        '{"poles": 2, "current_rating": 32, "breaking_capacity": "10kA", "trip_curve": "C", "unit": "Cái", "image": "/images/products/mcb-breakers.png", "description": "Aptomat MCB tép 2 pha 32A Panasonic dòng cắt 10kA bảo vệ quá tải và ngắn mạch chuẩn IEC."}'::JSONB)
-ON CONFLICT (sku) DO UPDATE
-SET specifications = EXCLUDED.specifications,
-    name = EXCLUDED.name,
-    base_price = EXCLUDED.base_price,
-    is_active = TRUE;
-
-DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'ORD-TEST-%' OR customer_id IN (SELECT id FROM users WHERE email LIKE 'e2e_%@tdt.vn' OR email LIKE 'verify_e2e_%@tdt.vn'));
-DELETE FROM orders WHERE order_number LIKE 'ORD-TEST-%' OR customer_id IN (SELECT id FROM users WHERE email LIKE 'e2e_%@tdt.vn' OR email LIKE 'verify_e2e_%@tdt.vn');
-DELETE FROM users WHERE email LIKE 'e2e_%@tdt.vn' OR email LIKE 'verify_e2e_%@tdt.vn';
-UPDATE order_items
-SET product_id = (SELECT id FROM products WHERE sku = 'CV-CV-2.5' LIMIT 1)
-WHERE product_id IN (SELECT id FROM products WHERE sku LIKE 'TEST-SKU-%');
-DELETE FROM products WHERE sku LIKE 'TEST-SKU-%';
 `
 	if _, err := db.Exec(ddl); err != nil {
 		return fmt.Errorf("apply schema DDL: %w", err)
+	}
+
+	var prodCount int
+	if err := db.Get(&prodCount, `SELECT COUNT(*) FROM me_supplies.products`); err == nil && prodCount == 0 {
+		_, _ = db.Exec(`
+			INSERT INTO me_supplies.products (id, sku, name, brand_id, category_id, base_price, diameter_mm, cross_section_mm2, amp_rating, specifications) VALUES
+			    ('10000000-0000-0000-0000-000000000001', 'BM-U-PVC-042', 'Ống uPVC Bình Minh Phi 42mm C1',
+			        (SELECT id FROM me_supplies.brands WHERE code = 'BINHMINH'),
+			        (SELECT id FROM me_supplies.categories WHERE code = 'WATER_PIPE'),
+			        85000.00, 42.0, NULL, NULL,
+			        '{"material": "PVC", "pressure_class": "C1", "length_per_cay": 4.0, "unit": "Cây (4m)", "image": "/images/products/pvc-pipes.png", "description": "Ống nhựa uPVC Bình Minh Phi 42mm Class 1 chính hãng, chịu áp lực cao cho hệ thống cấp thoát nước công trình."}'::JSONB),
+			    ('10000000-0000-0000-0000-000000000002', 'CV-CV-2.5', 'Dây đơn Cadivi CV 2.5mm2',
+			        (SELECT id FROM me_supplies.brands WHERE code = 'CADIVI'),
+			        (SELECT id FROM me_supplies.categories WHERE code = 'CABLE'),
+			        18500.00, NULL, 2.5, 20.0,
+			        '{"type": "Cu/XLPE/PVC", "voltage": "0.6/1kV", "length_per_cuon": 100.0, "unit": "Mét", "image": "/images/products/copper-cables.png", "description": "Dây cáp điện đơn ruột đồng cách điện PVC Cadivi CV 2.5mm², dẫn điện tốt, an toàn chống cháy."}'::JSONB),
+			    ('10000000-0000-0000-0000-000000000003', 'PA-MCB-2P32', 'MCB Panasonic 2P 32A',
+			        (SELECT id FROM me_supplies.brands WHERE code = 'PANASONIC'),
+			        (SELECT id FROM me_supplies.categories WHERE code = 'DEVICE'),
+			        220000.00, NULL, NULL, 32.0,
+			        '{"poles": 2, "current_rating": 32, "breaking_capacity": "10kA", "trip_curve": "C", "unit": "Cái", "image": "/images/products/mcb-breakers.png", "description": "Aptomat MCB tép 2 pha 32A Panasonic dòng cắt 10kA bảo vệ quá tải và ngắn mạch chuẩn IEC."}'::JSONB)
+			ON CONFLICT (sku) DO NOTHING;
+		`)
 	}
 
 	type seedUser struct {
@@ -405,58 +398,6 @@ DELETE FROM products WHERE sku LIKE 'TEST-SKU-%';
 			return fmt.Errorf("upsert demo user %s: %w", u.email, err)
 		}
 	}
-
-	var orderCount int
-	if err := db.Get(&orderCount, `SELECT COUNT(*) FROM me_supplies.orders`); err == nil && orderCount == 0 {
-		_, _ = db.Exec(`
-			INSERT INTO me_supplies.orders (
-				order_number, customer_id, customer_name, shipper_id, payment_method,
-				is_2h, deadline_2h, total_amount, status, version
-			) VALUES
-			(
-				'ORD-261011-DEMO01',
-				(SELECT id FROM me_supplies.users WHERE email = 'customer@tdt.vn'),
-				'Công ty Xây Dựng Minh Phát',
-				NULL,
-				'COD',
-				TRUE,
-				NOW() + INTERVAL '90 minutes',
-				1850000,
-				'PENDING',
-				1
-			),
-			(
-				'ORD-261011-DEMO02',
-				(SELECT id FROM me_supplies.users WHERE email = 'customer@tdt.vn'),
-				'Nhà Thầu Cơ Điện Thành Công',
-				(SELECT id FROM me_supplies.users WHERE email = 'shipper@tdt.vn'),
-				'COD',
-				TRUE,
-				NOW() + INTERVAL '75 minutes',
-				2200000,
-				'SHIPPING',
-				2
-			)
-			ON CONFLICT (order_number) DO NOTHING
-		`)
-	}
-
-	_, _ = db.Exec(`
-		INSERT INTO me_supplies.order_items (order_id, product_id, quantity, unit_price, converted_quantity)
-		SELECT
-			o.id,
-			p.id,
-			GREATEST(1, ROUND(o.total_amount / NULLIF(p.base_price, 0))),
-			p.base_price,
-			GREATEST(1, ROUND(o.total_amount / NULLIF(p.base_price, 0)))
-		FROM me_supplies.orders o
-		CROSS JOIN (
-			SELECT id, base_price FROM me_supplies.products WHERE sku = 'PA-MCB-2P32' LIMIT 1
-		) p
-		WHERE NOT EXISTS (
-			SELECT 1 FROM me_supplies.order_items oi WHERE oi.order_id = o.id
-		)
-	`)
 
 	return nil
 }

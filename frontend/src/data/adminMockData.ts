@@ -2,7 +2,6 @@ import {
   Product,
   Category,
   Order,
-  BomRequest,
   Customer,
   DashboardStats,
   RevenueChartPoint,
@@ -115,41 +114,6 @@ export const mockOrders: Order[] = [
     deliveryAddress: 'Khu công nghiệp Tân Bình, Q. Tân Phú, TP.HCM',
     items: [
       { productId: 'prod-4', productName: 'Ống Nước Nóng PPR Bình Minh Ø25', sku: 'BM-PPR-25', quantity: 150, unit: 'Cây', unitPrice: 145000, discountRate: 22 },
-    ],
-  },
-];
-
-export const mockBomRequests: BomRequest[] = [
-  {
-    id: 'bom-1',
-    code: 'BOM-2026-088',
-    contractorName: 'Công ty Cổ phần M&E Hòa Bình',
-    projectName: 'Hệ thống Điện Nước Tòa nhà Bách Khoa Office',
-    phone: '0903123456',
-    email: 'vat-tu@hoabinhme.vn',
-    itemsCount: 14,
-    estimatedTotal: 420000000,
-    status: 'PendingReview',
-    createdAt: '2026-03-30 09:10',
-    items: [
-      { id: 'bi-1', materialName: 'Dây điện Cadivi CV 2.5mm', suggestedSku: 'CAD-CV-2.5', quantity: 120, unit: 'Cuộn 100m', estimatedPrice: 850000 },
-      { id: 'bi-2', materialName: 'Ống nhựa Bình Minh uPVC Ø60x2.3mm', suggestedSku: 'BM-UPVC-60', quantity: 300, unit: 'Cây', estimatedPrice: 95000 },
-      { id: 'bi-3', materialName: 'Aptomat Schneider MCB 2P 32A', suggestedSku: 'SCH-MCB-2P32', quantity: 80, unit: 'Cái', estimatedPrice: 185000 },
-    ],
-  },
-  {
-    id: 'bom-2',
-    code: 'BOM-2026-089',
-    contractorName: 'Đội thi công Cơ điện Việt Nam',
-    projectName: 'Vật tư thi công Khách sạn Green Pearl Nha Trang',
-    phone: '0988776655',
-    email: 'contact@codienvietnam.com',
-    itemsCount: 22,
-    estimatedTotal: 780000000,
-    status: 'Quoted',
-    createdAt: '2026-03-29 15:40',
-    items: [
-      { id: 'bi-4', materialName: 'Cáp hạ thế Cadivi CXV 4x16mm', suggestedSku: 'CAD-CXV-4X16', quantity: 1500, unit: 'Mét', estimatedPrice: 320000 },
     ],
   },
 ];

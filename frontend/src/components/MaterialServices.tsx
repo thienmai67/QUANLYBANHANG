@@ -5,10 +5,10 @@ import { Wrench, ShieldCheck, ChevronRight, ArrowRight, Award } from "lucide-rea
 import { MATERIAL_SERVICES } from "@/data/materialData";
 
 interface MaterialServicesProps {
-  onOpenRFQ: (serviceTitle?: string) => void;
+  onOpenRFQ?: (serviceTitle?: string) => void;
 }
 
-export default function MaterialServices({ onOpenRFQ }: MaterialServicesProps) {
+export default function MaterialServices(_props: MaterialServicesProps) {
   return (
     <section id="services" className="w-full space-y-6 pt-4">
       {/* Section Header */}
@@ -21,16 +21,16 @@ export default function MaterialServices({ onOpenRFQ }: MaterialServicesProps) {
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 pl-6">
-            Bóc tách dự toán BOM vật tư M&E, tính toán công suất cáp & cỡ ống TCVN, kiểm định CO/CQ và giao hàng tận chân công trình 24/7
+            Tư vấn giải pháp vật tư M&amp;E, tính toán công suất cáp &amp; cỡ ống TCVN, kiểm định CO/CQ và giao hàng tận chân công trình 24/7
           </p>
         </div>
-        <button
-          onClick={() => onOpenRFQ("Tư vấn toàn diện dịch vụ vật tư điện nước M&E")}
+        <a
+          href="/shop"
           className="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400 hover:text-orange-600 flex items-center gap-1 transition-colors shrink-0"
         >
-          <span>Khảo Sát Công Trình Miễn Phí</span>
+          <span>Xem Danh Mục Vật Tư</span>
           <ChevronRight className="w-4 h-4" />
-        </button>
+        </a>
       </div>
 
       {/* Services Grid (4 items) */}
@@ -64,13 +64,13 @@ export default function MaterialServices({ onOpenRFQ }: MaterialServicesProps) {
               </div>
 
               {/* Action Button */}
-              <button
-                onClick={() => onOpenRFQ(`Yêu cầu tư vấn dịch vụ: ${srv.title}`)}
+              <a
+                href="/shop"
                 className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 group-hover:border-amber-500 group-hover:bg-amber-600 group-hover:text-white text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
               >
-                <span>Đăng ký dịch vụ</span>
+                <span>Khám phá ngay</span>
                 <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              </a>
             </div>
           </div>
         ))}

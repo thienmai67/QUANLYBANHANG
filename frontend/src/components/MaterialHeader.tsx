@@ -130,8 +130,8 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                     <div
                       key={prod.id}
                       onClick={() => {
-                        if (onOpenRFQ) onOpenRFQ(prod.name);
                         setIsSearchFocused(false);
+                        window.location.href = `/shop`;
                       }}
                       className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer flex items-center gap-4 transition-colors"
                     >
@@ -220,7 +220,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
               </Link>
             )}
 
-            {/* Cart BOM Icon */}
+            {/* Cart Icon */}
             <button
               onClick={() => setIsOpen(true)}
               className="relative p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1322] hover:border-blue-500 transition-colors group"
@@ -258,7 +258,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                 href="/cong-trinh"
                 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
-                <Building2 className="w-4 h-4" /> Gói Công Trình &amp; BOM
+                <Building2 className="w-4 h-4" /> Gói Công Trình
               </Link>
               <Link
                 href="/shop"

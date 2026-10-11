@@ -167,7 +167,7 @@ export function SettingsView() {
                   Khung Tỷ Lệ Chiết Khấu Mặc Định (% Tối Đa)
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Tỷ lệ này sẽ được tự động tính toán khi tiếp nhận file bóc tách BOM hoặc khởi tạo đơn hàng mới.
+                  Tỷ lệ này sẽ được tự động tính toán khi khởi tạo đơn hàng công trình mới.
                 </p>
 
                 <div className="space-y-3 pt-2">

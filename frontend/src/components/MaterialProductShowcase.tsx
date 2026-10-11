@@ -97,16 +97,9 @@ export default function MaterialProductShowcase({ onOpenRFQ }: MaterialProductSh
               />
               {/* Quick Actions overlay */}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
-                <button 
-                  onClick={(e) => { e.preventDefault(); if (onOpenRFQ) onOpenRFQ(prod.name); }}
-                  className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-transform hover:scale-110 active:scale-95"
-                  title="Quick Quote (RFQ)"
-                >
-                  <Calculator className="w-5 h-5" />
-                </button>
                 <div 
                   className="p-3 bg-white text-slate-900 rounded-full transition-transform hover:scale-110 active:scale-95 cursor-pointer"
-                  title="Details"
+                  title="Xem chi tiết"
                   onClick={() => window.location.href = `/shop`}
                 >
                   <Eye className="w-5 h-5" />

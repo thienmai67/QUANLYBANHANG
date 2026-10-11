@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo } from 'react';
+import { Calendar } from 'lucide-react';
 import {
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   XAxis,
@@ -12,8 +15,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from 'recharts';
 import { useAdminStore } from '../../store/useAdminStore';
 
@@ -21,6 +22,7 @@ const BRAND_COLORS: Record<string, string> = {
   Cadivi: '#DC2626',
   'Bình Minh': '#1D4ED8',
   Schneider: '#166534',
+  'Schneider Electric': '#166534',
   Panasonic: '#D97706',
   'Minh Hòa': '#0891B2',
   Legrand: '#7C3AED',
@@ -34,7 +36,14 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export function AnalyticsView() {
-  const { orders, products, bomRequests, fetchOrders, fetchProducts } = useAdminStore();
+  const {
+    orders,
+    products,
+    selectedPeriod,
+    setSelectedPeriod,
+    fetchOrders,
+    fetchProducts,
+  } = useAdminStore();
 
   useEffect(() => {
     fetchOrders();
@@ -46,17 +55,15 @@ export function AnalyticsView() {
     [orders]
   );
 
+  const totalRevenue = useMemo(
+    () => validOrders.reduce((s, o) => s + (o.finalAmount || 0), 0),
+    [validOrders]
+  );
+
   const avgOrderValue = useMemo(() => {
     if (validOrders.length === 0) return 0;
-    const sum = validOrders.reduce((s, o) => s + (o.finalAmount || 0), 0);
-    return Math.round(sum / validOrders.length);
-  }, [validOrders]);
-
-  const bomConversionRate = useMemo(() => {
-    if (bomRequests.length === 0) return null;
-    const converted = bomRequests.filter((b) => b.status === 'ConvertedToOrder').length;
-    return ((converted / bomRequests.length) * 100).toFixed(1);
-  }, [bomRequests]);
+    return Math.round(totalRevenue / validOrders.length);
+  }, [validOrders, totalRevenue]);
 
   const { categorySales, brandShare, topBrandName } = useMemo(() => {
     const prodById = new Map(products.map((p) => [p.id, p]));
@@ -108,11 +115,21 @@ export function AnalyticsView() {
     };
   }, [validOrders, products]);
 
-  const dailyRevenue30Days = useMemo(() => {
+  const daysCount =
+    selectedPeriod === '7days'
+      ? 7
+      : selectedPeriod === '30days'
+        ? 30
+        : selectedPeriod === '3months'
+          ? 90
+          : 365;
+
+  const revenueTrendData = useMemo(() => {
     if (validOrders.length === 0) return [];
     const today = new Date();
+    const displayDays = Math.min(daysCount, 30);
     const buckets: Array<{ date: string; key: string; revenue: number; orders: number }> = [];
-    for (let i = 29; i >= 0; i--) {
+    for (let i = displayDays - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const yyyy = d.getFullYear();
@@ -135,29 +152,59 @@ export function AnalyticsView() {
       }
     });
     return buckets;
-  }, [validOrders]);
+  }, [validOrders, daysCount]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-          Báo Cáo & Phân Tích Chuyên Sâu TDT M&E
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Phân tích chi tiết doanh số theo thương hiệu, tỷ lệ chốt BOM & tăng trưởng đơn hàng
-        </p>
+      {/* Header + Period Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            Báo Cáo &amp; Phân Tích Chuyên Sâu TDT M&E
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Phân tích chi tiết doanh số theo thương hiệu, nhóm vật tư &amp; tăng trưởng đơn hàng
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm self-start sm:self-auto">
+          <Calendar className="w-4 h-4 text-slate-400 ml-2" />
+          {[
+            { id: '7days', label: '7 ngày' },
+            { id: '30days', label: '30 ngày' },
+            { id: '3months', label: '3 tháng' },
+            { id: '12months', label: '12 tháng' },
+          ].map((period) => (
+            <button
+              key={period.id}
+              onClick={() => setSelectedPeriod(period.id as any)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+                selectedPeriod === period.id
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              {period.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Highlights Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <span className="text-xs font-bold text-slate-400 uppercase">Tỷ lệ chốt BOM tự động</span>
+          <span className="text-xs font-bold text-slate-400 uppercase">Tổng doanh thu thực tế</span>
           <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
-            {bomConversionRate !== null ? `${bomConversionRate}%` : 'Chưa có dữ liệu'}
+            {validOrders.length > 0 ? (
+              <>
+                {totalRevenue.toLocaleString('vi-VN')} <span className="text-xs">VND</span>
+              </>
+            ) : (
+              'Chưa có dữ liệu'
+            )}
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            {bomRequests.length > 0 ? `${bomRequests.length} yêu cầu BOM` : 'Chưa có yêu cầu BOM'}
+            {validOrders.length > 0 ? `${validOrders.length} đơn hàng hợp lệ` : 'Chưa phát sinh đơn hàng'}
           </p>
         </div>
 
@@ -188,70 +235,31 @@ export function AnalyticsView() {
         </div>
       </div>
 
-      {/* Recharts Bar Chart: Sales by Category */}
-      <div className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
-          Doanh Số Theo Nhóm Vật Tư M&E (VND)
-        </h3>
-        <p className="text-xs text-slate-500 mb-6">
-          Thống kê tổng tiền xuất kho theo ngành hàng thực tế
-        </p>
-
-        {categorySales.length === 0 ? (
-          <div className="h-72 w-full flex items-center justify-center text-sm font-semibold text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-            Chưa có dữ liệu
-          </div>
-        ) : (
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categorySales} margin={{ top: 10, right: 10, left: 20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
-                <XAxis dataKey="category" tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11, fill: '#64748B' }}
-                  tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`}
-                />
-                <Tooltip
-                  formatter={(val: any) => [`${Number(val || 0).toLocaleString('vi-VN')} VND`, 'Doanh số']}
-                  contentStyle={{
-                    backgroundColor: '#0F172A',
-                    borderRadius: '12px',
-                    color: '#FFF',
-                    fontSize: '12px',
-                  }}
-                />
-                <Bar dataKey="sales" radius={[8, 8, 0, 0]}>
-                  {categorySales.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      {/* Grid 2 Charts: Daily Revenue 30 Days + Brand Share */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Line Chart: 30-Day Revenue */}
-        <div className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      {/* Grid 2 Charts: Revenue Trend AreaChart + Brand Share Pie */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Area Chart: Revenue Trend */}
+        <div className="lg:col-span-2 p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
-            Biến Động Doanh Thu 30 Ngày Gần Nhất
+            Xu Hướng Doanh Thu Vật Tư M&amp;E
           </h3>
           <p className="text-xs text-slate-500 mb-6">
             Tổng hợp doanh thu thực tế theo ngày (VND)
           </p>
 
-          {dailyRevenue30Days.length === 0 ? (
-            <div className="h-64 w-full flex items-center justify-center text-sm font-semibold text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+          {revenueTrendData.length === 0 ? (
+            <div className="h-72 w-full flex items-center justify-center text-sm font-semibold text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
               Chưa có dữ liệu
             </div>
           ) : (
-            <div className="h-64 w-full">
+            <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dailyRevenue30Days}>
+                <AreaChart data={revenueTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0891B2" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#0891B2" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
                   <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
                   <YAxis
@@ -269,14 +277,15 @@ export function AnalyticsView() {
                       fontSize: '12px',
                     }}
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="revenue"
-                    stroke="#10B981"
+                    stroke="#0891B2"
                     strokeWidth={3}
-                    dot={{ r: 3, fill: '#10B981' }}
+                    fillOpacity={1}
+                    fill="url(#colorRev)"
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -288,7 +297,7 @@ export function AnalyticsView() {
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
               Phân Phối Sản Lượng Thương Hiệu
             </h3>
-            <p className="text-xs text-slate-500 mb-4">Tỷ trọng đóng góp vào tổng doanh số M&E</p>
+            <p className="text-xs text-slate-500 mb-4">Tỷ trọng đóng góp vào tổng doanh số M&amp;E</p>
 
             {brandShare.length === 0 ? (
               <div className="h-48 w-full flex items-center justify-center text-sm font-semibold text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
@@ -339,7 +348,51 @@ export function AnalyticsView() {
           )}
         </div>
       </div>
+
+      {/* Recharts Bar Chart: Sales by Category */}
+      <div className="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
+          Doanh Số Theo Nhóm Vật Tư M&amp;E (VND)
+        </h3>
+        <p className="text-xs text-slate-500 mb-6">
+          Thống kê tổng tiền xuất kho theo ngành hàng thực tế
+        </p>
+
+        {categorySales.length === 0 ? (
+          <div className="h-72 w-full flex items-center justify-center text-sm font-semibold text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+            Chưa có dữ liệu
+          </div>
+        ) : (
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={categorySales} margin={{ top: 10, right: 10, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                <XAxis dataKey="category" tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#64748B' }}
+                  tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`}
+                />
+                <Tooltip
+                  formatter={(val: any) => [`${Number(val || 0).toLocaleString('vi-VN')} VND`, 'Doanh số']}
+                  contentStyle={{
+                    backgroundColor: '#0F172A',
+                    borderRadius: '12px',
+                    color: '#FFF',
+                    fontSize: '12px',
+                  }}
+                />
+                <Bar dataKey="sales" radius={[8, 8, 0, 0]}>
+                  {categorySales.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-

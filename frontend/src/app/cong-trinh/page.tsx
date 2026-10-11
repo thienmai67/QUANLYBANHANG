@@ -40,11 +40,11 @@ export default function CongTrinhPage() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="text-blue-600 font-bold tracking-widest uppercase text-xs">BẢNG TÍNH BOM CHUẨN KỸ THUẬT</span>
+          <span className="text-blue-600 font-bold tracking-widest uppercase text-xs">GIẢI PHÁP CUNG ỨNG M&amp;E CHUẨN KỸ THUẬT</span>
           <h1 className="text-4xl sm:text-5xl font-display font-black text-slate-900 dark:text-white mt-4 mb-6 uppercase">
             Gói Vật Tư <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">Theo Mô Hình Công Trình</span>
           </h1>
-          <p className="text-slate-500">Không còn ước tính cảm tính. Chúng tôi cung cấp các gói dự toán BOM bóc tách chính xác theo chuẩn kỹ thuật xây dựng.</p>
+          <p className="text-slate-500">Cung cấp các gói vật tư điện nước đồng bộ chính hãng theo chuẩn kỹ thuật xây dựng dân dụng và công nghiệp.</p>
         </div>
 
         <div className="space-y-12">
@@ -72,9 +72,12 @@ export default function CongTrinhPage() {
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Chi Phí Dự Kiến</p>
                     <span className="text-2xl font-bold text-orange-500">{pkg.estCost}</span>
                   </div>
-                  <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:scale-105 transition-transform">
-                    <Calculator className="w-4 h-4" /> Tải Dự Toán BOM
-                  </button>
+                  <a
+                    href="/shop"
+                    className="flex items-center gap-2 px-6 py-3 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:scale-105 transition-transform"
+                  >
+                    <Calculator className="w-4 h-4" /> Mua Vật Tư Ngay
+                  </a>
                 </div>
               </div>
             </motion.div>

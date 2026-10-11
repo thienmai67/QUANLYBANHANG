@@ -3,18 +3,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
-import RFQModal from '@/components/RFQModal';
 import { MATERIAL_PRODUCTS, MaterialProduct } from '@/data/materialData';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useCartStore } from '@/store/useCartStore';
-import { Search, Filter, ShieldCheck, Truck, Zap, ShoppingBag, Check } from 'lucide-react';
+import { Search, Filter, ShoppingBag, Check } from 'lucide-react';
 
 export default function ShopPage() {
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [selectedCat, setSelectedCat] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
-  const [isRFQOpen, setIsRFQOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
   const [addedItemMap, setAddedItemMap] = useState<Record<string, boolean>>({});
 
   const adminProducts = useAdminStore((state) => state.products);
@@ -66,6 +63,13 @@ export default function ShopPage() {
     return [];
   }, [adminProducts, productsError]);
 
+  const availableBrands = useMemo(() => {
+    const brands = Array.from(new Set(allProducts.map((p) => p.brand).filter(Boolean)));
+    return brands.length > 0
+      ? brands
+      : ['Cadivi', 'Bình Minh', 'Schneider Electric', 'Panasonic'];
+  }, [allProducts]);
+
   const filteredProducts = useMemo(() => {
     return allProducts.filter((p) => {
       const matchesSearch =
@@ -76,11 +80,6 @@ export default function ShopPage() {
       return matchesSearch && matchesBrand && matchesCat;
     });
   }, [allProducts, search, selectedBrand, selectedCat]);
-
-  const handleOpenRFQ = (name?: string) => {
-    setSelectedProduct(name);
-    setIsRFQOpen(true);
-  };
 
   const handleAddToCart = (prod: MaterialProduct) => {
     const rawPrice = parseInt(prod.price.replace(/[^\d]/g, ''), 10) || 100000;
@@ -102,7 +101,7 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 transition-colors">
-      <MaterialHeader onOpenRFQ={handleOpenRFQ} />
+      <MaterialHeader />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Banner header */}
@@ -113,17 +112,8 @@ export default function ShopPage() {
             </span>
             <h1 className="text-3xl font-black mt-3">Tất Cả Sản Phẩm &amp; Vật Tư M&E</h1>
             <p className="text-sm text-slate-300 mt-1 max-w-xl">
-              Phục vụ mua hàng bán lẻ giao tận nơi (COD) và chiết khấu sỉ bóc tách BOM cho nhà thầu.
+              Phục vụ mua hàng bán lẻ giao tận nơi (COD) và cung ứng vật tư chính hãng cho công trình.
             </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => handleOpenRFQ()}
-              className="px-5 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-2xl text-xs shadow-lg transition-all shrink-0 flex items-center gap-2"
-            >
-              <Zap className="w-4 h-4" /> Xin Báo Giá Sỉ / BOM
-            </button>
           </div>
         </div>
 
@@ -150,11 +140,11 @@ export default function ShopPage() {
               className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
             >
               <option value="ALL">Tất cả thương hiệu</option>
-              <option value="Cadivi">Cadivi</option>
-              <option value="Bình Minh">Bình Minh</option>
-              <option value="Schneider">Schneider</option>
-              <option value="Minh Hòa">Minh Hòa</option>
-              <option value="Panasonic">Panasonic</option>
+              {availableBrands.map((brand) => (
+                <option key={brand} value={brand}>
+                  {brand}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -185,15 +175,15 @@ export default function ShopPage() {
                   <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-2">
                     {prod.name}
                   </h3>
-                  <p className="text-xs text-slate-500 line-clamp-2">{prod.specs}</p>
+                  <p className="text-xs text-slate-500 line-clamp-2">{prod.description || prod.specs}</p>
                 </div>
               </div>
 
-              {/* Pricing & Double CTAs: Retail Add to Cart vs Wholesale Quote */}
+              {/* Pricing & CTA */}
               <div className="p-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-slate-400">Giá bán lẻ</span>
+                    <span className="text-[10px] text-slate-400">Giá bán lẻ ({prod.unit})</span>
                     <p className="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">
                       {prod.price}
                     </p>
@@ -204,33 +194,24 @@ export default function ShopPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleAddToCart(prod)}
-                    className={`py-2 px-2.5 rounded-xl font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all ${
-                      addedItemMap[prod.id]
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
-                  >
-                    {addedItemMap[prod.id] ? (
-                      <>
-                        <Check className="w-3.5 h-3.5" /> Đã Thêm!
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingBag className="w-3.5 h-3.5" /> Thêm Vào Giỏ
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenRFQ(prod.name)}
-                    className="py-2 px-2 rounded-xl font-bold text-xs text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-center"
-                  >
-                    Báo Giá Sỉ
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleAddToCart(prod)}
+                  className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all ${
+                    addedItemMap[prod.id]
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  {addedItemMap[prod.id] ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" /> Đã Thêm!
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-3.5 h-3.5" /> Thêm Vào Giỏ
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           ))}
@@ -238,12 +219,6 @@ export default function ShopPage() {
       </main>
 
       <MaterialFooter />
-
-      <RFQModal
-        isOpen={isRFQOpen}
-        onClose={() => setIsRFQOpen(false)}
-        initialProductName={selectedProduct}
-      />
     </div>
   );
 }

@@ -35,7 +35,7 @@ func writeAPIError(w http.ResponseWriter, statusCode int, code, message string) 
 func (h *Handler) ListProducts(w http.ResponseWriter, req *http.Request) {
 	limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
 	if limit <= 0 || limit > 100 {
-		limit = 50
+		limit = 100
 	}
 	offset, _ := strconv.Atoi(req.URL.Query().Get("offset"))
 
