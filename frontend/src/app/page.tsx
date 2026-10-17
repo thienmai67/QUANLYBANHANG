@@ -4,10 +4,14 @@ import React from "react";
 import dynamic from "next/dynamic";
 import MaterialHeader from "@/components/MaterialHeader";
 
-const TDTInteractiveBanner = dynamic(
-  () => import("@/components/TDTInteractiveBanner"),
+const Banner3DXray = dynamic(
+  () => import("@/components/home/Banner3DXray"),
   { ssr: false }
 );
+// const TDTInteractiveBanner = dynamic(
+//   () => import("@/components/TDTInteractiveBanner"),
+//   { ssr: false }
+// );
 import MaterialCategoryGrid from "@/components/MaterialCategoryGrid";
 import MaterialProductShowcase from "@/components/MaterialProductShowcase";
 import MaterialWhyUs from "@/components/MaterialWhyUs";
@@ -24,8 +28,9 @@ export default function HomePage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-14 sm:space-y-16">
-        {/* 2. Hero Banner 3D Interactive */}
-        <TDTInteractiveBanner />
+        {/* 2. Hero Banner 3D X-ray Interactive (thay thế TDTInteractiveBanner cũ) */}
+        <Banner3DXray />
+        {/* <TDTInteractiveBanner /> */}
 
         {/* 3. Product Category Showcase Grid */}
         <MaterialCategoryGrid onSelectCategory={(catId) => {
