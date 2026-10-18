@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -13,14 +15,30 @@ import (
 
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/middleware"
+	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/payos"
 )
 
 type Handler struct {
 	productRepo domain.ProductRepository
+	payosClient *payos.Client
+	frontendURL string
 }
 
 func New(productRepo domain.ProductRepository) *Handler {
-	return &Handler{productRepo: productRepo}
+	return &Handler{
+		productRepo: productRepo,
+		frontendURL: "http://localhost:3000",
+	}
+}
+
+func (h *Handler) SetPayOSClient(client *payos.Client) {
+	h.payosClient = client
+}
+
+func (h *Handler) SetFrontendURL(url string) {
+	if url != "" {
+		h.frontendURL = strings.TrimRight(url, "/")
+	}
 }
 
 func writeAPIError(w http.ResponseWriter, statusCode int, code, message string) {
@@ -469,6 +487,8 @@ func (h *Handler) UpdateOrderStatus(w http.ResponseWriter, req *http.Request) {
 	)
 	if err != nil {
 		switch {
+		case errors.Is(err, domain.ErrPaymentNotConfirmed):
+			writeAPIError(w, http.StatusBadRequest, "PAYMENT_NOT_CONFIRMED", "Đơn hàng chuyển khoản chưa được thanh toán")
 		case errors.Is(err, domain.ErrVersionConflict):
 			writeAPIError(w, http.StatusConflict, "VERSION_CONFLICT", "Đơn hàng vừa được cập nhật bởi người khác, vui lòng tải lại")
 		case errors.Is(err, domain.ErrInvalidTransition):
@@ -689,4 +709,267 @@ func (h *Handler) ListCODSettlements(w http.ResponseWriter, req *http.Request) {
 		"data":  settlements,
 		"total": total,
 	})
+}
+
+func (h *Handler) CreatePaymentLink(w http.ResponseWriter, req *http.Request) {
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
+	}
+
+	idStr := chi.URLParam(req, "id")
+	if idStr == "" {
+		idStr = req.PathValue("id")
+	}
+	orderID, err := uuid.Parse(idStr)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID đơn hàng không hợp lệ")
+		return
+	}
+
+	order, err := h.productRepo.GetOrderByID(req.Context(), orderID)
+	if err != nil {
+		if errors.Is(err, domain.ErrOrderNotFound) {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi lấy thông tin đơn hàng")
+		return
+	}
+
+	// Verify authorization
+	if claims.Role == domain.RoleCustomer {
+		if order.CustomerID == nil || order.CustomerID.String() != claims.UserID {
+			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền thanh toán đơn hàng này")
+			return
+		}
+	}
+
+	if order.Status == domain.OrderStatusCancelled {
+		writeAPIError(w, http.StatusBadRequest, "ORDER_CANCELLED", "Đơn hàng đã bị hủy, không thể tạo link thanh toán")
+		return
+	}
+	if order.Status == domain.OrderStatusDelivered {
+		writeAPIError(w, http.StatusBadRequest, "ORDER_DELIVERED", "Đơn hàng đã giao thành công")
+		return
+	}
+	if order.PaymentStatus == domain.PaymentStatusPaid {
+		writeAPIError(w, http.StatusBadRequest, "ALREADY_PAID", "Đơn hàng đã được thanh toán")
+		return
+	}
+
+	if h.payosClient == nil {
+		writeAPIError(w, http.StatusInternalServerError, "CONFIG_ERROR", "Dịch vụ thanh toán PayOS chưa được khởi tạo")
+		return
+	}
+
+	// Hủy request cũ nếu đã có orderCode cũ để tạo lại QR mới
+	if order.PayOSOrderCode != nil && *order.PayOSOrderCode > 0 {
+		_ = h.payosClient.CancelPayment(req.Context(), *order.PayOSOrderCode, "Tạo lại mã thanh toán mới")
+	}
+
+	orderCode := time.Now().UnixMicro()
+	amount := int(math.Round(order.TotalAmount))
+	if amount <= 0 {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_AMOUNT", "Số tiền đơn hàng không hợp lệ")
+		return
+	}
+
+	cleanOrderNum := strings.ReplaceAll(order.OrderNumber, "-", "")
+	var desc string
+	if strings.HasPrefix(strings.ToUpper(cleanOrderNum), "TDT") {
+		desc = cleanOrderNum
+	} else if strings.HasPrefix(strings.ToUpper(cleanOrderNum), "ORD") {
+		desc = "TDT" + cleanOrderNum[3:]
+	} else {
+		desc = "TDT" + cleanOrderNum
+	}
+	if len(desc) > 25 {
+		desc = desc[:25]
+	}
+
+	cancelURL := fmt.Sprintf("%s/account", h.frontendURL)
+	returnURL := fmt.Sprintf("%s/account", h.frontendURL)
+
+	linkData, err := h.payosClient.CreatePaymentLink(req.Context(), orderCode, amount, desc, cancelURL, returnURL)
+	if err != nil {
+		writeAPIError(w, http.StatusBadGateway, "PAYOS_ERROR", fmt.Sprintf("Lỗi tạo link thanh toán PayOS: %v", err))
+		return
+	}
+
+	if err := h.productRepo.UpdateOrderPaymentLink(req.Context(), order.ID, orderCode, linkData.CheckoutURL); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi lưu thông tin thanh toán đơn hàng")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"qrCode":        linkData.QRCode,
+		"checkoutUrl":   linkData.CheckoutURL,
+		"orderCode":     orderCode,
+		"amount":        amount,
+		"paymentStatus": "PENDING",
+	})
+}
+
+func (h *Handler) GetPaymentStatus(w http.ResponseWriter, req *http.Request) {
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
+	}
+
+	idStr := chi.URLParam(req, "id")
+	if idStr == "" {
+		idStr = req.PathValue("id")
+	}
+	orderID, err := uuid.Parse(idStr)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID đơn hàng không hợp lệ")
+		return
+	}
+
+	order, err := h.productRepo.GetOrderByID(req.Context(), orderID)
+	if err != nil {
+		if errors.Is(err, domain.ErrOrderNotFound) {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi lấy thông tin đơn hàng")
+		return
+	}
+
+	// Verify authorization
+	if claims.Role == domain.RoleCustomer {
+		if order.CustomerID == nil || order.CustomerID.String() != claims.UserID {
+			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền xem thông tin thanh toán đơn này")
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// If already paid in database, return immediately
+	if order.PaymentStatus == domain.PaymentStatusPaid {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"paymentStatus": domain.PaymentStatusPaid,
+			"payosStatus":   "PAID",
+			"orderCode":     order.PayOSOrderCode,
+			"paidAt":        order.PaidAt,
+		})
+		return
+	}
+
+	if order.PayOSOrderCode == nil || *order.PayOSOrderCode == 0 || h.payosClient == nil {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"paymentStatus": order.PaymentStatus,
+			"payosStatus":   string(order.PaymentStatus),
+		})
+		return
+	}
+
+	statusData, err := h.payosClient.GetPaymentStatus(req.Context(), *order.PayOSOrderCode)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"paymentStatus": order.PaymentStatus,
+			"payosStatus":   "UNKNOWN",
+			"orderCode":     *order.PayOSOrderCode,
+			"message":       err.Error(),
+		})
+		return
+	}
+
+	if statusData.Status == "PAID" {
+		now := time.Now()
+		_ = h.productRepo.UpdateOrderPaymentStatus(req.Context(), order.ID, domain.PaymentStatusPaid, &now)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"paymentStatus": domain.PaymentStatusPaid,
+			"payosStatus":   "PAID",
+			"orderCode":     *order.PayOSOrderCode,
+			"paidAt":        now,
+		})
+		return
+	}
+
+	if statusData.Status == "UNDERPAID" {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"paymentStatus":   order.PaymentStatus,
+			"payosStatus":     "UNDERPAID",
+			"orderCode":       *order.PayOSOrderCode,
+			"amount":          statusData.Amount,
+			"amountPaid":      statusData.AmountPaid,
+			"amountRemaining": statusData.AmountRemaining,
+			"message":         "Số tiền thanh toán chưa đủ, vui lòng chuyển bổ sung đúng số tiền đơn hàng",
+		})
+		return
+	}
+
+	if statusData.Status == "CANCELLED" {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"paymentStatus": order.PaymentStatus,
+			"payosStatus":   "CANCELLED",
+			"orderCode":     *order.PayOSOrderCode,
+			"message":       "Giao dịch thanh toán PayOS đã bị hủy",
+		})
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"paymentStatus": order.PaymentStatus,
+		"payosStatus":   statusData.Status,
+		"orderCode":     *order.PayOSOrderCode,
+	})
+}
+
+func (h *Handler) MarkPaid(w http.ResponseWriter, req *http.Request) {
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
+	}
+
+	if claims.Role != domain.RoleSale && claims.Role != domain.RoleManager && claims.Role != domain.RoleAdmin {
+		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Chỉ Sale/Manager/Admin mới có quyền đánh dấu đã thanh toán")
+		return
+	}
+
+	idStr := chi.URLParam(req, "id")
+	if idStr == "" {
+		idStr = req.PathValue("id")
+	}
+	orderID, err := uuid.Parse(idStr)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID đơn hàng không hợp lệ")
+		return
+	}
+
+	order, err := h.productRepo.GetOrderByID(req.Context(), orderID)
+	if err != nil {
+		if errors.Is(err, domain.ErrOrderNotFound) {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi lấy thông tin đơn hàng")
+		return
+	}
+
+	now := time.Now()
+	if order.PaymentStatus != domain.PaymentStatusPaid {
+		if err := h.productRepo.UpdateOrderPaymentStatus(req.Context(), orderID, domain.PaymentStatusPaid, &now); err != nil {
+			writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi cập nhật trạng thái thanh toán")
+			return
+		}
+	}
+
+	updated, err := h.productRepo.GetOrderByID(req.Context(), orderID)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi lấy dữ liệu đơn hàng cập nhật")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(updated)
 }

@@ -615,34 +615,122 @@ func (r *productRepository) ListCategories(ctx context.Context) ([]domain.Catego
 	return categories, nil
 }
 
+const orderBaseSelectColumns = `
+    id, order_number, customer_id, customer_name, shipper_id, payment_method,
+    is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
+    version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
+    cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
+    payment_status, payos_order_code, paid_at, payment_receipt_url, refund_tx_code, refunded_at,
+    created_at, updated_at
+`
+
+type orderScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanOrderRow(s orderScanner) (*domain.Order, error) {
+	var o domain.Order
+	var custID, shipID, incidentReportedBy uuid.NullUUID
+	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail, payStatus, payReceipt, refundTx sql.NullString
+	var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt, paidAt, refundedAt sql.NullTime
+	var payosOrderCode sql.NullInt64
+
+	err := s.Scan(
+		&o.ID, &o.OrderNumber, &custID, &o.CustomerName, &shipID, &payMethod,
+		&o.Is2H, &deadline2H, &deliveredAt, &cancelReason, &o.TotalAmount, &o.Status,
+		&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
+		&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
+		&payStatus, &payosOrderCode, &paidAt, &payReceipt, &refundTx, &refundedAt,
+		&o.CreatedAt, &o.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if custID.Valid {
+		o.CustomerID = &custID.UUID
+	}
+	if shipID.Valid {
+		o.ShipperID = &shipID.UUID
+	}
+	if payMethod.Valid {
+		o.PaymentMethod = &payMethod.String
+	}
+	if cancelReason.Valid {
+		o.CancellationReason = &cancelReason.String
+	}
+	if deadline2H.Valid {
+		o.Deadline2H = &deadline2H.Time
+	}
+	if deliveredAt.Valid {
+		o.DeliveredAt = &deliveredAt.Time
+	}
+	if podPhoto.Valid {
+		o.PodPhotoURL = &podPhoto.String
+	}
+	if podRecipient.Valid {
+		o.PodRecipientName = &podRecipient.String
+	}
+	if podConfirmedAt.Valid {
+		o.PodConfirmedAt = &podConfirmedAt.Time
+	}
+	if codRemittedAt.Valid {
+		o.CODRemittedAt = &codRemittedAt.Time
+	}
+	if incidentDetail.Valid {
+		o.IncidentDetail = &incidentDetail.String
+	}
+	if incidentReportedBy.Valid {
+		o.IncidentReportedBy = &incidentReportedBy.UUID
+	}
+	if incidentReportedAt.Valid {
+		o.IncidentReportedAt = &incidentReportedAt.Time
+	}
+
+	if payStatus.Valid && payStatus.String != "" {
+		o.PaymentStatus = domain.PaymentStatus(payStatus.String)
+	} else {
+		o.PaymentStatus = domain.PaymentStatusUnpaid
+	}
+	if payosOrderCode.Valid {
+		o.PayOSOrderCode = &payosOrderCode.Int64
+	}
+	if paidAt.Valid {
+		o.PaidAt = &paidAt.Time
+	}
+	if payReceipt.Valid {
+		o.PaymentReceiptURL = &payReceipt.String
+	}
+	if refundTx.Valid {
+		o.RefundTxCode = &refundTx.String
+	}
+	if refundedAt.Valid {
+		o.RefundedAt = &refundedAt.Time
+	}
+
+	return &o, nil
+}
+
 func (r *productRepository) ListOrders(ctx context.Context, customerID *uuid.UUID, limit, offset int) ([]domain.Order, error) {
 	var query string
 	var args []any
 
 	if customerID == nil {
-		query = `
-            SELECT id, order_number, customer_id, customer_name, shipper_id, payment_method,
-                   is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-                   version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
-                   cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
-                   created_at, updated_at
+		query = fmt.Sprintf(`
+            SELECT %s
             FROM me_supplies.orders
             ORDER BY created_at DESC
             LIMIT $1 OFFSET $2
-        `
+        `, orderBaseSelectColumns)
 		args = []any{limit, offset}
 	} else {
-		query = `
-            SELECT id, order_number, customer_id, customer_name, shipper_id, payment_method,
-                   is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-                   version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
-                   cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
-                   created_at, updated_at
+		query = fmt.Sprintf(`
+            SELECT %s
             FROM me_supplies.orders
             WHERE customer_id = $1
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
-        `
+        `, orderBaseSelectColumns)
 		args = []any{*customerID, limit, offset}
 	}
 
@@ -654,63 +742,11 @@ func (r *productRepository) ListOrders(ctx context.Context, customerID *uuid.UUI
 
 	var orders []domain.Order
 	for rows.Next() {
-		var o domain.Order
-		var custID, shipID, incidentReportedBy uuid.NullUUID
-		var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail sql.NullString
-		var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt sql.NullTime
-
-		err := rows.Scan(
-			&o.ID, &o.OrderNumber, &custID, &o.CustomerName, &shipID, &payMethod,
-			&o.Is2H, &deadline2H, &deliveredAt, &cancelReason, &o.TotalAmount, &o.Status,
-			&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
-			&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
-			&o.CreatedAt, &o.UpdatedAt,
-		)
+		o, err := scanOrderRow(rows)
 		if err != nil {
 			return nil, fmt.Errorf("scan order: %w", err)
 		}
-
-		if custID.Valid {
-			o.CustomerID = &custID.UUID
-		}
-		if shipID.Valid {
-			o.ShipperID = &shipID.UUID
-		}
-		if payMethod.Valid {
-			o.PaymentMethod = &payMethod.String
-		}
-		if cancelReason.Valid {
-			o.CancellationReason = &cancelReason.String
-		}
-		if deadline2H.Valid {
-			o.Deadline2H = &deadline2H.Time
-		}
-		if deliveredAt.Valid {
-			o.DeliveredAt = &deliveredAt.Time
-		}
-		if podPhoto.Valid {
-			o.PodPhotoURL = &podPhoto.String
-		}
-		if podRecipient.Valid {
-			o.PodRecipientName = &podRecipient.String
-		}
-		if podConfirmedAt.Valid {
-			o.PodConfirmedAt = &podConfirmedAt.Time
-		}
-		if codRemittedAt.Valid {
-			o.CODRemittedAt = &codRemittedAt.Time
-		}
-		if incidentDetail.Valid {
-			o.IncidentDetail = &incidentDetail.String
-		}
-		if incidentReportedBy.Valid {
-			o.IncidentReportedBy = &incidentReportedBy.UUID
-		}
-		if incidentReportedAt.Valid {
-			o.IncidentReportedAt = &incidentReportedAt.Time
-		}
-
-		orders = append(orders, o)
+		orders = append(orders, *o)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -772,28 +808,14 @@ func (r *productRepository) loadOrderItems(ctx context.Context, orderID uuid.UUI
 }
 
 func (r *productRepository) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error) {
-	query := `
-        SELECT id, order_number, customer_id, customer_name, shipper_id, payment_method,
-               is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-               version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
-               cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
-               created_at, updated_at
+	query := fmt.Sprintf(`
+        SELECT %s
         FROM me_supplies.orders
         WHERE id = $1
-    `
+    `, orderBaseSelectColumns)
 
-	var o domain.Order
-	var custID, shipID, incidentReportedBy uuid.NullUUID
-	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail sql.NullString
-	var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt sql.NullTime
-
-	err := r.db.QueryRowContext(ctx, query, orderID).Scan(
-		&o.ID, &o.OrderNumber, &custID, &o.CustomerName, &shipID, &payMethod,
-		&o.Is2H, &deadline2H, &deliveredAt, &cancelReason, &o.TotalAmount, &o.Status,
-		&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
-		&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
-		&o.CreatedAt, &o.UpdatedAt,
-	)
+	row := r.db.QueryRowContext(ctx, query, orderID)
+	o, err := scanOrderRow(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrOrderNotFound
@@ -801,48 +823,8 @@ func (r *productRepository) GetOrderByID(ctx context.Context, orderID uuid.UUID)
 		return nil, fmt.Errorf("get order by id: %w", err)
 	}
 
-	if custID.Valid {
-		o.CustomerID = &custID.UUID
-	}
-	if shipID.Valid {
-		o.ShipperID = &shipID.UUID
-	}
-	if payMethod.Valid {
-		o.PaymentMethod = &payMethod.String
-	}
-	if cancelReason.Valid {
-		o.CancellationReason = &cancelReason.String
-	}
-	if deadline2H.Valid {
-		o.Deadline2H = &deadline2H.Time
-	}
-	if deliveredAt.Valid {
-		o.DeliveredAt = &deliveredAt.Time
-	}
-	if podPhoto.Valid {
-		o.PodPhotoURL = &podPhoto.String
-	}
-	if podRecipient.Valid {
-		o.PodRecipientName = &podRecipient.String
-	}
-	if podConfirmedAt.Valid {
-		o.PodConfirmedAt = &podConfirmedAt.Time
-	}
-	if codRemittedAt.Valid {
-		o.CODRemittedAt = &codRemittedAt.Time
-	}
-	if incidentDetail.Valid {
-		o.IncidentDetail = &incidentDetail.String
-	}
-	if incidentReportedBy.Valid {
-		o.IncidentReportedBy = &incidentReportedBy.UUID
-	}
-	if incidentReportedAt.Valid {
-		o.IncidentReportedAt = &incidentReportedAt.Time
-	}
-
 	o.Items = r.loadOrderItems(ctx, o.ID)
-	return &o, nil
+	return o, nil
 }
 
 func (r *productRepository) CreateOrder(ctx context.Context, order *domain.Order) error {
@@ -913,6 +895,9 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 	// Round total to integer VND
 	order.TotalAmount = math.Round(computedTotal)
 	order.Version = 1
+	if order.PaymentStatus == "" {
+		order.PaymentStatus = domain.PaymentStatusUnpaid
+	}
 	now := time.Now()
 	if order.CreatedAt.IsZero() {
 		order.CreatedAt = now
@@ -923,15 +908,15 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
         INSERT INTO me_supplies.orders (
             id, order_number, customer_id, customer_name, shipper_id, payment_method,
             is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-            version, created_at, updated_at
+            version, created_at, updated_at, payment_status
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
         )
     `
 	_, err = tx.ExecContext(ctx, orderQuery,
 		order.ID, order.OrderNumber, order.CustomerID, order.CustomerName, order.ShipperID, order.PaymentMethod,
 		order.Is2H, order.Deadline2H, order.DeliveredAt, order.CancellationReason, order.TotalAmount, order.Status,
-		order.Version, order.CreatedAt, order.UpdatedAt,
+		order.Version, order.CreatedAt, order.UpdatedAt, order.PaymentStatus,
 	)
 	if err != nil {
 		_ = tx.Rollback()
@@ -1007,29 +992,15 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		}
 	}()
 
-	selectQuery := `
-        SELECT id, order_number, customer_id, customer_name, shipper_id, payment_method,
-               is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-               version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
-               cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
-               created_at, updated_at
+	selectQuery := fmt.Sprintf(`
+        SELECT %s
         FROM me_supplies.orders
         WHERE id = $1
         FOR UPDATE
-    `
-	var o domain.Order
-	var custID, shipID, incidentReportedBy uuid.NullUUID
-	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail sql.NullString
-	var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt sql.NullTime
+    `, orderBaseSelectColumns)
 
 	row := tx.QueryRowContext(ctx, selectQuery, orderID)
-	err = row.Scan(
-		&o.ID, &o.OrderNumber, &custID, &o.CustomerName, &shipID, &payMethod,
-		&o.Is2H, &deadline2H, &deliveredAt, &cancelReason, &o.TotalAmount, &o.Status,
-		&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
-		&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
-		&o.CreatedAt, &o.UpdatedAt,
-	)
+	o, err := scanOrderRow(row)
 	if err != nil {
 		_ = tx.Rollback()
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1037,20 +1008,6 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		}
 		return nil, fmt.Errorf("select order for update: %w", err)
 	}
-
-	if custID.Valid { o.CustomerID = &custID.UUID }
-	if shipID.Valid { o.ShipperID = &shipID.UUID }
-	if payMethod.Valid { o.PaymentMethod = &payMethod.String }
-	if cancelReason.Valid { o.CancellationReason = &cancelReason.String }
-	if deadline2H.Valid { o.Deadline2H = &deadline2H.Time }
-	if deliveredAt.Valid { o.DeliveredAt = &deliveredAt.Time }
-	if podPhoto.Valid { o.PodPhotoURL = &podPhoto.String }
-	if podRecipient.Valid { o.PodRecipientName = &podRecipient.String }
-	if podConfirmedAt.Valid { o.PodConfirmedAt = &podConfirmedAt.Time }
-	if codRemittedAt.Valid { o.CODRemittedAt = &codRemittedAt.Time }
-	if incidentDetail.Valid { o.IncidentDetail = &incidentDetail.String }
-	if incidentReportedBy.Valid { o.IncidentReportedBy = &incidentReportedBy.UUID }
-	if incidentReportedAt.Valid { o.IncidentReportedAt = &incidentReportedAt.Time }
 
 	// 1. Optimistic locking check
 	if o.Version != req.Version {
@@ -1093,6 +1050,17 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 	var newPodConfirmedAt *time.Time = o.PodConfirmedAt
 	var newCODCollected float64 = o.CODCollected
 	var newDeliveredAt *time.Time = o.DeliveredAt
+
+	// 4. Specific transition business rules
+	// 4-pre: Block transition to PACKING for BANK_TRANSFER orders if not PAID
+	if toStatus == domain.OrderStatusPacking {
+		if o.PaymentMethod != nil && strings.EqualFold(strings.TrimSpace(*o.PaymentMethod), "BANK_TRANSFER") {
+			if o.PaymentStatus != domain.PaymentStatusPaid {
+				_ = tx.Rollback()
+				return nil, domain.ErrPaymentNotConfirmed
+			}
+		}
+	}
 
 	// 4a. PACKING -> SHIPPING: allow setting shipper_id and validate shipper role
 	if o.Status == domain.OrderStatusPacking && toStatus == domain.OrderStatusShipping {
@@ -1154,7 +1122,7 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 	}
 
 	// 5. Atomic UPDATE with version increment
-	updateQuery := `
+	updateQuery := fmt.Sprintf(`
         UPDATE me_supplies.orders
         SET status = $1,
             version = version + 1,
@@ -1170,17 +1138,8 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
             cod_collected = $10,
             delivered_at = $11
         WHERE id = $12 AND version = $13
-        RETURNING id, order_number, customer_id, customer_name, shipper_id, payment_method,
-                  is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-                  version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
-                  cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
-                  created_at, updated_at
-    `
-
-	var updated domain.Order
-	var uCustID, uShipID, uIncidentReportedBy uuid.NullUUID
-	var uPayMethod, uCancelReason, uPodPhoto, uPodRecipient, uIncidentDetail sql.NullString
-	var uDeadline2H, uDeliveredAt, uPodConfirmedAt, uCodRemittedAt, uIncidentReportedAt sql.NullTime
+        RETURNING %s
+    `, orderBaseSelectColumns)
 
 	uRow := tx.QueryRowContext(ctx, updateQuery,
 		toStatus,
@@ -1198,13 +1157,7 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		req.Version,
 	)
 
-	err = uRow.Scan(
-		&updated.ID, &updated.OrderNumber, &uCustID, &updated.CustomerName, &uShipID, &uPayMethod,
-		&updated.Is2H, &uDeadline2H, &uDeliveredAt, &uCancelReason, &updated.TotalAmount, &updated.Status,
-		&updated.Version, &uPodPhoto, &uPodRecipient, &uPodConfirmedAt, &updated.CODCollected,
-		&updated.CODRemitted, &uCodRemittedAt, &uIncidentDetail, &uIncidentReportedBy, &uIncidentReportedAt,
-		&updated.CreatedAt, &updated.UpdatedAt,
-	)
+	updated, err := scanOrderRow(uRow)
 	if err != nil {
 		_ = tx.Rollback()
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1213,25 +1166,11 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		return nil, fmt.Errorf("update order status: %w", err)
 	}
 
-	if uCustID.Valid { updated.CustomerID = &uCustID.UUID }
-	if uShipID.Valid { updated.ShipperID = &uShipID.UUID }
-	if uPayMethod.Valid { updated.PaymentMethod = &uPayMethod.String }
-	if uCancelReason.Valid { updated.CancellationReason = &uCancelReason.String }
-	if uDeadline2H.Valid { updated.Deadline2H = &uDeadline2H.Time }
-	if uDeliveredAt.Valid { updated.DeliveredAt = &uDeliveredAt.Time }
-	if uPodPhoto.Valid { updated.PodPhotoURL = &uPodPhoto.String }
-	if uPodRecipient.Valid { updated.PodRecipientName = &uPodRecipient.String }
-	if uPodConfirmedAt.Valid { updated.PodConfirmedAt = &uPodConfirmedAt.Time }
-	if uCodRemittedAt.Valid { updated.CODRemittedAt = &uCodRemittedAt.Time }
-	if uIncidentDetail.Valid { updated.IncidentDetail = &uIncidentDetail.String }
-	if uIncidentReportedBy.Valid { updated.IncidentReportedBy = &uIncidentReportedBy.UUID }
-	if uIncidentReportedAt.Valid { updated.IncidentReportedAt = &uIncidentReportedAt.Time }
-
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit update order: %w", err)
 	}
 
-	return &updated, nil
+	return updated, nil
 }
 
 func (r *productRepository) UpdateOrderStatus(
@@ -1510,3 +1449,100 @@ func (r *productRepository) GetUnitConversion(ctx context.Context, fromUnitID, t
 
 	return &uc, nil
 }
+
+func (r *productRepository) UpdateOrderPaymentLink(ctx context.Context, orderID uuid.UUID, payosOrderCode int64, checkoutURL string) error {
+	query := `
+		UPDATE me_supplies.orders
+		SET payos_order_code = $1,
+		    payment_status = 'PENDING',
+		    payment_receipt_url = $2,
+		    updated_at = NOW()
+		WHERE id = $3
+	`
+	res, err := r.db.ExecContext(ctx, query, payosOrderCode, checkoutURL, orderID)
+	if err != nil {
+		return fmt.Errorf("update order payment link: %w", err)
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return domain.ErrOrderNotFound
+	}
+	return nil
+}
+
+func (r *productRepository) UpdateOrderPaymentStatus(ctx context.Context, orderID uuid.UUID, paymentStatus domain.PaymentStatus, paidAt *time.Time) error {
+	query := `
+		UPDATE me_supplies.orders
+		SET payment_status = $1,
+		    paid_at = $2,
+		    updated_at = NOW()
+		WHERE id = $3
+	`
+	res, err := r.db.ExecContext(ctx, query, paymentStatus, paidAt, orderID)
+	if err != nil {
+		return fmt.Errorf("update order payment status: %w", err)
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return domain.ErrOrderNotFound
+	}
+	return nil
+}
+
+func (r *productRepository) GetPendingBankTransferOrdersForCheck(ctx context.Context, olderThan time.Duration) ([]domain.Order, error) {
+	ms := olderThan.Milliseconds()
+	query := fmt.Sprintf(`
+		SELECT %s
+		FROM me_supplies.orders
+		WHERE payment_method = 'BANK_TRANSFER'
+		  AND payment_status = 'PENDING'
+		  AND payos_order_code IS NOT NULL
+		  AND status = 'PENDING'
+		  AND updated_at <= NOW() - ($1 * INTERVAL '1 millisecond')
+		ORDER BY updated_at ASC
+		LIMIT 100
+	`, orderBaseSelectColumns)
+
+	rows, err := r.db.QueryContext(ctx, query, ms)
+	if err != nil {
+		return nil, fmt.Errorf("query pending bank transfer orders: %w", err)
+	}
+	defer rows.Close()
+
+	var orders []domain.Order
+	for rows.Next() {
+		o, err := scanOrderRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan pending order: %w", err)
+		}
+		orders = append(orders, *o)
+	}
+	return orders, nil
+}
+
+func (r *productRepository) CancelTimedOutBankTransferOrders(ctx context.Context, olderThan time.Duration) (int64, error) {
+	ms := olderThan.Milliseconds()
+	query := `
+		WITH cancelled AS (
+			UPDATE me_supplies.orders
+			SET status = 'CANCELLED',
+			    payment_status = 'CANCELLED',
+			    cancellation_reason = 'PAYMENT_TIMEOUT',
+			    version = version + 1,
+			    updated_at = NOW()
+			WHERE payment_method = 'BANK_TRANSFER'
+			  AND payment_status IN ('UNPAID', 'PENDING')
+			  AND status = 'PENDING'
+			  AND created_at <= NOW() - ($1 * INTERVAL '1 millisecond')
+			RETURNING id
+		)
+		SELECT COUNT(*) FROM cancelled;
+	`
+	var count int64
+	err := r.db.QueryRowContext(ctx, query, ms).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("cancel timed out bank transfer orders: %w", err)
+	}
+	return count, nil
+}
+

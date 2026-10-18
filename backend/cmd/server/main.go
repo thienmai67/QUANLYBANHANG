@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -20,6 +21,7 @@ import (
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/handler"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/middleware"
+	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/payos"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/repository"
 )
 
@@ -59,6 +61,22 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
 	productHandler := handler.New(productRepo)
+
+	payosClientID := os.Getenv("PAYOS_CLIENT_ID")
+	payosAPIKey := os.Getenv("PAYOS_API_KEY")
+	payosChecksumKey := os.Getenv("PAYOS_CHECKSUM_KEY")
+	payosClient := payos.NewClient(payosClientID, payosAPIKey, payosChecksumKey)
+	productHandler.SetPayOSClient(payosClient)
+
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+	productHandler.SetFrontendURL(frontendURL)
+
+	// Start PayOS background reconciliation job (every 5 minutes)
+	startPayOSBackgroundJob(context.Background(), productRepo, payosClient, 5*time.Minute)
+
 	ssoHandler := handler.NewSSOHandler(userRepo, jwtService)
 	authHandler := handler.NewAuthHandler(userRepo, jwtService)
 
@@ -109,6 +127,15 @@ func main() {
 			r.Post("/orders", productHandler.CreateOrder)
 			r.Get("/orders", productHandler.ListOrders)
 			r.Get("/orders/{id}", productHandler.GetOrderByID)
+			r.Post("/orders/{id}/payment-link", productHandler.CreatePaymentLink)
+			r.Get("/orders/{id}/payment-status", productHandler.GetPaymentStatus)
+		})
+
+		// Manual Payment Confirmation (SALE, MANAGER, ADMIN)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth)
+			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleSale))
+			r.Post("/orders/{id}/mark-paid", productHandler.MarkPaid)
 		})
 
 		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER)
@@ -290,7 +317,20 @@ ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS cod_remitted_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS incident_detail TEXT,
     ADD COLUMN IF NOT EXISTS incident_reported_by UUID REFERENCES users(id),
-    ADD COLUMN IF NOT EXISTS incident_reported_at TIMESTAMPTZ;
+    ADD COLUMN IF NOT EXISTS incident_reported_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'UNPAID',
+    ADD COLUMN IF NOT EXISTS payos_order_code BIGINT,
+    ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS payment_receipt_url TEXT,
+    ADD COLUMN IF NOT EXISTS refund_tx_code TEXT,
+    ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
+
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_status_check;
+ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check
+    CHECK (payment_status IN ('UNPAID', 'PENDING', 'PAID', 'CANCELLED', 'REFUND_PENDING', 'REFUNDED'));
+
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
+CREATE INDEX IF NOT EXISTS idx_orders_payos_order_code ON orders(payos_order_code);
 
 CREATE TABLE IF NOT EXISTS order_items (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -401,5 +441,50 @@ ON CONFLICT (code) DO NOTHING;
 
 	return nil
 }
+
+func startPayOSBackgroundJob(ctx context.Context, repo domain.ProductRepository, client *payos.Client, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				runPayOSReconciliation(context.Background(), repo, client)
+			}
+		}
+	}()
+}
+
+func runPayOSReconciliation(ctx context.Context, repo domain.ProductRepository, client *payos.Client) {
+	// 1. Quét đơn BANK_TRANSFER đang PENDING quá 5 phút -> check status -> PAID thì cập nhật
+	if client != nil && client.ClientID != "" && client.APIKey != "" {
+		orders, err := repo.GetPendingBankTransferOrdersForCheck(ctx, 5*time.Minute)
+		if err == nil {
+			for _, o := range orders {
+				if o.PayOSOrderCode != nil && *o.PayOSOrderCode > 0 {
+					statusData, err := client.GetPaymentStatus(ctx, *o.PayOSOrderCode)
+					if err == nil && statusData != nil && statusData.Status == "PAID" {
+						now := time.Now()
+						_ = repo.UpdateOrderPaymentStatus(ctx, o.ID, domain.PaymentStatusPaid, &now)
+						log.Printf("[PayOS Job] Đơn hàng %s (mã PayOS %d) đã cập nhật PAID thành công", o.OrderNumber, *o.PayOSOrderCode)
+					}
+				}
+			}
+		} else {
+			log.Printf("[PayOS Job] Lỗi quét đơn PENDING: %v", err)
+		}
+	}
+
+	// 2. Quét đơn BANK_TRANSFER quá 24 giờ vẫn UNPAID/PENDING -> tự chuyển sang CANCELLED, lý do PAYMENT_TIMEOUT
+	cancelledCount, err := repo.CancelTimedOutBankTransferOrders(ctx, 24*time.Hour)
+	if err == nil && cancelledCount > 0 {
+		log.Printf("[PayOS Job] Đã tự động hủy %d đơn BANK_TRANSFER quá hạn 24 giờ (PAYMENT_TIMEOUT)", cancelledCount)
+	} else if err != nil {
+		log.Printf("[PayOS Job] Lỗi hủy đơn quá hạn: %v", err)
+	}
+}
+
 
 

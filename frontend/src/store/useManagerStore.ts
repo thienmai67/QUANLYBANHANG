@@ -130,6 +130,10 @@ export interface ManagerState {
     managerName?: string
   ) => Promise<{ success: boolean; error?: string }>;
 
+  markOrderPaid: (
+    orderId: string
+  ) => Promise<{ success: boolean; error?: string }>;
+
   adjustStock: (
     productId: string,
     newQuantity: number,
@@ -896,6 +900,20 @@ export const useManagerStore = create<ManagerState>()(
             cancelReason: reason,
           }
         );
+      },
+
+      /**
+       * markOrderPaid: Calls POST /orders/{id}/mark-paid for BANK_TRANSFER orders
+       * and refreshes orders from server.
+       */
+      markOrderPaid: async (orderId: string) => {
+        try {
+          await api.post(`/orders/${orderId}/mark-paid`);
+          await get().fetchOrders();
+          return { success: true };
+        } catch (err: any) {
+          return { success: false, error: getFriendlyErrorMessage(err) };
+        }
       },
 
       /**

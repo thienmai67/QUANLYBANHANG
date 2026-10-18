@@ -32,6 +32,9 @@ export function getFriendlyErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     switch (err.status) {
       case 400:
+        if (err.code === "PAYMENT_NOT_CONFIRMED") {
+          return "Đơn hàng chuyển khoản ngân hàng phải được xác nhận thanh toán (PAID) trước khi đóng gói.";
+        }
         return err.message || "Dữ liệu yêu cầu không hợp lệ";
       case 401:
         return "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại";

@@ -61,6 +61,11 @@ export interface Order {
   items: OrderItem[];
   assignedShipperId?: string;
   assignedShipperName?: string;
+  paymentStatus?: 'UNPAID' | 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUND_PENDING' | 'REFUNDED';
+  paymentMethod?: string;
+  payosOrderCode?: number;
+  paidAt?: string;
+  paymentReceiptUrl?: string;
 }
 
 export type CustomerTier = 'Khách mua lẻ' | 'Thợ điện nước' | 'Hộ gia đình' | 'Khách công trình';

@@ -2,6 +2,7 @@ import {
   Order,
   OrderItem,
   OrderStatus,
+  PaymentStatus,
   ShipperSummary,
   CODSettlement,
   UpdateOrderStatusPayload,
@@ -107,6 +108,17 @@ export function mapOrderFromApi(raw: any): Order {
       : undefined);
 
   const paymentMethod = raw.paymentMethod || raw.payment_method || 'COD';
+  const paymentStatus = (raw.paymentStatus || raw.payment_status || 'UNPAID') as PaymentStatus;
+  const payosOrderCode =
+    typeof raw.payosOrderCode === 'number'
+      ? raw.payosOrderCode
+      : typeof raw.payos_order_code === 'number'
+      ? raw.payos_order_code
+      : undefined;
+  const paidAt = raw.paidAt || raw.paid_at || undefined;
+  const paymentReceiptUrl = raw.paymentReceiptUrl || raw.payment_receipt_url || undefined;
+  const refundTxCode = raw.refundTxCode || raw.refund_tx_code || undefined;
+  const refundedAt = raw.refundedAt || raw.refunded_at || undefined;
 
   const cod =
     raw.cod ||
@@ -167,6 +179,12 @@ export function mapOrderFromApi(raw: any): Order {
     is2h: is2hBool,
     deliveryType: is2hBool ? '2H' : 'STANDARD',
     paymentMethod,
+    paymentStatus,
+    payosOrderCode,
+    paidAt,
+    paymentReceiptUrl,
+    refundTxCode,
+    refundedAt,
     deadline2H: deadlineStr,
     deadline2h: deadlineStr,
     shipperId: raw.shipperId || raw.shipper_id || undefined,

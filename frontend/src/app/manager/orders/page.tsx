@@ -47,7 +47,7 @@ const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
 function OrdersManagementContent() {
   const searchParams = useSearchParams();
   const toast = useToast();
-  const { orders, ordersLoading, ordersError, fetchOrders, fetchProducts, fetchShippers, approveOrder, deliverOrder } = useManagerStore();
+  const { orders, ordersLoading, ordersError, fetchOrders, fetchProducts, fetchShippers, approveOrder, deliverOrder, markOrderPaid } = useManagerStore();
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
 
   // Fetch orders, products, and shippers from API on mount
@@ -161,6 +161,62 @@ function OrdersManagementContent() {
       }
     } finally {
       setProcessingOrderId(null);
+    }
+  };
+
+  // Action: Mark Bank Transfer as Paid
+  const handleMarkPaid = async (order: Order) => {
+    if (processingOrderId) return;
+    setProcessingOrderId(order.id);
+    try {
+      const res = await markOrderPaid(order.id);
+      if (res.success) {
+        toast.success(`Đã xác nhận thanh toán đơn #${order.code} thành công!`);
+      } else {
+        toast.error(res.error || 'Xác nhận thanh toán thất bại');
+      }
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const renderPaymentBadge = (paymentStatus?: string, paymentMethod?: string) => {
+    const status = paymentStatus || 'UNPAID';
+    const isBank = paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'BANK';
+    const methodLabel = isBank ? 'Chuyển khoản' : 'COD';
+
+    switch (status) {
+      case 'PAID':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Đã TT ({methodLabel})
+          </span>
+        );
+      case 'PENDING':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            Chờ TT ({methodLabel})
+          </span>
+        );
+      case 'CANCELLED':
+      case 'REFUNDED':
+      case 'REFUND_PENDING':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            {status === 'REFUNDED' ? 'Đã hoàn tiền' : 'Hủy TT'}
+          </span>
+        );
+      case 'UNPAID':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            Chưa TT ({methodLabel})
+          </span>
+        );
     }
   };
 
@@ -365,9 +421,14 @@ function OrdersManagementContent() {
                           )}
                         </td>
 
-                        {/* Final Amount */}
-                        <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">
-                          {formatCurrencyVND(finalAmt)}
+                        {/* Final Amount & Payment Status */}
+                        <td className="px-4 py-3 text-right">
+                          <div className="font-bold text-slate-900 dark:text-white">
+                            {formatCurrencyVND(finalAmt)}
+                          </div>
+                          <div className="mt-1">
+                            {renderPaymentBadge(order.paymentStatus, order.paymentMethod)}
+                          </div>
                         </td>
 
                         {/* Status Badge */}
@@ -389,6 +450,20 @@ function OrdersManagementContent() {
                         {/* Action buttons per status */}
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Bank transfer Pending/Unpaid Payment: Allow marking as paid */}
+                            {(order.paymentMethod === 'BANK_TRANSFER' || order.paymentMethod === 'BANK') &&
+                              (order.paymentStatus === 'PENDING' || order.paymentStatus === 'UNPAID') && (
+                                <button
+                                  type="button"
+                                  disabled={processingOrderId === order.id}
+                                  onClick={() => handleMarkPaid(order)}
+                                  className="px-2 py-1 rounded-lg text-[11px] font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors shadow-sm"
+                                  title="Xác nhận khách đã chuyển khoản thành công"
+                                >
+                                  {processingOrderId === order.id ? 'Đang xử lý...' : 'Đánh dấu đã thanh toán'}
+                                </button>
+                              )}
+
                             {/* PENDING: Duyệt đơn & Hủy đơn */}
                             {order.status === 'PENDING' && (
                               <>
@@ -548,8 +623,13 @@ function OrdersManagementContent() {
                     <div className="text-slate-500">
                       Shipper: <strong className="text-slate-800 dark:text-slate-200">{order.shipperName || 'Chưa gán'}</strong>
                     </div>
-                    <div className="font-extrabold text-slate-900 dark:text-white text-sm">
-                      {formatCurrencyVND(finalAmt)}
+                    <div className="text-right">
+                      <div className="font-extrabold text-slate-900 dark:text-white text-sm">
+                        {formatCurrencyVND(finalAmt)}
+                      </div>
+                      <div className="mt-1">
+                        {renderPaymentBadge(order.paymentStatus, order.paymentMethod)}
+                      </div>
                     </div>
                   </div>
 
@@ -567,7 +647,19 @@ function OrdersManagementContent() {
                       <span>Chi tiết</span>
                     </button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {/* Bank transfer pending payment button */}
+                      {(order.paymentMethod === 'BANK_TRANSFER' || order.paymentMethod === 'BANK') &&
+                        order.paymentStatus === 'PENDING' && (
+                          <button
+                            type="button"
+                            disabled={processingOrderId === order.id}
+                            onClick={() => handleMarkPaid(order)}
+                            className="px-2 py-1 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm disabled:opacity-50"
+                          >
+                            {processingOrderId === order.id ? 'Đang xử lý...' : 'Đã thanh toán'}
+                          </button>
+                        )}
                       {order.status === 'PENDING' && (
                         <>
                           <button

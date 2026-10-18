@@ -98,6 +98,35 @@ describe('orderMapper - Centralized DTO Mapping & Contract Compliance', () => {
       expect(mapped.deliveredAt).toBeUndefined();
       expect(mapped.is2H).toBe(false);
       expect(mapped.items).toEqual([]);
+      expect(mapped.paymentStatus).toBe('UNPAID');
+    });
+
+    it('correctly maps PayOS payment fields for bank transfer orders', () => {
+      const payosResponse = {
+        id: '3f9f95c0-ae7a-4412-8ea7-a367ba0813f1',
+        orderNumber: 'ORD-261018-PAYOS01',
+        customerName: 'Khách PayOS',
+        status: 'PENDING',
+        paymentMethod: 'BANK_TRANSFER',
+        paymentStatus: 'PAID',
+        payosOrderCode: 1729267200123456,
+        paidAt: '2026-10-18T16:00:00Z',
+        paymentReceiptUrl: 'https://pay.payos.vn/receipt/123456',
+        refundTxCode: 'REFUND-001',
+        refundedAt: '2026-10-18T17:00:00Z',
+        version: 1,
+        totalAmount: 500000,
+      };
+
+      const mapped = mapOrderFromApi(payosResponse);
+
+      expect(mapped.paymentMethod).toBe('BANK_TRANSFER');
+      expect(mapped.paymentStatus).toBe('PAID');
+      expect(mapped.payosOrderCode).toBe(1729267200123456);
+      expect(mapped.paidAt).toBe('2026-10-18T16:00:00Z');
+      expect(mapped.paymentReceiptUrl).toBe('https://pay.payos.vn/receipt/123456');
+      expect(mapped.refundTxCode).toBe('REFUND-001');
+      expect(mapped.refundedAt).toBe('2026-10-18T17:00:00Z');
     });
 
     it('maps cancelled order with cancellationReason and incidentDetail', () => {

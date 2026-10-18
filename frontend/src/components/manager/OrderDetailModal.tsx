@@ -181,6 +181,38 @@ export function OrderDetailModal({
             </div>
           </div>
 
+          {/* Payment Details */}
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">Thanh toán:</span>
+              <span className="font-semibold text-slate-900 dark:text-white">
+                {order.paymentMethod === 'BANK_TRANSFER' || order.paymentMethod === 'BANK' ? 'Chuyển khoản QR (PayOS)' : 'Thanh toán COD'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">Trạng thái:</span>
+              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                order.paymentStatus === 'PAID'
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                  : order.paymentStatus === 'PENDING'
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                  : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+              }`}>
+                {order.paymentStatus || 'UNPAID'}
+              </span>
+              {order.payosOrderCode && (
+                <span className="font-mono text-slate-400 text-[11px]">
+                  (Mã GD: #{order.payosOrderCode})
+                </span>
+              )}
+              {order.paidAt && (
+                <span className="text-slate-400 text-[11px]">
+                  • Lúc {formatDateTime(order.paidAt)}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Cancellation Notice if Cancelled */}
           {order.status === 'CANCELLED' && order.cancellationReason && (
             <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-start gap-3">

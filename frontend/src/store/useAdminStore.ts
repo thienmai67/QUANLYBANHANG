@@ -10,7 +10,7 @@ import {
   Customer,
   OrderStatus,
 } from '../types/admin';
-import { api } from '../lib/api';
+import { api, getFriendlyErrorMessage } from '../lib/api';
 
 export interface ToastMessage {
   id: string;
@@ -163,6 +163,11 @@ function mapApiOrderToAdminOrder(raw: any): Order {
     items,
     assignedShipperId: raw.shipperId || raw.shipper_id,
     assignedShipperName: raw.shipperName || raw.shipper_name,
+    paymentStatus: raw.paymentStatus || raw.payment_status || 'UNPAID',
+    paymentMethod: raw.paymentMethod || raw.payment_method || 'COD',
+    payosOrderCode: raw.payosOrderCode ?? raw.payos_order_code ?? undefined,
+    paidAt: raw.paidAt || raw.paid_at || undefined,
+    paymentReceiptUrl: raw.paymentReceiptUrl || raw.payment_receipt_url || undefined,
   };
 }
 
@@ -276,6 +281,7 @@ interface AdminState {
   addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'code'>) => void;
   updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
   assignShipper: (orderId: string, shipperId: string, shipperName: string) => Promise<void>;
+  markOrderPaid: (orderId: string) => Promise<void>;
 
   // Customer CRUD
   addCustomer: (customer: Omit<Customer, 'id' | 'ordersCount' | 'totalSpent' | 'currentDebt'>) => void;
@@ -527,6 +533,16 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       await get().fetchShippers();
     } catch {
       // keep optimistic state if already shipping
+    }
+  },
+
+  markOrderPaid: async (orderId: string) => {
+    try {
+      await api.post(`/orders/${orderId}/mark-paid`);
+      await get().fetchOrders();
+      get().addToast('Đã xác nhận thanh toán đơn hàng thành công!', 'success');
+    } catch (err: any) {
+      get().addToast(getFriendlyErrorMessage(err), 'error');
     }
   },
 

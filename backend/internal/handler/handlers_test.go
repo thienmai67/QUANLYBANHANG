@@ -165,6 +165,11 @@ func (m *mockProductRepo) UpdateOrderStatusWithDetails(ctx context.Context, orde
 			if toStatus == domain.OrderStatusDelivered && o.Status == domain.OrderStatusPending {
 				return nil, domain.ErrInvalidTransition
 			}
+			if toStatus == domain.OrderStatusPacking && o.PaymentMethod != nil && *o.PaymentMethod == "BANK_TRANSFER" {
+				if o.PaymentStatus != domain.PaymentStatusPaid {
+					return nil, domain.ErrPaymentNotConfirmed
+				}
+			}
 			if toStatus == domain.OrderStatusCancelled {
 				reason := req.GetCancellationReason()
 				if reason == nil || len(strings.TrimSpace(*reason)) < 5 {
@@ -244,6 +249,59 @@ func (m *mockProductRepo) CreateOrder(ctx context.Context, order *domain.Order) 
 	}
 	m.orders = append(m.orders, *order)
 	return nil
+}
+
+func (m *mockProductRepo) UpdateOrderPaymentLink(ctx context.Context, orderID uuid.UUID, payosOrderCode int64, checkoutURL string) error {
+	m.Lock()
+	defer m.Unlock()
+	for i := range m.orders {
+		if m.orders[i].ID == orderID {
+			m.orders[i].PayOSOrderCode = &payosOrderCode
+			m.orders[i].PaymentStatus = domain.PaymentStatusPending
+			m.orders[i].PaymentReceiptURL = &checkoutURL
+			return nil
+		}
+	}
+	return nil
+}
+
+func (m *mockProductRepo) UpdateOrderPaymentStatus(ctx context.Context, orderID uuid.UUID, paymentStatus domain.PaymentStatus, paidAt *time.Time) error {
+	m.Lock()
+	defer m.Unlock()
+	for i := range m.orders {
+		if m.orders[i].ID == orderID {
+			m.orders[i].PaymentStatus = paymentStatus
+			m.orders[i].PaidAt = paidAt
+			return nil
+		}
+	}
+	return nil
+}
+
+func (m *mockProductRepo) GetPendingBankTransferOrdersForCheck(ctx context.Context, olderThan time.Duration) ([]domain.Order, error) {
+	m.Lock()
+	defer m.Unlock()
+	var res []domain.Order
+	for _, o := range m.orders {
+		if o.PaymentMethod != nil && *o.PaymentMethod == "BANK_TRANSFER" && o.PaymentStatus == domain.PaymentStatusPending {
+			res = append(res, o)
+		}
+	}
+	return res, nil
+}
+
+func (m *mockProductRepo) CancelTimedOutBankTransferOrders(ctx context.Context, olderThan time.Duration) (int64, error) {
+	m.Lock()
+	defer m.Unlock()
+	var count int64
+	for i := range m.orders {
+		if m.orders[i].PaymentMethod != nil && *m.orders[i].PaymentMethod == "BANK_TRANSFER" && m.orders[i].PaymentStatus != domain.PaymentStatusPaid {
+			m.orders[i].Status = domain.OrderStatusCancelled
+			m.orders[i].PaymentStatus = domain.PaymentStatusCancelled
+			count++
+		}
+	}
+	return count, nil
 }
 
 func (m *mockProductRepo) GetUnitConversion(ctx context.Context, fromUnitID, toUnitID uuid.UUID) (*domain.UnitConversion, error) {

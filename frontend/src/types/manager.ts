@@ -1,5 +1,13 @@
 export type OrderStatus = 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
 
+export type PaymentStatus =
+  | 'UNPAID'
+  | 'PENDING'
+  | 'PAID'
+  | 'CANCELLED'
+  | 'REFUND_PENDING'
+  | 'REFUNDED';
+
 export type Brand = 'Cadivi' | 'Bình Minh' | 'Schneider' | 'Panasonic';
 
 export const CORE_BRANDS: readonly Brand[] = ['Cadivi', 'Bình Minh', 'Schneider', 'Panasonic'] as const;
@@ -49,6 +57,12 @@ export interface Order {
   is2h?: boolean;
   deliveryType?: '2H' | 'STANDARD';
   paymentMethod?: 'COD' | 'BANK_TRANSFER' | string;
+  paymentStatus?: PaymentStatus;
+  payosOrderCode?: number;
+  paidAt?: string;
+  paymentReceiptUrl?: string;
+  refundTxCode?: string;
+  refundedAt?: string;
   total?: number; // integer VND alias for totalAmount
   shippingFee?: number;
   deadline2H?: string; // ISO string (createdAt + 2 hours if is2H)

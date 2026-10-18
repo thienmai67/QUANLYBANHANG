@@ -37,6 +37,17 @@ const (
 	OrderStatusCancelled OrderStatus = "CANCELLED"
 )
 
+type PaymentStatus string
+
+const (
+	PaymentStatusUnpaid        PaymentStatus = "UNPAID"
+	PaymentStatusPending       PaymentStatus = "PENDING"
+	PaymentStatusPaid          PaymentStatus = "PAID"
+	PaymentStatusCancelled     PaymentStatus = "CANCELLED"
+	PaymentStatusRefundPending PaymentStatus = "REFUND_PENDING"
+	PaymentStatusRefunded      PaymentStatus = "REFUNDED"
+)
+
 type Category struct {
 	ID        uuid.UUID    `json:"id" db:"id"`
 	Code      string       `json:"code" db:"code"`
@@ -151,6 +162,14 @@ type Order struct {
 	IncidentReportedBy *uuid.UUID `json:"incidentReportedBy,omitempty" db:"incident_reported_by"`
 	IncidentReportedAt *time.Time `json:"incidentReportedAt,omitempty" db:"incident_reported_at"`
 
+	// PayOS Payment fields
+	PaymentStatus      PaymentStatus `json:"paymentStatus" db:"payment_status"`
+	PayOSOrderCode     *int64        `json:"payosOrderCode,omitempty" db:"payos_order_code"`
+	PaidAt             *time.Time    `json:"paidAt,omitempty" db:"paid_at"`
+	PaymentReceiptURL  *string       `json:"paymentReceiptUrl,omitempty" db:"payment_receipt_url"`
+	RefundTxCode       *string       `json:"refundTxCode,omitempty" db:"refund_tx_code"`
+	RefundedAt         *time.Time    `json:"refundedAt,omitempty" db:"refunded_at"`
+
 	Items     []OrderItem `json:"items,omitempty" db:"-"`
 	CreatedAt time.Time   `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time   `json:"updatedAt" db:"updated_at"`
@@ -261,6 +280,10 @@ type ProductRepository interface {
 	ListCODSettlements(ctx context.Context, shipperID *uuid.UUID, limit, offset int) ([]CODSettlement, int, error)
 	ListShippers(ctx context.Context, limit, offset int) ([]ShipperSummary, int, error)
 	GetUnitConversion(ctx context.Context, fromUnitID, toUnitID uuid.UUID) (*UnitConversion, error)
+	UpdateOrderPaymentLink(ctx context.Context, orderID uuid.UUID, payosOrderCode int64, checkoutURL string) error
+	UpdateOrderPaymentStatus(ctx context.Context, orderID uuid.UUID, paymentStatus PaymentStatus, paidAt *time.Time) error
+	GetPendingBankTransferOrdersForCheck(ctx context.Context, olderThan time.Duration) ([]Order, error)
+	CancelTimedOutBankTransferOrders(ctx context.Context, olderThan time.Duration) (int64, error)
 }
 
 type ProductService interface {

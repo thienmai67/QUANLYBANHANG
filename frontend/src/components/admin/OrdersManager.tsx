@@ -17,7 +17,7 @@ import { useAdminStore } from '../../store/useAdminStore';
 import { Order, OrderStatus } from '../../types/admin';
 
 export function OrdersManager() {
-  const { orders, shippers, fetchOrders, fetchShippers, updateOrderStatus, addToast, searchQuery } = useAdminStore();
+  const { orders, shippers, fetchOrders, fetchShippers, updateOrderStatus, markOrderPaid, addToast, searchQuery } = useAdminStore();
 
   useEffect(() => {
     fetchOrders();
@@ -50,6 +50,25 @@ export function OrdersManager() {
         return <span className="px-3 py-1 text-xs font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 rounded-full">Đang chuẩn bị hàng</span>;
       default:
         return <span className="px-3 py-1 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full">Chờ xác nhận</span>;
+    }
+  };
+
+  const getPaymentBadge = (paymentStatus?: string, paymentMethod?: string) => {
+    const status = paymentStatus || 'UNPAID';
+    const isBank = paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'BANK';
+    const method = isBank ? 'Chuyển khoản' : 'COD';
+    switch (status) {
+      case 'PAID':
+        return <span className="inline-block px-2 py-0.5 text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-full">Đã TT ({method})</span>;
+      case 'PENDING':
+        return <span className="inline-block px-2 py-0.5 text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 rounded-full animate-pulse">Chờ TT ({method})</span>;
+      case 'CANCELLED':
+      case 'REFUNDED':
+      case 'REFUND_PENDING':
+        return <span className="inline-block px-2 py-0.5 text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 rounded-full">{status === 'REFUNDED' ? 'Đã hoàn tiền' : 'Hủy TT'}</span>;
+      case 'UNPAID':
+      default:
+        return <span className="inline-block px-2 py-0.5 text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full">Chưa TT ({method})</span>;
     }
   };
 
@@ -156,8 +175,13 @@ export function OrdersManager() {
                       -{order.discountAmount.toLocaleString('vi-VN')}
                     </td>
 
-                    <td className="py-4 px-4 text-right font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">
-                      {order.finalAmount.toLocaleString('vi-VN')}
+                    <td className="py-4 px-4 text-right">
+                      <div className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">
+                        {order.finalAmount.toLocaleString('vi-VN')}
+                      </div>
+                      <div className="mt-1">
+                        {getPaymentBadge(order.paymentStatus, order.paymentMethod)}
+                      </div>
                     </td>
 
                     <td className="py-4 px-4 text-center">
@@ -165,12 +189,24 @@ export function OrdersManager() {
                     </td>
 
                     <td className="py-4 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="flex items-center gap-1.5 ml-auto px-3 py-1.5 text-xs font-bold text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/50 rounded-xl transition-colors"
-                      >
-                        <Eye className="w-4 h-4" /> Chi tiết
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {(order.paymentMethod === 'BANK_TRANSFER' || order.paymentMethod === 'BANK') &&
+                          (order.paymentStatus === 'PENDING' || order.paymentStatus === 'UNPAID') && (
+                            <button
+                              onClick={() => markOrderPaid(order.id)}
+                              className="px-2.5 py-1 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
+                              title="Xác nhận khách đã chuyển khoản thành công"
+                            >
+                              Đánh dấu đã TT
+                            </button>
+                          )}
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/50 rounded-xl transition-colors"
+                        >
+                          <Eye className="w-4 h-4" /> Chi tiết
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
