@@ -260,6 +260,10 @@ type ProductRepository interface {
 	CreateCODSettlement(ctx context.Context, shipperID uuid.UUID, orderIDs []uuid.UUID, actorRole UserRole, actorID uuid.UUID) (*CODSettlement, error)
 	ListCODSettlements(ctx context.Context, shipperID *uuid.UUID, limit, offset int) ([]CODSettlement, int, error)
 	ListShippers(ctx context.Context, limit, offset int) ([]ShipperSummary, int, error)
+	CheckinShipper(ctx context.Context, shipperID uuid.UUID, note *string) (*ShipperCheckin, error)
+    CheckoutShipper(ctx context.Context, shipperID uuid.UUID) (*ShipperCheckin, error)
+    ListShipperAvailability(ctx context.Context) ([]ShipperAvailability, error)
+	GetOpenCheckin(ctx context.Context, shipperID uuid.UUID) (*ShipperCheckin, error)
 	GetUnitConversion(ctx context.Context, fromUnitID, toUnitID uuid.UUID) (*UnitConversion, error)
 }
 

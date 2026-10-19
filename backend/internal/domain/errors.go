@@ -16,4 +16,6 @@ var (
 	ErrInvalidCODSettlement   = errors.New("invalid cod settlement orders")
 	ErrDuplicateSKU           = errors.New("product sku already exists")
 	ErrInvalidProductInput    = errors.New("invalid product input")
+	ErrNoOpenCheckin          = errors.New("no open checkin for today")
+	ErrShipperHasActiveOrders   = errors.New("shipper has active orders")
 )

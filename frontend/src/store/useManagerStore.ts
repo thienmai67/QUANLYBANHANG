@@ -339,15 +339,37 @@ export const useManagerStore = create<ManagerState>()(
           const res = await api.get<{ data: any[]; total: number }>('/shippers');
           const rawList = res?.data || (Array.isArray(res) ? res : []);
           const mappedSummaries = rawList.map(mapShipperSummary);
-          const mappedShippers: Shipper[] = mappedSummaries.map((s) => ({
-            id: s.id,
-            name: s.fullName,
-            phone: s.phone || '0901234567',
-            vehicle: 'Xe máy',
-            activeOrders: s.activeOrderCount,
-            status: s.activeOrderCount >= 5 ? 'busy' : 'available',
-            shiftStatus: s.activeOrderCount >= 5 ? 'busy' : 'available',
-          }));
+// Lấy trạng thái điểm danh thực tế để biết ai đang đi làm hôm nay
+const onDutyMap = new Map<string, boolean>();
+try {
+  const avail = await api.get<{ data: any[] }>('/shippers/availability');
+  (avail?.data || []).forEach((a: any) => onDutyMap.set(a.id, !!a.onDuty));
+} catch {
+  // Bỏ qua, fallback theo activeOrders như cũ
+}
+const mappedShippers: Shipper[] = mappedSummaries.map((s) => {
+  const duty = onDutyMap.get(s.id);
+  const shiftStatus =
+    duty === undefined
+      ? s.activeOrderCount >= 5
+        ? 'busy'
+        : 'available'
+      : !duty
+        ? 'offline'
+        : s.activeOrderCount >= 5
+          ? 'busy'
+          : 'available';
+  return {
+    id: s.id,
+    name: s.fullName,
+    phone: s.phone || '0901234567',
+    vehicle: 'Xe máy',
+    activeOrders: s.activeOrderCount,
+    status: shiftStatus,
+    shiftStatus,
+  };
+});
+
           if (mappedShippers.length > 0) {
             set({ shippers: mappedShippers });
           }

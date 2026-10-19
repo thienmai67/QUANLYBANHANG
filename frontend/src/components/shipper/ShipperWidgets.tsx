@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useShipperUIStore } from '@/store/useShipperUIStore';
@@ -12,6 +12,7 @@ import {
   MAX_SHIPPER_ACTIVE_ORDERS,
 } from '@/lib/orderRules';
 import { formatCurrencyVND } from '@/lib/formatters';
+import { shipperCheckinApi } from '@/services/shipperCheckinApi';
 import {
   Clock,
   Wallet,
@@ -57,22 +58,56 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
     now
   );
 
-  const handleShiftChange = (targetStatus: 'available' | 'busy' | 'offline') => {
+  const handleShiftChange = async (targetStatus: 'available' | 'busy' | 'offline') => {
     if (targetStatus === currentShift) return;
+
+    try {
+      if (targetStatus === 'available') {
+        await shipperCheckinApi.checkin();
+      } else if (targetStatus === 'offline') {
+        await shipperCheckinApi.checkout();
+      }
+      } catch (e: any) {
+  const code = e?.code;
+  toast.error(
+    code === 'ACTIVE_ORDERS_EXIST'
+      ? 'Bạn còn đơn hàng đang giao, không thể kết ca lúc này'
+      : 'Không thể kết nối máy chủ, vui lòng thử lại'
+  );
+  return;
+}
+
+    
 
     const res = updateShipperShift(shipperId, targetStatus);
     if (res.success) {
       toast.success(
         targetStatus === 'available'
-          ? 'Đã bật ca: Sẵn sàng nhận đơn!'
+          ? 'Đã điểm danh vào ca: Sẵn sàng nhận đơn!'
           : targetStatus === 'busy'
           ? 'Đã chuyển trạng thái: Đang bận chở hàng!'
-          : 'Đã tắt ca: Nghỉ ca an toàn!'
+          : 'Đã kết ca an toàn!'
       );
     } else {
       toast.error(res.error || 'Không thể chuyển trạng thái ca');
     }
   };
+
+  // Đồng bộ trạng thái điểm danh thực tế khi mở app (tránh state giả sau reload)
+  useEffect(() => {
+    let cancelled = false;
+    shipperCheckinApi
+      .getMyStatus()
+      .then((rec) => {
+        if (cancelled) return;
+        updateShipperShift(shipperId, rec ? 'available' : 'offline');
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shipperId]);
 
   return (
     <div className="space-y-3 px-4 pt-3">

@@ -117,6 +117,16 @@ func main() {
 			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper))
 			r.Patch("/orders/{id}/status", productHandler.UpdateOrderStatus)
 		})
+		// Shipper Self Check-in (SHIPPER)
+r.Group(func(r chi.Router) {
+	r.Use(authMiddleware.RequireAuth)
+	r.Use(middleware.RequireRole(domain.RoleShipper))
+
+	r.Post("/shipper/checkin", productHandler.ShipperCheckin)
+	r.Post("/shipper/checkout", productHandler.ShipperCheckout)
+	r.Get("/shipper/checkin-status", productHandler.GetMyCheckinStatus)
+})
+
 
 		// Manager / Admin Protected Endpoints
 		r.Group(func(r chi.Router) {
@@ -124,6 +134,7 @@ func main() {
 			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager))
 
 			r.Get("/shippers", productHandler.ListShippers)
+			r.Get("/shippers/availability", productHandler.GetShipperAvailability)
 			r.Get("/admin/orders", productHandler.ListOrders)
 			r.Post("/products", productHandler.CreateProduct)
 			r.Put("/products/{id}", productHandler.UpdateProduct)

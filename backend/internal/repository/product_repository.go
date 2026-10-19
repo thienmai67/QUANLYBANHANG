@@ -1458,14 +1458,14 @@ func (r *productRepository) ListShippers(ctx context.Context, limit, offset int)
 	}
 
 	query := `
-        SELECT 
+        SELECT
             u.id,
             u.full_name,
             u.phone,
             COALESCE(COUNT(o.id), 0) AS active_order_count
         FROM me_supplies.users u
-        LEFT JOIN me_supplies.orders o 
-            ON o.shipper_id = u.id 
+        LEFT JOIN me_supplies.orders o
+            ON o.shipper_id = u.id
             AND o.status IN ('PACKING', 'SHIPPING')
         WHERE u.role = 'SHIPPER'
         GROUP BY u.id, u.full_name, u.phone
@@ -1497,6 +1497,7 @@ func (r *productRepository) ListShippers(ctx context.Context, limit, offset int)
 	return list, total, nil
 }
 
+
 func (r *productRepository) GetUnitConversion(ctx context.Context, fromUnitID, toUnitID uuid.UUID) (*domain.UnitConversion, error) {
 	query := `SELECT id, from_unit_id, to_unit_id, factor, price_adjustment, created_at FROM unit_conversions WHERE from_unit_id = $1 AND to_unit_id = $2`
 
@@ -1509,4 +1510,123 @@ func (r *productRepository) GetUnitConversion(ctx context.Context, fromUnitID, t
 	}
 
 	return &uc, nil
+}
+
+// CheckinShipper tạo lượt điểm danh vào ca. Idempotent: nếu đã có ca mở
+// trong hôm nay thì trả về ca đó thay vì tạo mới.
+func (r *productRepository) CheckinShipper(ctx context.Context, shipperID uuid.UUID, note *string) (*domain.ShipperCheckin, error) {
+	var existing domain.ShipperCheckin
+	err := r.db.GetContext(ctx, &existing, `
+		SELECT id, shipper_id, work_date, checkin_at, checkout_at, note, created_at
+		FROM me_supplies.shipper_checkins
+		WHERE shipper_id = $1 AND work_date = CURRENT_DATE AND checkout_at IS NULL
+		ORDER BY checkin_at DESC LIMIT 1`, shipperID)
+	if err == nil {
+		return &existing, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("find open checkin: %w", err)
+	}
+
+	var created domain.ShipperCheckin
+	err = r.db.GetContext(ctx, &created, `
+		INSERT INTO me_supplies.shipper_checkins (shipper_id, note)
+		VALUES ($1, $2)
+		RETURNING id, shipper_id, work_date, checkin_at, checkout_at, note, created_at`, shipperID, note)
+	if err != nil {
+		return nil, fmt.Errorf("checkin shipper: %w", err)
+	}
+	return &created, nil
+}
+
+// CheckoutShipper đóng ca đang mở trong hôm nay của shipper.
+// Không cho kết ca khi shipper còn đơn đang đóng gói/vận chuyển.
+func (r *productRepository) CheckoutShipper(ctx context.Context, shipperID uuid.UUID) (*domain.ShipperCheckin, error) {
+	var activeCount int
+	if err := r.db.GetContext(ctx, &activeCount, `
+		SELECT COUNT(*) FROM me_supplies.orders
+		WHERE shipper_id = $1 AND status IN ('PACKING', 'SHIPPING')`, shipperID); err != nil {
+		return nil, fmt.Errorf("count active orders: %w", err)
+	}
+	if activeCount > 0 {
+		return nil, domain.ErrShipperHasActiveOrders
+	}
+
+	var closed domain.ShipperCheckin
+	err := r.db.GetContext(ctx, &closed, `
+		UPDATE me_supplies.shipper_checkins
+		SET checkout_at = NOW()
+		WHERE id = (
+			SELECT id FROM me_supplies.shipper_checkins
+			WHERE shipper_id = $1 AND work_date = CURRENT_DATE AND checkout_at IS NULL
+			ORDER BY checkin_at DESC LIMIT 1
+		)
+		RETURNING id, shipper_id, work_date, checkin_at, checkout_at, note, created_at`, shipperID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrNoOpenCheckin
+		}
+		return nil, fmt.Errorf("checkout shipper: %w", err)
+	}
+	return &closed, nil
+}
+
+// ListShipperAvailability trả về tất cả shipper kèm trạng thái đi làm hôm nay.
+func (r *productRepository) ListShipperAvailability(ctx context.Context) ([]domain.ShipperAvailability, error) {
+	query := `
+		SELECT u.id, u.full_name, u.phone,
+		       (c.id IS NOT NULL) AS on_duty,
+		       c.checkin_at,
+		       COALESCE(COUNT(o.id), 0) AS active_order_count
+		FROM me_supplies.users u
+		LEFT JOIN me_supplies.shipper_checkins c
+		       ON c.shipper_id = u.id AND c.work_date = CURRENT_DATE AND c.checkout_at IS NULL
+		LEFT JOIN me_supplies.orders o
+		       ON o.shipper_id = u.id AND o.status IN ('PACKING', 'SHIPPING')
+		WHERE u.role = 'SHIPPER'
+		GROUP BY u.id, u.full_name, u.phone, c.id, c.checkin_at
+		ORDER BY on_duty DESC, u.full_name ASC`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query shipper availability: %w", err)
+	}
+	defer rows.Close()
+
+	var list []domain.ShipperAvailability
+	for rows.Next() {
+		var s domain.ShipperAvailability
+		var phone sql.NullString
+		var checkinAt sql.NullTime
+		if err := rows.Scan(&s.ID, &s.FullName, &phone, &s.OnDuty, &checkinAt, &s.ActiveOrderCount); err != nil {
+			return nil, fmt.Errorf("scan shipper availability: %w", err)
+		}
+		if phone.Valid {
+			s.Phone = &phone.String
+		}
+		if checkinAt.Valid {
+			s.CheckinAt = &checkinAt.Time
+		}
+		list = append(list, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate shipper availability: %w", err)
+	}
+	return list, nil
+}
+
+// GetOpenCheckin trả về ca đang mở trong hôm nay của shipper, nil nếu không có.
+func (r *productRepository) GetOpenCheckin(ctx context.Context, shipperID uuid.UUID) (*domain.ShipperCheckin, error) {
+	var c domain.ShipperCheckin
+	err := r.db.GetContext(ctx, &c, `
+		SELECT id, shipper_id, work_date, checkin_at, checkout_at, note, created_at
+		FROM me_supplies.shipper_checkins
+		WHERE shipper_id = $1 AND work_date = CURRENT_DATE AND checkout_at IS NULL
+		ORDER BY checkin_at DESC LIMIT 1`, shipperID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get open checkin: %w", err)
+	}
+	return &c, nil
 }

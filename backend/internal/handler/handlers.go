@@ -690,3 +690,98 @@ func (h *Handler) ListCODSettlements(w http.ResponseWriter, req *http.Request) {
 		"total": total,
 	})
 }
+
+type CheckinRequestBody struct {
+	Note *string `json:"note,omitempty"`
+}
+
+func (h *Handler) ShipperCheckin(w http.ResponseWriter, req *http.Request) {
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
+	}
+	actorID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID người dùng không hợp lệ")
+		return
+	}
+
+	var body CheckinRequestBody
+	_ = json.NewDecoder(req.Body).Decode(&body)
+
+	checkin, err := h.productRepo.CheckinShipper(req.Context(), actorID, body.Note)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Điểm danh thất bại, vui lòng thử lại")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": checkin})
+}
+
+func (h *Handler) ShipperCheckout(w http.ResponseWriter, req *http.Request) {
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
+	}
+	actorID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID người dùng không hợp lệ")
+		return
+	}
+
+	checkin, err := h.productRepo.CheckoutShipper(req.Context(), actorID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNoOpenCheckin) {
+			writeAPIError(w, http.StatusBadRequest, "NO_OPEN_CHECKIN", "Bạn chưa điểm danh vào ca hôm nay")
+			return
+		}
+		if errors.Is(err, domain.ErrShipperHasActiveOrders) {
+			writeAPIError(w, http.StatusBadRequest, "ACTIVE_ORDERS_EXIST", "Bạn còn đơn hàng đang giao, không thể kết ca")
+			return
+		}
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Kết ca thất bại, vui lòng thử lại")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": checkin})
+}
+
+func (h *Handler) GetShipperAvailability(w http.ResponseWriter, req *http.Request) {
+	list, err := h.productRepo.ListShipperAvailability(req.Context())
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn trạng thái shipper")
+		return
+	}
+	if list == nil {
+		list = []domain.ShipperAvailability{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": list})
+}
+
+func (h *Handler) GetMyCheckinStatus(w http.ResponseWriter, req *http.Request) {
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
+	}
+	actorID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID người dùng không hợp lệ")
+		return
+	}
+
+	checkin, err := h.productRepo.GetOpenCheckin(req.Context(), actorID)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn trạng thái ca")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": checkin})
+}
