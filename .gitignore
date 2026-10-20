@@ -32,3 +32,4 @@ sql_paths.txt
 .superpowers/
 playwright-report/
 test-results/
+.serena/

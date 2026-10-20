@@ -193,7 +193,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                   </Link>
                 ) : (
                   <Link
-                    href="/account"
+                    href="/profile"
                     className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 font-bold text-xs border border-cyan-300 dark:border-cyan-800 hover:scale-105 transition-all"
                   >
                     <User className="w-4 h-4 text-cyan-600" />

@@ -7,8 +7,58 @@ import AuthLayout from "@/components/auth/AuthLayout";
 import AuthField from "@/components/auth/AuthField";
 import AuthActionRow from "@/components/auth/AuthActionRow";
 import AuthModal from "@/components/auth/AuthModal";
-import { saveTokens } from "@/lib/auth";
+import { saveTokens, decodeToken } from "@/lib/auth";
+import { useAuthStore } from "@/store/useAuthStore";
 import { API_BASE_URL } from "@/lib/api";
+
+const MOCK_ACCOUNTS: Record<
+  string,
+  {
+    role: 'ADMIN' | 'MANAGER' | 'SHIPPER' | 'CUSTOMER';
+    pass: string;
+    name: string;
+    userId: string;
+  }
+> = {
+  'customer@tdt.vn': {
+    role: 'CUSTOMER',
+    pass: 'Customer@123',
+    name: 'Khách Hàng Bán Lẻ',
+    userId: 'mock-customer-001',
+  },
+  'manager@tdt.vn': {
+    role: 'MANAGER',
+    pass: 'Manager@123',
+    name: 'Quản Lý Hải Đăng',
+    userId: 'mock-manager-001',
+  },
+  'shipper@tdt.vn': {
+    role: 'SHIPPER',
+    pass: 'Shipper@123',
+    name: 'Trần Quốc Toản',
+    userId: 'mock-shipper-001',
+  },
+  'admin@tdt.vn': {
+    role: 'ADMIN',
+    pass: 'Admin@123',
+    name: 'Quản Trị Hệ Thống',
+    userId: 'mock-admin-001',
+  },
+};
+
+function createMockJwtToken(userId: string, email: string, role: string) {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = btoa(
+    JSON.stringify({
+      userId,
+      email,
+      role,
+      exp: Math.floor(Date.now() / 1000) + 86400 * 7,
+      iat: Math.floor(Date.now() / 1000),
+    })
+  );
+  return `${header}.${payload}.mock-signature`;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -23,7 +73,58 @@ export default function LoginPage() {
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
 
+  const performLoginSuccess = (
+    accessToken: string,
+    refreshToken: string,
+    userName?: string
+  ) => {
+    saveTokens(accessToken, refreshToken);
+    const user = decodeToken(accessToken);
+    if (!user) return;
+
+    const rawRole = (user.role || '').toUpperCase();
+    let role: any = 'CUSTOMER';
+    if (rawRole === 'ADMIN') role = 'ADMIN';
+    else if (rawRole === 'MANAGER') role = 'MANAGER';
+    else if (rawRole === 'SHIPPER') role = 'SHIPPER';
+
+    useAuthStore.getState().setAuth(
+      accessToken,
+      {
+        id: user.userId,
+        email: user.email,
+        name: userName || user.email.split('@')[0],
+        role: role,
+        ...(role === 'SHIPPER' ? { shipperId: user.userId } : {}),
+      },
+      refreshToken
+    );
+
+    const redirectParam =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('redirect')
+        : null;
+
+    if (redirectParam && redirectParam.startsWith('/')) {
+      window.location.href = redirectParam;
+      return;
+    }
+
+    if (role === 'ADMIN') {
+      window.location.href = '/admin/dashboard';
+      return;
+    } else if (role === 'MANAGER') {
+      window.location.href = '/manager/dashboard';
+      return;
+    } else if (role === 'SHIPPER') {
+      window.location.href = '/shipper';
+      return;
+    }
+    window.location.href = '/profile';
+  };
+
   const handleQuickMockLogin = (role: 'ADMIN' | 'MANAGER' | 'CUSTOMER' | 'SHIPPER') => {
+    setErrorMsg(null);
     if (role === 'ADMIN') {
       setEmail('admin@tdt.vn');
       setPassword('Admin@123');
@@ -45,15 +146,39 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     const cleanEmail = email.trim().toLowerCase();
+    const mockMatch = MOCK_ACCOUNTS[cleanEmail];
+    const isMockMatch = !!(mockMatch && password === mockMatch.pass);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, password }),
-      });
+      let res: Response | null = null;
+      try {
+        res = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: cleanEmail, password }),
+        });
+      } catch {
+        // Backend offline or network error
+      }
 
-      if (!res.ok) {
+      if (res && res.ok) {
+        const data = await res.json();
+        const accessToken = data.accessToken || data.access_token;
+        const refreshToken = data.refreshToken || data.refresh_token || "";
+        if (accessToken) {
+          performLoginSuccess(accessToken, refreshToken, mockMatch?.name);
+          return;
+        }
+      }
+
+      // If backend failed/offline but credentials match mock accounts:
+      if (isMockMatch && mockMatch) {
+        const mockToken = createMockJwtToken(mockMatch.userId, cleanEmail, mockMatch.role);
+        performLoginSuccess(mockToken, 'mock-refresh-token', mockMatch.name);
+        return;
+      }
+
+      if (res && !res.ok) {
         const errorData = await res.json().catch(() => null);
         throw new Error(
           errorData?.message ||
@@ -61,60 +186,16 @@ export default function LoginPage() {
         );
       }
 
-      const data = await res.json();
-      const accessToken = data.accessToken || data.access_token;
-      const refreshToken = data.refreshToken || data.refresh_token || "";
-      if (accessToken) {
-        saveTokens(accessToken, refreshToken);
-        const { decodeToken } = await import("@/lib/auth");
-        const { useAuthStore } = await import("@/store/useAuthStore");
-        const user = decodeToken(accessToken);
-
-        if (user) {
-          const rawRole = (user.role || "").toUpperCase();
-          let role: any = "CUSTOMER";
-          if (rawRole === "ADMIN") role = "ADMIN";
-          else if (rawRole === "MANAGER") role = "MANAGER";
-          else if (rawRole === "SHIPPER") role = "SHIPPER";
-
-          useAuthStore.getState().setAuth(
-            accessToken,
-            {
-              id: user.userId,
-              email: user.email,
-              name: user.email.split("@")[0],
-              role: role,
-              ...(role === "SHIPPER" ? { shipperId: user.userId } : {}),
-            },
-            refreshToken
-          );
-
-          const redirectParam =
-            typeof window !== "undefined"
-              ? new URLSearchParams(window.location.search).get("redirect")
-              : null;
-
-          if (redirectParam && redirectParam.startsWith("/")) {
-            window.location.href = redirectParam;
-            return;
-          }
-
-          if (role === "ADMIN") {
-            window.location.href = "/admin/dashboard";
-            return;
-          } else if (role === "MANAGER") {
-            window.location.href = "/manager/dashboard";
-            return;
-          } else if (role === "SHIPPER") {
-            window.location.href = "/shipper";
-            return;
-          }
-        }
-        window.location.href = "/account";
-      } else {
-        throw new Error("Phản hồi xác thực không hợp lệ.");
-      }
+      throw new Error(
+        "Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản hoặc đăng nhập với Google."
+      );
     } catch (err: unknown) {
+      if (isMockMatch && mockMatch) {
+        const mockToken = createMockJwtToken(mockMatch.userId, cleanEmail, mockMatch.role);
+        performLoginSuccess(mockToken, 'mock-refresh-token', mockMatch.name);
+        return;
+      }
+
       if (err instanceof Error) {
         setErrorMsg(err.message);
       } else {
