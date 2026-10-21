@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { Building2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -495,13 +496,11 @@ export default function CustomerProfilePage() {
         <header className="profile-topbar">
           <Link href="/" className="profile-brand" title="Về trang chủ TDT M&E">
             <div className="profile-brand-mark">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
-              </svg>
+              <Building2 className="w-5 h-5 text-white fill-white/20" />
             </div>
             <div className="profile-brand-info">
               <h1>TDT M&amp;E</h1>
-              <span>Hệ thống Quản lý Vật tư</span>
+              <span>VẬT TƯ & BÁN LẺ</span>
             </div>
           </Link>
 
@@ -603,9 +602,6 @@ export default function CustomerProfilePage() {
                 <div>
                   <div className="profile-stat-label">
                     <span>HỒ SƠ TÀI KHOẢN</span>
-                    <span className="profile-badge-role" style={{ fontSize: '11px' }}>
-                      {formatAuthProvider(user?.authProvider)}
-                    </span>
                   </div>
 
                   <div className="profile-user-header">
