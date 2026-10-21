@@ -13,6 +13,7 @@ import (
 
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/auth"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
+	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/middleware"
 )
 
 type loginAttempt struct {
@@ -283,3 +284,248 @@ func (h *AuthHandler) HandleRefreshToken(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+
+
+// HandleGetMe trả về toàn bộ thông tin profile của user hiện tại
+func (h *AuthHandler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
+	userIDStr, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok || userIDStr == "" {
+		writeJSONError(w, http.StatusUnauthorized, "Chưa xác thực người dùng", "UNAUTHORIZED")
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "Mã người dùng không hợp lệ", "UNAUTHORIZED")
+		return
+	}
+
+	user, err := h.userRepo.FindByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy người dùng", "NOT_FOUND")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi truy vấn thông tin người dùng", "INTERNAL_ERROR")
+		return
+	}
+
+	resp := domain.UserProfileResponse{
+		ID:           user.ID,
+		Email:        user.Email,
+		FullName:     user.FullName,
+		Phone:        user.Phone,
+		AvatarURL:    user.AvatarURL,
+		Role:         user.Role,
+		AuthProvider: user.AuthProvider,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// HandleUpdateProfile cập nhật họ và tên và số điện thoại
+func (h *AuthHandler) HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
+	userIDStr, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok || userIDStr == "" {
+		writeJSONError(w, http.StatusUnauthorized, "Chưa xác thực người dùng", "UNAUTHORIZED")
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "Mã người dùng không hợp lệ", "UNAUTHORIZED")
+		return
+	}
+
+	var req domain.UpdateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Dữ liệu yêu cầu không hợp lệ", "INVALID_REQUEST")
+		return
+	}
+
+	cleanName := strings.TrimSpace(req.FullName)
+	if len(cleanName) < 2 || len(cleanName) > 200 {
+		writeJSONError(w, http.StatusBadRequest, "Họ và tên phải có độ dài từ 2 đến 200 ký tự", "INVALID_NAME")
+		return
+	}
+
+	var cleanPhone *string
+	if req.Phone != nil {
+		p := strings.TrimSpace(*req.Phone)
+		if p != "" {
+			if len(p) < 8 || len(p) > 20 {
+				writeJSONError(w, http.StatusBadRequest, "Số điện thoại không hợp lệ (8-20 ký tự)", "INVALID_PHONE")
+				return
+			}
+			cleanPhone = &p
+		}
+	}
+
+	updatedUser, err := h.userRepo.UpdateProfile(r.Context(), userID, cleanName, cleanPhone)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy người dùng", "NOT_FOUND")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Không thể cập nhật hồ sơ người dùng", "INTERNAL_ERROR")
+		return
+	}
+
+	resp := domain.UserProfileResponse{
+		ID:           updatedUser.ID,
+		Email:        updatedUser.Email,
+		FullName:     updatedUser.FullName,
+		Phone:        updatedUser.Phone,
+		AvatarURL:    updatedUser.AvatarURL,
+		Role:         updatedUser.Role,
+		AuthProvider: updatedUser.AuthProvider,
+		CreatedAt:    updatedUser.CreatedAt,
+		UpdatedAt:    updatedUser.UpdatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// HandleChangePassword đổi mật khẩu cho tài khoản LOCAL
+func (h *AuthHandler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
+	userIDStr, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok || userIDStr == "" {
+		writeJSONError(w, http.StatusUnauthorized, "Chưa xác thực người dùng", "UNAUTHORIZED")
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "Mã người dùng không hợp lệ", "UNAUTHORIZED")
+		return
+	}
+
+	var req domain.ChangePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Dữ liệu yêu cầu không hợp lệ", "INVALID_REQUEST")
+		return
+	}
+
+	if req.OldPassword == "" {
+		writeJSONError(w, http.StatusBadRequest, "Vui lòng nhập mật khẩu hiện tại", "EMPTY_OLD_PASSWORD")
+		return
+	}
+
+	if len(req.NewPassword) < 8 {
+		writeJSONError(w, http.StatusBadRequest, "Mật khẩu mới phải có ít nhất 8 ký tự", "INVALID_NEW_PASSWORD")
+		return
+	}
+
+	if req.OldPassword == req.NewPassword {
+		writeJSONError(w, http.StatusBadRequest, "Mật khẩu mới không được trùng với mật khẩu cũ", "PASSWORD_UNCHANGED")
+		return
+	}
+
+	user, err := h.userRepo.FindByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy người dùng", "NOT_FOUND")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi kiểm tra người dùng", "INTERNAL_ERROR")
+		return
+	}
+
+	if user.AuthProvider == domain.AuthProviderGoogle || user.PasswordHash == nil {
+		writeJSONError(w, http.StatusBadRequest, "Tài khoản liên kết Google không thể đổi mật khẩu tại đây", "GOOGLE_USER")
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(*user.PasswordHash), []byte(req.OldPassword)); err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "Mật khẩu hiện tại không chính xác", "WRONG_OLD_PASSWORD")
+		return
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi xử lý băm mật khẩu", "INTERNAL_ERROR")
+		return
+	}
+
+	if err := h.userRepo.UpdatePassword(r.Context(), userID, string(newHash)); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Không thể cập nhật mật khẩu", "INTERNAL_ERROR")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": "Đổi mật khẩu thành công",
+	})
+}
+
+
+// HandleVerifyPassword kiểm tra mật khẩu hiện tại có chính xác hay không
+func (h *AuthHandler) HandleVerifyPassword(w http.ResponseWriter, r *http.Request) {
+	userIDStr, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok || userIDStr == "" {
+		writeJSONError(w, http.StatusUnauthorized, "Chưa xác thực người dùng", "UNAUTHORIZED")
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "Mã người dùng không hợp lệ", "UNAUTHORIZED")
+		return
+	}
+
+	var req domain.VerifyPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Dữ liệu yêu cầu không hợp lệ", "INVALID_REQUEST")
+		return
+	}
+
+	if req.Password == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(domain.VerifyPasswordResponse{
+			Valid:   false,
+			Message: "Vui lòng nhập mật khẩu",
+		})
+		return
+	}
+
+	user, err := h.userRepo.FindByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy người dùng", "NOT_FOUND")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi kiểm tra người dùng", "INTERNAL_ERROR")
+		return
+	}
+
+	if user.AuthProvider == domain.AuthProviderGoogle || user.PasswordHash == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(domain.VerifyPasswordResponse{
+			Valid:   false,
+			Message: "Tài khoản liên kết Google không dùng mật khẩu hệ thống",
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := bcrypt.CompareHashAndPassword([]byte(*user.PasswordHash), []byte(req.Password)); err != nil {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(domain.VerifyPasswordResponse{
+			Valid:   false,
+			Message: "Mật khẩu hiện tại không chính xác",
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(domain.VerifyPasswordResponse{
+		Valid:   true,
+		Message: "Mật khẩu hiện tại chính xác",
+	})
+}

@@ -18,6 +18,7 @@ import (
 
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/auth"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
+	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/middleware"
 )
 
 type mockUserRepo struct {
@@ -103,6 +104,33 @@ func (m *mockUserRepo) CreateUser(ctx context.Context, user *domain.User) error 
 	user.UpdatedAt = now
 	m.users[email] = user
 	return nil
+}
+
+func (m *mockUserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, phone *string) (*domain.User, error) {
+	m.Lock()
+	defer m.Unlock()
+	for _, u := range m.users {
+		if u.ID == id {
+			u.FullName = fullName
+			u.Phone = phone
+			u.UpdatedAt = time.Now().UTC()
+			return u, nil
+		}
+	}
+	return nil, domain.ErrUserNotFound
+}
+
+func (m *mockUserRepo) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {
+	m.Lock()
+	defer m.Unlock()
+	for _, u := range m.users {
+		if u.ID == id {
+			u.PasswordHash = &passwordHash
+			u.UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
+	return domain.ErrUserNotFound
 }
 
 func TestHandleRegister_Success(t *testing.T) {
@@ -594,5 +622,301 @@ func TestHandleLogin_DBError(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "Lỗi hệ thống máy chủ") {
 		t.Errorf("expected server error message, got %s", rr.Body.String())
+	}
+}
+
+
+func TestHandleGetMe_Success(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	testUser := &domain.User{
+		ID:           uuid.New(),
+		Email:        "getme@tdt.vn",
+		FullName:     "Nguyễn Văn Sáu",
+		Role:         domain.RoleCustomer,
+		AuthProvider: domain.AuthProviderLocal,
+	}
+	_ = repo.CreateUser(context.Background(), testUser)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
+	claims := &auth.Claims{
+		UserID: testUser.ID.String(),
+		Role:   domain.RoleCustomer,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleGetMe(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp domain.UserProfileResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Email != "getme@tdt.vn" || resp.FullName != "Nguyễn Văn Sáu" {
+		t.Errorf("unexpected profile data: %+v", resp)
+	}
+}
+
+func TestHandleUpdateProfile_Success(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	testUser := &domain.User{
+		ID:           uuid.New(),
+		Email:        "update@tdt.vn",
+		FullName:     "Tên Cũ",
+		Role:         domain.RoleCustomer,
+		AuthProvider: domain.AuthProviderLocal,
+	}
+	_ = repo.CreateUser(context.Background(), testUser)
+
+	newPhone := "0912345678"
+	updateReq := domain.UpdateProfileRequest{
+		FullName: "Tên Mới",
+		Phone:    &newPhone,
+	}
+	body, _ := json.Marshal(updateReq)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/users/me", bytes.NewReader(body))
+	claims := &auth.Claims{
+		UserID: testUser.ID.String(),
+		Role:   domain.RoleCustomer,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleUpdateProfile(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp domain.UserProfileResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.FullName != "Tên Mới" || resp.Phone == nil || *resp.Phone != "0912345678" {
+		t.Errorf("unexpected updated data: %+v", resp)
+	}
+}
+
+func TestHandleChangePassword_Success(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	oldHash, _ := bcrypt.GenerateFromPassword([]byte("OldPass1234"), bcrypt.DefaultCost)
+	hashStr := string(oldHash)
+
+	testUser := &domain.User{
+		ID:           uuid.New(),
+		Email:        "pw@tdt.vn",
+		FullName:     "Pass User",
+		PasswordHash: &hashStr,
+		Role:         domain.RoleCustomer,
+		AuthProvider: domain.AuthProviderLocal,
+	}
+	_ = repo.CreateUser(context.Background(), testUser)
+
+	pwReq := domain.ChangePasswordRequest{
+		OldPassword: "OldPass1234",
+		NewPassword: "NewPass5678",
+	}
+	body, _ := json.Marshal(pwReq)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/me/change-password", bytes.NewReader(body))
+	claims := &auth.Claims{
+		UserID: testUser.ID.String(),
+		Role:   domain.RoleCustomer,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleChangePassword(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// Verify new password works
+	u, _ := repo.FindByID(context.Background(), testUser.ID)
+	if err := bcrypt.CompareHashAndPassword([]byte(*u.PasswordHash), []byte("NewPass5678")); err != nil {
+		t.Errorf("new password hash does not match: %v", err)
+	}
+}
+
+func TestHandleChangePassword_WrongOld(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	oldHash, _ := bcrypt.GenerateFromPassword([]byte("OldPass1234"), bcrypt.DefaultCost)
+	hashStr := string(oldHash)
+
+	testUser := &domain.User{
+		ID:           uuid.New(),
+		Email:        "wrongpw@tdt.vn",
+		FullName:     "Pass User",
+		PasswordHash: &hashStr,
+		Role:         domain.RoleCustomer,
+		AuthProvider: domain.AuthProviderLocal,
+	}
+	_ = repo.CreateUser(context.Background(), testUser)
+
+	pwReq := domain.ChangePasswordRequest{
+		OldPassword: "WrongPassword999",
+		NewPassword: "NewPass5678",
+	}
+	body, _ := json.Marshal(pwReq)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/me/change-password", bytes.NewReader(body))
+	claims := &auth.Claims{
+		UserID: testUser.ID.String(),
+		Role:   domain.RoleCustomer,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleChangePassword(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d", rr.Code)
+	}
+}
+
+func TestHandleChangePassword_GoogleUser(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	testUser := &domain.User{
+		ID:           uuid.New(),
+		Email:        "google@tdt.vn",
+		FullName:     "Google User",
+		PasswordHash: nil,
+		Role:         domain.RoleCustomer,
+		AuthProvider: domain.AuthProviderGoogle,
+	}
+	_ = repo.CreateUser(context.Background(), testUser)
+
+	pwReq := domain.ChangePasswordRequest{
+		OldPassword: "OldPass1234",
+		NewPassword: "NewPass5678",
+	}
+	body, _ := json.Marshal(pwReq)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/me/change-password", bytes.NewReader(body))
+	claims := &auth.Claims{
+		UserID: testUser.ID.String(),
+		Role:   domain.RoleCustomer,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleChangePassword(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for google user, got %d", rr.Code)
+	}
+}
+
+
+func TestHandleVerifyPassword_Success(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	pw := "OldPass1234"
+	hash, _ := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	hStr := string(hash)
+
+	testUser := &domain.User{
+		ID:           uuid.New(),
+		Email:        "verify@tdt.vn",
+		PasswordHash: &hStr,
+		AuthProvider: domain.AuthProviderLocal,
+		Role:         domain.RoleCustomer,
+	}
+	_ = repo.CreateUser(context.Background(), testUser)
+
+	verifyReq := domain.VerifyPasswordRequest{
+		Password: "OldPass1234",
+	}
+	body, _ := json.Marshal(verifyReq)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/me/verify-password", bytes.NewReader(body))
+	claims := &auth.Claims{
+		UserID: testUser.ID.String(),
+		Role:   domain.RoleCustomer,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleVerifyPassword(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
+	}
+
+	var resp domain.VerifyPasswordResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode resp: %v", err)
+	}
+	if !resp.Valid {
+		t.Fatalf("expected valid true, got false")
+	}
+}
+
+func TestHandleVerifyPassword_Wrong(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	pw := "OldPass1234"
+	hash, _ := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	hStr := string(hash)
+
+	testUser := &domain.User{
+		ID:           uuid.New(),
+		Email:        "verify2@tdt.vn",
+		PasswordHash: &hStr,
+		AuthProvider: domain.AuthProviderLocal,
+		Role:         domain.RoleCustomer,
+	}
+	_ = repo.CreateUser(context.Background(), testUser)
+
+	verifyReq := domain.VerifyPasswordRequest{
+		Password: "WrongPassword999",
+	}
+	body, _ := json.Marshal(verifyReq)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/me/verify-password", bytes.NewReader(body))
+	claims := &auth.Claims{
+		UserID: testUser.ID.String(),
+		Role:   domain.RoleCustomer,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleVerifyPassword(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
+	}
+
+	var resp domain.VerifyPasswordResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode resp: %v", err)
+	}
+	if resp.Valid {
+		t.Fatalf("expected valid false, got true")
 	}
 }

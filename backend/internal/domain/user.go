@@ -63,9 +63,42 @@ type TokenPair struct {
 	ExpiresIn    int64  `json:"expiresIn"`
 }
 
+type UpdateProfileRequest struct {
+	FullName string  `json:"fullName"`
+	Phone    *string `json:"phone,omitempty"`
+}
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"oldPassword"`
+	NewPassword string `json:"newPassword"`
+}
+
+type VerifyPasswordRequest struct {
+	Password string `json:"password"`
+}
+
+type VerifyPasswordResponse struct {
+	Valid   bool   `json:"valid"`
+	Message string `json:"message"`
+}
+
+type UserProfileResponse struct {
+	ID           uuid.UUID    `json:"id"`
+	Email        string       `json:"email"`
+	FullName     string       `json:"fullName"`
+	Phone        *string      `json:"phone,omitempty"`
+	AvatarURL    *string      `json:"avatarUrl,omitempty"`
+	Role         UserRole     `json:"role"`
+	AuthProvider AuthProvider `json:"authProvider"`
+	CreatedAt    time.Time    `json:"createdAt"`
+	UpdatedAt    time.Time    `json:"updatedAt"`
+}
+
 type UserRepository interface {
 	UpsertGoogleUser(ctx context.Context, info *GoogleUserInfo) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	CreateUser(ctx context.Context, user *User) error
+	UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, phone *string) (*User, error)
+	UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error
 }

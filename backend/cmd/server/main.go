@@ -124,6 +124,10 @@ func main() {
 		// Authenticated Routes (Any Logged In User / Customer)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
+			r.Get("/users/me", authHandler.HandleGetMe)
+			r.Put("/users/me", authHandler.HandleUpdateProfile)
+			r.Post("/users/me/change-password", authHandler.HandleChangePassword)
+			r.Post("/users/me/verify-password", authHandler.HandleVerifyPassword)
 			r.Post("/orders", productHandler.CreateOrder)
 			r.Get("/orders", productHandler.ListOrders)
 			r.Get("/orders/{id}", productHandler.GetOrderByID)

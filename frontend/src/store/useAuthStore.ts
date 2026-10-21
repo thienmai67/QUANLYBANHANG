@@ -9,11 +9,16 @@ export interface UserProfile {
   id: string;
   email: string;
   name: string;
+  phone?: string;
   role: UserRole;
   avatar?: string;
+  avatarUrl?: string;
+  authProvider?: 'LOCAL' | 'GOOGLE';
   companyName?: string;
   taxId?: string;
   shipperId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface AuthState {
