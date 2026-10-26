@@ -249,3 +249,137 @@ func TestCODSettlement_And_ListShippers(t *testing.T) {
 		t.Errorf("expected phone %s, got %v", testPhone, foundShipper.Phone)
 	}
 }
+
+func TestPhase2_Lifecycle_SecurityAndRoleHardening(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		t.Skip("database not available")
+		return
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	repo := NewProductRepository(db)
+
+	customerID := uuid.New()
+	shipperID := uuid.New()
+
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO me_supplies.users (id, email, full_name, role, auth_provider)
+		VALUES ($1, $2, 'Customer Test Hardening', 'CUSTOMER', 'LOCAL'),
+		       ($3, $4, 'Shipper Test Hardening', 'SHIPPER', 'LOCAL')
+	`, customerID, "cust_hard_"+customerID.String()[:8]+"@test.local",
+	   shipperID, "ship_hard_"+shipperID.String()[:8]+"@test.local")
+	if err != nil {
+		t.Fatalf("failed to insert test users: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.users WHERE id IN ($1, $2)", customerID, shipperID)
+	}()
+
+	orderID := uuid.New()
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO me_supplies.orders (id, order_number, customer_id, customer_name, payment_method, total_amount, status, version)
+		VALUES ($1, $2, $3, 'Customer Test Hardening', 'COD', 150000, 'PENDING', 1)
+	`, orderID, "ORD-HARD-"+orderID.String()[:8], customerID)
+	if err != nil {
+		t.Fatalf("failed to insert order: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.orders WHERE id = $1", orderID)
+	}()
+
+	// 1. Customer can cancel their own PENDING order
+	cancelReason := "Khách hàng đổi ý mua loại khác"
+	updated, err := repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:             "CANCELLED",
+		Version:            1,
+		CancellationReason: &cancelReason,
+	}, domain.RoleCustomer, customerID)
+	if err != nil {
+		t.Fatalf("Customer should be able to cancel own PENDING order, got error: %v", err)
+	}
+	if updated.Status != domain.OrderStatusCancelled || updated.Version != 2 {
+		t.Fatalf("expected order status CANCELLED v2, got %s v%d", updated.Status, updated.Version)
+	}
+
+	// Reset order to PACKING v3
+	_, err = db.ExecContext(ctx, `
+		UPDATE me_supplies.orders
+		SET status = 'PACKING', version = 3, cancellation_reason = NULL
+		WHERE id = $1
+	`, orderID)
+	if err != nil {
+		t.Fatalf("failed to reset order: %v", err)
+	}
+
+	// 2. Customer CANNOT cancel when status is PACKING
+	_, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:             "CANCELLED",
+		Version:            3,
+		CancellationReason: &cancelReason,
+	}, domain.RoleCustomer, customerID)
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden when customer cancels PACKING order, got: %v", err)
+	}
+
+	// 3. PACKING -> SHIPPING requires shipper ID (omitting shipper_id must fail)
+	_, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:  "SHIPPING",
+		Version: 3,
+	}, domain.RoleManager, uuid.Nil)
+	if !errors.Is(err, domain.ErrShipperRequired) {
+		t.Fatalf("expected ErrShipperRequired when transition to SHIPPING without shipper, got: %v", err)
+	}
+
+	// Assign shipper and transition to SHIPPING (v3 -> 4)
+	shipperStr := shipperID.String()
+	updated, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:    "SHIPPING",
+		Version:   3,
+		ShipperID: &shipperStr,
+	}, domain.RoleManager, uuid.Nil)
+	if err != nil {
+		t.Fatalf("failed to assign shipper: %v", err)
+	}
+
+	// 4. Shipper CANNOT cancel order (must return ErrCancelNotAllowedForShipper)
+	_, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:             "CANCELLED",
+		Version:            4,
+		CancellationReason: &cancelReason,
+	}, domain.RoleShipper, shipperID)
+	if !errors.Is(err, domain.ErrCancelNotAllowedForShipper) {
+		t.Fatalf("expected ErrCancelNotAllowedForShipper when shipper attempts cancel, got: %v", err)
+	}
+
+	// 5. Shipper DELIVERED with invalid POD photo URL must fail with ErrInvalidPodPhoto
+	invalidPhoto := "invalid-photo-path"
+	recipientName := "Anh Nam Nhan Hang"
+	_, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:           "DELIVERED",
+		Version:          4,
+		PodPhotoURL:      &invalidPhoto,
+		PodRecipientName: &recipientName,
+	}, domain.RoleShipper, shipperID)
+	if !errors.Is(err, domain.ErrInvalidPodPhoto) {
+		t.Fatalf("expected ErrInvalidPodPhoto for invalid POD photo format, got: %v", err)
+	}
+
+	// 6. Shipper DELIVERED with valid POD photo URL succeeds (v4 -> 5)
+	validPhoto := "/images/products/pod_test.jpg"
+	updated, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:           "DELIVERED",
+		Version:          4,
+		PodPhotoURL:      &validPhoto,
+		PodRecipientName: &recipientName,
+	}, domain.RoleShipper, shipperID)
+	if err != nil {
+		t.Fatalf("expected valid POD to succeed, got: %v", err)
+	}
+	if updated.Status != domain.OrderStatusDelivered || updated.Version != 5 {
+		t.Fatalf("expected DELIVERED v5, got %s v%d", updated.Status, updated.Version)
+	}
+}

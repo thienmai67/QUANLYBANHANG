@@ -141,7 +141,7 @@ export default function RegisterPage() {
         }
         setSuccessMsg("Đăng ký thành công! Đang chuyển hướng...");
         setTimeout(() => {
-          window.location.href = "/account";
+          window.location.href = "/profile";
         }, 1000);
       } else {
         const { clearTokens } = await import("@/lib/auth");

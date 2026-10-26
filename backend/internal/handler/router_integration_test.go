@@ -67,7 +67,7 @@ func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.P
 		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper))
+			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper, domain.RoleCustomer))
 			r.Patch("/orders/{id}/status", productHandler.UpdateOrderStatus)
 		})
 

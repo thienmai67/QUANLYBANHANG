@@ -272,6 +272,7 @@ type ProductRepository interface {
 	ListBrands(ctx context.Context) ([]Brand, error)
 	ListCategories(ctx context.Context) ([]Category, error)
 	ListOrders(ctx context.Context, customerID *uuid.UUID, limit, offset int) ([]Order, error)
+	ListOrdersByShipper(ctx context.Context, shipperID uuid.UUID, limit, offset int) ([]Order, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*Order, error)
 	CreateOrder(ctx context.Context, order *Order) error
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, toStatus OrderStatus, expectedVersion int, actorRole UserRole, actorID uuid.UUID) (*Order, error)

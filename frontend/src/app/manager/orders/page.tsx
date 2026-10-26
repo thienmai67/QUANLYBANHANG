@@ -521,30 +521,19 @@ function OrdersManagementContent() {
                               </>
                             )}
 
-                            {/* SHIPPING: Xác nhận đã giao & Hủy đơn */}
+                            {/* SHIPPING: Hủy đơn (Xác nhận giao hàng chỉ do Shipper thực hiện kèm POD) */}
                             {order.status === 'SHIPPING' && (
-                              <>
-                                <button
-                                  type="button"
-                                  disabled={processingOrderId === order.id}
-                                  onClick={() => handleDeliver(order)}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors shadow-sm"
-                                  title="Xác nhận shipper đã giao hàng xong"
-                                >
-                                  {processingOrderId === order.id ? 'Đang xử lý...' : 'Đã giao'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCancelTargetOrder(order);
-                                    setIsCancelOpen(true);
-                                  }}
-                                  className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                                  title="Hủy đơn hàng và hoàn kho"
-                                >
-                                  Hủy
-                                </button>
-                              </>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCancelTargetOrder(order);
+                                  setIsCancelOpen(true);
+                                }}
+                                className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                title="Hủy đơn hàng và hoàn kho"
+                              >
+                                Hủy
+                              </button>
                             )}
 
                             {/* Always allow viewing details */}

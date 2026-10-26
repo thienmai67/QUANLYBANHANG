@@ -73,12 +73,12 @@ export type CustomerTier = 'Khách mua lẻ' | 'Thợ điện nước' | 'Hộ g
 export interface Customer {
   id: string;
   name: string;
-  taxId: string;
+  taxId?: string;
   phone: string;
   email: string;
   tier: CustomerTier;
-  creditLimit: number; // Hạn mức công nợ (VND)
-  currentDebt: number; // Công nợ hiện tại (VND)
+  creditLimit?: number;
+  currentDebt?: number;
   totalSpent: number;
   ordersCount: number;
   status: 'Active' | 'Locked';

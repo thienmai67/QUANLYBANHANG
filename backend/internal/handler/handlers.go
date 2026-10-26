@@ -340,6 +340,18 @@ func (h *Handler) ListOrders(w http.ResponseWriter, req *http.Request) {
 	var customerID *uuid.UUID
 	claims, ok := middleware.GetClaimsFromContext(req.Context())
 	if ok && claims != nil {
+		if claims.Role == domain.RoleShipper {
+			if parsedID, err := uuid.Parse(claims.UserID); err == nil {
+				orders, err := h.productRepo.ListOrdersByShipper(req.Context(), parsedID, limit, offset)
+				if err != nil {
+					writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn đơn hàng")
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(orders)
+				return
+			}
+		}
 		if claims.Role == domain.RoleCustomer {
 			if parsedID, err := uuid.Parse(claims.UserID); err == nil {
 				customerID = &parsedID
@@ -392,6 +404,14 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	if claims.Role == domain.RoleShipper {
+		shipperUUID, parseErr := uuid.Parse(claims.UserID)
+		if parseErr != nil || order.ShipperID == nil || *order.ShipperID != shipperUUID {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(order)
@@ -432,6 +452,10 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := h.productRepo.CreateOrder(req.Context(), &order); err != nil {
+		if errors.Is(err, domain.ErrQuantityExceedsLimit) {
+			writeAPIError(w, http.StatusBadRequest, "INVALID_QUANTITY", "Số lượng vượt quá giới hạn đặt hàng trực tuyến (tối đa 10.000 đơn vị / sản phẩm). Vui lòng liên hệ phòng dự án để đặt số lượng lớn.")
+			return
+		}
 		if errors.Is(err, domain.ErrInvalidQuantity) {
 			writeAPIError(w, http.StatusBadRequest, "INVALID_QUANTITY", "Số lượng sản phẩm không hợp lệ")
 			return
@@ -497,8 +521,14 @@ func (h *Handler) UpdateOrderStatus(w http.ResponseWriter, req *http.Request) {
 			writeAPIError(w, http.StatusBadRequest, "INVALID_REASON", "Lý do hủy phải từ 5 ký tự trở lên")
 		case errors.Is(err, domain.ErrMissingPOD):
 			writeAPIError(w, http.StatusBadRequest, "MISSING_POD", "Thiếu ảnh hoặc tên người nhận hàng")
+		case errors.Is(err, domain.ErrInvalidPodPhoto):
+			writeAPIError(w, http.StatusBadRequest, "INVALID_POD_PHOTO", "Ảnh xác nhận giao hàng không hợp lệ")
+		case errors.Is(err, domain.ErrShipperRequired):
+			writeAPIError(w, http.StatusBadRequest, "SHIPPER_REQUIRED", "Cần gán shipper khi chuyển sang trạng thái đang giao")
 		case errors.Is(err, domain.ErrInvalidShipper):
 			writeAPIError(w, http.StatusBadRequest, "INVALID_SHIPPER", "Shipper được gán không hợp lệ")
+		case errors.Is(err, domain.ErrCancelNotAllowedForShipper):
+			writeAPIError(w, http.StatusForbidden, "CANCEL_NOT_ALLOWED_FOR_SHIPPER", "Shipper không được tự hủy đơn — liên hệ quản lý xử lý.")
 		case errors.Is(err, domain.ErrForbidden):
 			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền thao tác đơn hàng này")
 		case errors.Is(err, domain.ErrOrderNotFound):

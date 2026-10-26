@@ -88,7 +88,7 @@ export function AddMaterialModal({
 
   const discountedPrice = calculateDiscountedPrice(basePrice, discountPercent);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!code.trim()) {
@@ -114,7 +114,7 @@ export function AddMaterialModal({
 
     setSubmitting(true);
     try {
-      const res = addProduct({
+      const res = await addProduct({
         code: code.trim().toUpperCase(),
         name: name.trim(),
         brand,

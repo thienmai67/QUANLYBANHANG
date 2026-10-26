@@ -43,8 +43,8 @@ export default function ShipperDispatchFeedPage() {
 
   // STRICT DATA ISOLATION: Shipper only sees orders assigned to their shipperId
   const myOrders = useMemo(() => {
-    if (!currentShipperId) return orders;
-    return orders.filter((o) => !o.shipperId || o.shipperId === currentShipperId);
+    if (!currentShipperId) return [];
+    return orders.filter((o) => o.shipperId === currentShipperId);
   }, [orders, currentShipperId]);
 
   // Tab counts

@@ -480,7 +480,7 @@ export default function ShipperOrderCard({
               }`}
             >
               <AlertTriangle className="w-4 h-4" />
-              <span>Báo sự cố giao thất bại</span>
+              <span>Báo sự cố giao hàng</span>
             </button>
           </div>
         )}

@@ -170,9 +170,10 @@ export default function CustomerProfilePage() {
       if (data && data.id) {
         setFullNameInput(data.fullName || '');
         setPhoneInput(data.phone || '');
-        if (user) {
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser) {
           setAuth(token, {
-            ...user,
+            ...currentUser,
             id: data.id,
             email: data.email,
             name: data.fullName,
@@ -186,12 +187,13 @@ export default function CustomerProfilePage() {
       }
     } catch {
       // Fallback to local store user if endpoint unavailable
-      if (user) {
-        setFullNameInput(user.name || '');
-        setPhoneInput(user.phone || '');
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        setFullNameInput(currentUser.name || '');
+        setPhoneInput(currentUser.phone || '');
       }
     }
-  }, [user, setAuth]);
+  }, [setAuth]);
 
   // Fetch orders from DB
   const loadOrders = useCallback(async () => {

@@ -526,7 +526,7 @@ export default function ShipperOrderDetailPage() {
                 className="w-full min-h-[48px] px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-rose-950/60 text-rose-300 hover:bg-rose-900 border border-rose-600/40"
               >
                 <AlertTriangle className="w-4 h-4" />
-                <span>Báo sự cố giao thất bại</span>
+                <span>Báo sự cố giao hàng</span>
               </button>
             </div>
           )}

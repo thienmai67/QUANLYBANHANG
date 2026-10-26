@@ -145,6 +145,28 @@ func (m *mockProductRepo) ListOrders(ctx context.Context, customerID *uuid.UUID,
 	return filtered[offset:end], nil
 }
 
+func (m *mockProductRepo) ListOrdersByShipper(ctx context.Context, shipperID uuid.UUID, limit, offset int) ([]domain.Order, error) {
+	m.Lock()
+	defer m.Unlock()
+	if m.listOrdersErr != nil {
+		return nil, m.listOrdersErr
+	}
+	var filtered []domain.Order
+	for _, o := range m.orders {
+		if o.ShipperID != nil && *o.ShipperID == shipperID {
+			filtered = append(filtered, o)
+		}
+	}
+	if offset >= len(filtered) {
+		return []domain.Order{}, nil
+	}
+	end := offset + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return filtered[offset:end], nil
+}
+
 func (m *mockProductRepo) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, toStatus domain.OrderStatus, expectedVersion int, actorRole domain.UserRole, actorID uuid.UUID) (*domain.Order, error) {
 	req := domain.UpdateOrderStatusRequest{
 		Status:  string(toStatus),
@@ -176,15 +198,36 @@ func (m *mockProductRepo) UpdateOrderStatusWithDetails(ctx context.Context, orde
 					return nil, domain.ErrInvalidReason
 				}
 			}
+			if o.Status == domain.OrderStatusPacking && toStatus == domain.OrderStatusShipping {
+				shipperIDStr := req.GetShipperID()
+				if (shipperIDStr == nil || strings.TrimSpace(*shipperIDStr) == "") && o.ShipperID == nil {
+					return nil, domain.ErrShipperRequired
+				}
+			}
 			if toStatus == domain.OrderStatusDelivered {
 				rec := req.GetPodRecipientName()
 				photo := req.GetPodPhotoURL()
 				if rec == nil || strings.TrimSpace(*rec) == "" || photo == nil || strings.TrimSpace(*photo) == "" {
 					return nil, domain.ErrMissingPOD
 				}
+				p := strings.TrimSpace(*photo)
+				if len(p) < 10 || (!strings.HasPrefix(p, "http://") && !strings.HasPrefix(p, "https://") && !strings.HasPrefix(p, "/images/") && !strings.HasPrefix(p, "data:image/")) {
+					return nil, domain.ErrInvalidPodPhoto
+				}
 			}
 			if actorRole == domain.RoleShipper {
 				if o.ShipperID == nil || *o.ShipperID != actorID {
+					return nil, domain.ErrForbidden
+				}
+				if toStatus == domain.OrderStatusCancelled {
+					return nil, domain.ErrCancelNotAllowedForShipper
+				}
+			}
+			if actorRole == domain.RoleCustomer {
+				if o.CustomerID == nil || *o.CustomerID != actorID {
+					return nil, domain.ErrForbidden
+				}
+				if o.Status != domain.OrderStatusPending || toStatus != domain.OrderStatusCancelled {
 					return nil, domain.ErrForbidden
 				}
 			}
@@ -231,6 +274,14 @@ func (m *mockProductRepo) CreateOrder(ctx context.Context, order *domain.Order) 
 	defer m.Unlock()
 	if m.createOrderErr != nil {
 		return m.createOrderErr
+	}
+	for _, it := range order.Items {
+		if it.Quantity <= 0 {
+			return domain.ErrInvalidQuantity
+		}
+		if it.Quantity > 10000 {
+			return domain.ErrQuantityExceedsLimit
+		}
 	}
 	order.Status = domain.OrderStatusPending
 	if order.OrderNumber == "" {

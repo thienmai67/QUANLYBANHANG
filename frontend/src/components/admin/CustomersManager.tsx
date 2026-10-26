@@ -34,20 +34,16 @@ export function CustomersManager() {
 
   const [formData, setFormData] = useState<{
     name: string;
-    taxId: string;
     phone: string;
     email: string;
     tier: CustomerTier;
-    creditLimit: number;
     address: string;
     status: 'Active' | 'Locked';
   }>({
     name: '',
-    taxId: '',
     phone: '',
     email: '',
     tier: 'Khách mua lẻ',
-    creditLimit: 30000000,
     address: '',
     status: 'Active',
   });
@@ -55,7 +51,6 @@ export function CustomersManager() {
   const filteredCustomers = customers.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.taxId.includes(searchQuery) ||
       c.phone.includes(searchQuery);
     const matchesTier = tierFilter === 'ALL' || c.tier === tierFilter;
     return matchesSearch && matchesTier;
@@ -71,11 +66,9 @@ export function CustomersManager() {
     setEditingCustomer(null);
     setFormData({
       name: '',
-      taxId: '',
       phone: '',
       email: '',
       tier: 'Khách mua lẻ',
-      creditLimit: 30000000,
       address: '',
       status: 'Active',
     });
@@ -86,11 +79,9 @@ export function CustomersManager() {
     setEditingCustomer(cust);
     setFormData({
       name: cust.name,
-      taxId: cust.taxId,
       phone: cust.phone,
       email: cust.email,
       tier: cust.tier,
-      creditLimit: cust.creditLimit,
       address: cust.address,
       status: cust.status,
     });
@@ -165,10 +156,10 @@ export function CustomersManager() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/60 text-[11px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
-                <th className="py-3.5 px-4">Tên Đối Tác / MST</th>
+                <th className="py-3.5 px-4">Tên Khách Hàng / Đối Tác</th>
                 <th className="py-3.5 px-4">Phân hạng & Liên hệ</th>
-                <th className="py-3.5 px-4 text-right">Công nợ hiện tại</th>
-                <th className="py-3.5 px-4 text-right">Hạn mức nợ</th>
+                <th className="py-3.5 px-4">Địa chỉ</th>
+                <th className="py-3.5 px-4 text-center">Số đơn</th>
                 <th className="py-3.5 px-4 text-right">Tổng chi tiêu</th>
                 <th className="py-3.5 px-4 text-center">Trạng thái</th>
                 <th className="py-3.5 px-4 text-right">Thao tác</th>
@@ -192,9 +183,6 @@ export function CustomersManager() {
                       <p className="font-bold text-slate-900 dark:text-slate-100">
                         {cust.name}
                       </p>
-                      <p className="font-mono text-[11px] text-slate-400 mt-0.5">
-                        MST: {cust.taxId}
-                      </p>
                     </td>
 
                     <td className="py-4 px-4">
@@ -206,12 +194,12 @@ export function CustomersManager() {
                       </p>
                     </td>
 
-                    <td className="py-4 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
-                      {cust.currentDebt.toLocaleString('vi-VN')}
+                    <td className="py-4 px-4 text-slate-600 dark:text-slate-300 max-w-[200px] truncate" title={cust.address}>
+                      {cust.address || '—'}
                     </td>
 
-                    <td className="py-4 px-4 text-right font-mono font-medium text-slate-500">
-                      {cust.creditLimit.toLocaleString('vi-VN')}
+                    <td className="py-4 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                      {cust.ordersCount || 0}
                     </td>
 
                     <td className="py-4 px-4 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
@@ -306,36 +294,21 @@ export function CustomersManager() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Mã số thuế (MST)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.taxId}
-                    onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-                    placeholder="VD: 0301234567"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono font-bold text-slate-900 dark:text-slate-100 focus:border-cyan-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Phân hạng chiết khấu
-                  </label>
-                  <select
-                    value={formData.tier}
-                    onChange={(e) => setFormData({ ...formData, tier: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-900 dark:text-slate-100 focus:border-cyan-500 focus:outline-none"
-                  >
-                    <option value="Đại lý Cấp 1">Đại lý Cấp 1</option>
-                    <option value="Đại lý Cấp 2">Đại lý Cấp 2</option>
-                    <option value="Nhà thầu M&E">Nhà thầu M&E</option>
-                    <option value="Khách công trình">Khách công trình</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Phân hạng chiết khấu
+                </label>
+                <select
+                  value={formData.tier}
+                  onChange={(e) => setFormData({ ...formData, tier: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-900 dark:text-slate-100 focus:border-cyan-500 focus:outline-none"
+                >
+                  <option value="Đại lý Cấp 1">Đại lý Cấp 1</option>
+                  <option value="Đại lý Cấp 2">Đại lý Cấp 2</option>
+                  <option value="Nhà thầu M&E">Nhà thầu M&E</option>
+                  <option value="Khách công trình">Khách công trình</option>
+                  <option value="Khách mua lẻ">Khách mua lẻ</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -354,13 +327,14 @@ export function CustomersManager() {
 
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Hạn mức công nợ (VND)
+                    Email liên hệ
                   </label>
                   <input
-                    type="number"
-                    value={formData.creditLimit}
-                    onChange={(e) => setFormData({ ...formData, creditLimit: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono font-bold text-slate-900 dark:text-slate-100 focus:border-cyan-500 focus:outline-none"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="contact@company.vn"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium focus:border-cyan-500 focus:outline-none"
                   />
                 </div>
               </div>

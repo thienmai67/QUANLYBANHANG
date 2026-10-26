@@ -763,6 +763,44 @@ func (r *productRepository) ListOrders(ctx context.Context, customerID *uuid.UUI
 	return orders, nil
 }
 
+func (r *productRepository) ListOrdersByShipper(ctx context.Context, shipperID uuid.UUID, limit, offset int) ([]domain.Order, error) {
+	query := fmt.Sprintf(`
+        SELECT %s
+        FROM me_supplies.orders
+        WHERE shipper_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
+    `, orderBaseSelectColumns)
+
+	rows, err := r.db.QueryContext(ctx, query, shipperID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("query orders by shipper: %w", err)
+	}
+	defer rows.Close()
+
+	var orders []domain.Order
+	for rows.Next() {
+		o, err := scanOrderRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan order: %w", err)
+		}
+		orders = append(orders, *o)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate orders error: %w", err)
+	}
+
+	for i := range orders {
+		orders[i].Items = r.loadOrderItems(ctx, orders[i].ID)
+	}
+
+	if orders == nil {
+		orders = []domain.Order{}
+	}
+	return orders, nil
+}
+
 func (r *productRepository) loadOrderItems(ctx context.Context, orderID uuid.UUID) []domain.OrderItem {
 	items := make([]domain.OrderItem, 0)
 	itemRows, err := r.db.QueryContext(ctx, `
@@ -875,6 +913,10 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 			_ = tx.Rollback()
 			return domain.ErrInvalidQuantity
 		}
+		if item.Quantity > 10000 {
+			_ = tx.Rollback()
+			return domain.ErrQuantityExceedsLimit
+		}
 
 		var basePrice float64
 		err := tx.QueryRowContext(ctx, `SELECT base_price FROM me_supplies.products WHERE id = $1`, item.ProductID).Scan(&basePrice)
@@ -973,6 +1015,17 @@ func isValidTransition(from, to domain.OrderStatus) bool {
 	return false
 }
 
+func isValidPodPhoto(photo string) bool {
+	p := strings.TrimSpace(photo)
+	if len(p) < 10 {
+		return false
+	}
+	return strings.HasPrefix(p, "http://") ||
+		strings.HasPrefix(p, "https://") ||
+		strings.HasPrefix(p, "/images/") ||
+		strings.HasPrefix(p, "data:image/")
+}
+
 func (r *productRepository) UpdateOrderStatusWithDetails(
 	ctx context.Context,
 	orderID uuid.UUID,
@@ -1033,6 +1086,21 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 			_ = tx.Rollback()
 			return nil, domain.ErrForbidden
 		}
+		// Shipper cannot cancel orders
+		if toStatus == domain.OrderStatusCancelled {
+			_ = tx.Rollback()
+			return nil, domain.ErrCancelNotAllowedForShipper
+		}
+	case domain.RoleCustomer:
+		// Customer can only cancel their own PENDING order
+		if o.CustomerID == nil || *o.CustomerID != actorID {
+			_ = tx.Rollback()
+			return nil, domain.ErrForbidden
+		}
+		if o.Status != domain.OrderStatusPending || toStatus != domain.OrderStatusCancelled {
+			_ = tx.Rollback()
+			return nil, domain.ErrForbidden
+		}
 	default:
 		_ = tx.Rollback()
 		return nil, domain.ErrForbidden
@@ -1062,10 +1130,16 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		}
 	}
 
-	// 4a. PACKING -> SHIPPING: allow setting shipper_id and validate shipper role
+	// 4a. PACKING -> SHIPPING: require shipper_id and validate shipper role
 	if o.Status == domain.OrderStatusPacking && toStatus == domain.OrderStatusShipping {
-		if req.GetShipperID() != nil {
-			parsedShipperID, err := uuid.Parse(*req.GetShipperID())
+		shipperIDStr := req.GetShipperID()
+		if shipperIDStr == nil || strings.TrimSpace(*shipperIDStr) == "" {
+			if o.ShipperID == nil {
+				_ = tx.Rollback()
+				return nil, domain.ErrShipperRequired
+			}
+		} else {
+			parsedShipperID, err := uuid.Parse(strings.TrimSpace(*shipperIDStr))
 			if err != nil {
 				_ = tx.Rollback()
 				return nil, domain.ErrInvalidShipper
@@ -1078,9 +1152,13 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 			}
 			newShipperID = &parsedShipperID
 		}
+		if newShipperID == nil {
+			_ = tx.Rollback()
+			return nil, domain.ErrShipperRequired
+		}
 	}
 
-	// 4b. SHIPPING -> DELIVERED: require POD recipient name & photo url, calculate COD if payment_method = COD
+	// 4b. SHIPPING -> DELIVERED: require POD recipient name & photo url, validate photo url, calculate COD if payment_method = COD
 	if toStatus == domain.OrderStatusDelivered {
 		recipient := req.GetPodRecipientName()
 		photo := req.GetPodPhotoURL()
@@ -1088,8 +1166,12 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 			_ = tx.Rollback()
 			return nil, domain.ErrMissingPOD
 		}
-		trimmedRecipient := strings.TrimSpace(*recipient)
 		trimmedPhoto := strings.TrimSpace(*photo)
+		if !isValidPodPhoto(trimmedPhoto) {
+			_ = tx.Rollback()
+			return nil, domain.ErrInvalidPodPhoto
+		}
+		trimmedRecipient := strings.TrimSpace(*recipient)
 		newPodRecipient = &trimmedRecipient
 		newPodPhoto = &trimmedPhoto
 		newPodConfirmedAt = &now

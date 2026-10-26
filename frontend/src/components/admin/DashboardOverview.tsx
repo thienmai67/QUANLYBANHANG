@@ -25,9 +25,11 @@ export function DashboardOverview() {
     fetchProducts();
   }, [fetchOrders, fetchProducts]);
 
-  const totalRev = orders
-    .filter((o) => o.status !== 'Cancelled')
-    .reduce((sum, o) => sum + o.finalAmount, 0);
+  const paidOrders = orders.filter(
+    (o) =>
+      (o as any).paymentStatus === 'PAID' || (o as any).payment_status === 'PAID'
+  );
+  const totalRev = paidOrders.reduce((sum, o) => sum + o.finalAmount, 0);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -72,8 +74,11 @@ export function DashboardOverview() {
             <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100">
               {totalRev.toLocaleString('vi-VN')} <span className="text-sm font-semibold">VND</span>
             </h3>
-            <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-              <span>Tổng doanh thu thực tế từ đơn hàng</span>
+            <div className="flex flex-col gap-0.5 mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span>{paidOrders.length} đơn đã thanh toán (PAID)</span>
+              <span className="text-[10px] text-slate-400 italic font-normal">
+                * Chỉ tính các đơn đã thanh toán thành công
+              </span>
             </div>
           </div>
         </div>

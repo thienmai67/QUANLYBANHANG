@@ -55,32 +55,11 @@ export default function IncidentModal({
 
     setSubmitting(true);
     try {
-      const fullReason = `${category}: ${detail.trim()}`;
-      const res = await updateOrderStatusWithActor(
-        order.id,
-        'CANCELLED',
-        {
-          role: 'SHIPPER',
-          shipperId,
-          name: shipperName,
-        },
-        {
-          cancelReason: fullReason,
-          incidentCategory: category,
-        }
+      toast.info(
+        `Đã ghi nhận sự cố "${category}". Vui lòng liên hệ Quản lý để xử lý đơn #${order.code}.`
       );
-
-      if (res.success) {
-        toast.warning(
-          `Đã ghi nhận sự cố giao thất bại đơn #${order.code}. Hàng hóa đã tự động hoàn về kho!`
-        );
-        onClose();
-        if (onSuccess) onSuccess();
-      } else {
-        toast.error(res.error || 'Báo cáo sự cố không thành công');
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Lỗi hệ thống khi cập nhật trạng thái đơn');
+      onClose();
+      if (onSuccess) onSuccess();
     } finally {
       setSubmitting(false);
     }
@@ -120,7 +99,7 @@ export default function IncidentModal({
             </div>
             <div>
               <h2 id="incident-modal-title" className="font-bold text-sm leading-tight text-rose-500">
-                Báo sự cố giao thất bại
+                Báo sự cố giao hàng
               </h2>
               <p className="text-[11px] text-slate-400 mt-0.5">
                 Đơn #{order.code} • {order.customerName}
@@ -149,7 +128,7 @@ export default function IncidentModal({
           >
             <RotateCcw className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
             <p className="text-[11px]">
-              <strong>Lưu ý:</strong> Khi xác nhận giao thất bại, đơn hàng sẽ chuyển sang trạng thái <strong>ĐÃ HỦY</strong> và toàn bộ vật tư sẽ được <strong>tự động hoàn về kho công ty</strong>.
+              <strong>Lưu ý:</strong> Shipper không được tự ý hủy đơn hàng. Vui lòng ghi nhận sự cố hiện trường và liên hệ Quản lý để được hỗ trợ điều phối hoặc xử lý đơn hàng.
             </p>
           </div>
 
@@ -250,7 +229,7 @@ export default function IncidentModal({
             ) : (
               <>
                 <ShieldAlert className="w-4 h-4" />
-                <span>Xác nhận hoàn kho</span>
+                <span>Ghi nhận sự cố</span>
               </>
             )}
           </button>

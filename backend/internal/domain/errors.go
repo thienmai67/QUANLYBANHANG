@@ -17,4 +17,8 @@ var (
 	ErrDuplicateSKU           = errors.New("product sku already exists")
 	ErrInvalidProductInput    = errors.New("invalid product input")
 	ErrPaymentNotConfirmed    = errors.New("payment not confirmed")
+	ErrCancelNotAllowedForShipper = errors.New("shipper không được tự hủy đơn — liên hệ quản lý xử lý")
+	ErrShipperRequired            = errors.New("shipper required")
+	ErrInvalidPodPhoto            = errors.New("invalid pod photo")
+	ErrQuantityExceedsLimit       = errors.New("quantity exceeds limit")
 )

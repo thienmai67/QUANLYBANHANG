@@ -28,7 +28,7 @@ export function ShipperAssignModal({
   onClose,
   onSuccess,
 }: ShipperAssignModalProps) {
-  const { shippers, assignShipper, fetchShippers } = useManagerStore();
+  const { shippers, shippersLoading, shippersError, assignShipper, fetchShippers } = useManagerStore();
   const toast = useToast();
   const [selectedShipperId, setSelectedShipperId] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -150,96 +150,122 @@ export function ShipperAssignModal({
             <strong className="text-slate-900 dark:text-white">5 đơn hàng</strong> đang giao cùng lúc cho mỗi shipper để đảm bảo thời gian cam kết.
           </div>
 
-          {/* Shippers List */}
-          <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-            {shippers.map((s) => {
-              const shift =
-                s.shiftStatus ||
-                (s.status?.toLowerCase() === 'offline'
-                  ? 'offline'
-                  : s.status?.toLowerCase() === 'busy'
-                  ? 'busy'
-                  : 'available');
-              const isAvailable = shift === 'available';
-              const isFull = s.activeOrders >= 5;
-              const check = checkShipperAssignability(s);
-              const isEligible = isAvailable && !isFull && check.allowed;
-              const isSelected = selectedShipperId === s.id;
+          {/* Shippers List / Loading / Error */}
+          {shippersLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
+              <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+              <span>Đang tải danh sách nhân viên giao hàng...</span>
+            </div>
+          ) : shippersError ? (
+            <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 space-y-2 text-xs">
+              <div className="flex items-center gap-2 font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>Không thể tải danh sách shipper: {shippersError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => fetchShippers()}
+                className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors"
+              >
+                Thử lại
+              </button>
+            </div>
+          ) : shippers.length === 0 ? (
+            <div className="py-8 text-center text-slate-500 text-xs">
+              Chưa có nhân viên giao hàng nào trong hệ thống.
+            </div>
+          ) : (
+            <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+              {shippers.map((s) => {
+                const shift =
+                  s.shiftStatus ||
+                  (s.status?.toLowerCase() === 'offline'
+                    ? 'offline'
+                    : s.status?.toLowerCase() === 'busy'
+                    ? 'busy'
+                    : 'available');
+                const isAvailable = shift === 'available';
+                const isFull = s.activeOrders >= 5;
+                const check = checkShipperAssignability(s);
+                const isEligible = isAvailable && !isFull && check.allowed;
+                const isSelected = selectedShipperId === s.id;
 
-              return (
-                <label
-                  key={s.id}
-                  className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
-                    !isEligible
-                      ? 'bg-slate-100/60 dark:bg-slate-850/60 border-slate-200 dark:border-slate-800 opacity-60 cursor-not-allowed'
-                      : isSelected
-                      ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-500 ring-1 ring-amber-500 shadow-sm'
-                      : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <input
-                      type="radio"
-                      name="shipper-select"
-                      value={s.id}
-                      checked={isSelected}
-                      disabled={!isEligible}
-                      onChange={() => setSelectedShipperId(s.id)}
-                      className="w-4 h-4 text-amber-600 border-slate-300 focus:ring-amber-500 disabled:opacity-50"
-                    />
+                return (
+                  <label
+                    key={s.id}
+                    className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
+                      !isEligible
+                        ? 'bg-slate-100/60 dark:bg-slate-850/60 border-slate-200 dark:border-slate-800 opacity-60 cursor-not-allowed'
+                        : isSelected
+                        ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-500 ring-1 ring-amber-500 shadow-sm'
+                        : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <input
+                        type="radio"
+                        name="shipper-select"
+                        value={s.id}
+                        checked={isSelected}
+                        disabled={!isEligible}
+                        onChange={() => setSelectedShipperId(s.id)}
+                        className="w-4 h-4 text-amber-600 border-slate-300 focus:ring-amber-500 disabled:opacity-50"
+                      />
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {s.name}
-                        </span>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-0.5">
-                          <Phone className="w-2.5 h-2.5" />
-                          {s.phone}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Phương tiện: {s.vehicle}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {s.name}
+                          </span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-0.5">
+                            <Phone className="w-2.5 h-2.5" />
+                            {s.phone}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Phương tiện: {s.vehicle}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Status & Workload Chips */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Shift Status Chip */}
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        shift === 'available'
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                    {/* Status & Workload Chips */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Shift Status Chip */}
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          shift === 'available'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                            : shift === 'busy'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                            : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
+                        }`}
+                      >
+                        {shift === 'available'
+                          ? 'Sẵn sàng'
                           : shift === 'busy'
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
-                          : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
-                      }`}
-                    >
-                      {shift === 'available'
-                        ? 'Sẵn sàng'
-                        : shift === 'busy'
-                        ? 'Bận'
-                        : 'Ngoại tuyến'}
-                    </span>
+                          ? 'Bận'
+                          : 'Ngoại tuyến'}
+                      </span>
 
-                    {/* Workload Pill */}
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                        isFull
-                          ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-300'
-                          : s.activeOrders >= 4
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400'
-                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400'
-                      }`}
-                    >
-                      {s.activeOrders}/5 đơn
-                    </span>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
+                      {/* Workload Pill */}
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                          isFull
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-300'
+                            : s.activeOrders >= 4
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400'
+                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400'
+                        }`}
+                      >
+                        {s.activeOrders}/5 đơn
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

@@ -7,7 +7,6 @@ import {
   Menu,
   Bell,
   Search,
-  RotateCcw,
   User,
   ExternalLink,
   CheckCircle2,
@@ -47,7 +46,7 @@ export function ManagerHeader() {
   const toast = useToast();
 
   const { toggleMobileDrawer, toggleSidebar } = useManagerShellStore();
-  const { orders, resetToSeedData } = useManagerStore();
+  const { orders } = useManagerStore();
   const { user } = useAuthStore();
 
   const pendingOrders = orders.filter((o) => o.status === 'PENDING');
@@ -56,13 +55,6 @@ export function ManagerHeader() {
   const currentInfo = pageTitles[pathname] || {
     title: 'Quản Lý Vận Hành',
     subtitle: 'Hệ thống phân phối vật tư cơ điện M&E',
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('Khôi phục toàn bộ dữ liệu mẫu ban đầu (32 sản phẩm, 40 khách hàng, 5 shipper)?')) {
-      resetToSeedData();
-      toast.success('Đã khôi phục dữ liệu mẫu thành công!');
-    }
   };
 
   return (
@@ -102,17 +94,6 @@ export function ManagerHeader() {
 
         {/* Right: Actions, Notification Bell, ThemeToggle, User */}
         <div className="flex items-center gap-2 lg:gap-3 shrink-0">
-          {/* Quick reset seed data button */}
-          <button
-            type="button"
-            onClick={handleResetData}
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-slate-200 dark:border-slate-800 transition-colors"
-            title="Khôi phục dữ liệu mẫu ban đầu"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Seed</span>
-          </button>
-
           {/* NOTIFICATION BELL: Links to /manager/orders?status=PENDING with PENDING badge */}
           <Link
             href="/manager/orders?status=PENDING"

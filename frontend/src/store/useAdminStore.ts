@@ -182,12 +182,9 @@ function deriveAdminCustomersFromOrders(orders: Order[]): Customer[] {
       map.set(key, {
         id: `cust-${map.size + 1}`,
         name: key,
-        taxId: 'Chưa cập nhật',
         phone: 'Chưa cập nhật',
         email: 'Chưa cập nhật',
         tier: o.contractorTier || 'Khách mua lẻ',
-        creditLimit: 0,
-        currentDebt: 0,
         totalSpent: spent,
         ordersCount: 1,
         status: 'Active',
@@ -284,7 +281,7 @@ interface AdminState {
   markOrderPaid: (orderId: string) => Promise<void>;
 
   // Customer CRUD
-  addCustomer: (customer: Omit<Customer, 'id' | 'ordersCount' | 'totalSpent' | 'currentDebt'>) => void;
+  addCustomer: (customer: Omit<Customer, 'id' | 'ordersCount' | 'totalSpent'>) => void;
   updateCustomer: (id: string, customer: Partial<Customer>) => void;
 }
 
@@ -554,7 +551,6 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       id,
       ordersCount: 0,
       totalSpent: 0,
-      currentDebt: 0,
     };
     set((state) => ({ customers: [customer, ...state.customers] }));
   },

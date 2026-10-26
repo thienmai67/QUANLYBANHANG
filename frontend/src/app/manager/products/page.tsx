@@ -424,21 +424,6 @@ export default function ManagerProductsPage() {
                       </span>
                     </div>
                   </div>
-
-                  {/* Action: Điều chỉnh kho (NO DELETE PER STRICT RBAC!) */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAdjustTargetProduct(prod);
-                        setIsAdjustOpen(true);
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 border border-amber-200 dark:border-amber-800/60 flex items-center gap-1.5"
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5" />
-                      <span>Điều chỉnh kho</span>
-                    </button>
-                  </div>
                 </div>
               );
             })}

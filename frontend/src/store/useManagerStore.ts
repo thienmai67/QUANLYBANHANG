@@ -69,6 +69,8 @@ export interface ManagerState {
   initialized: boolean;
   ordersLoading: boolean;
   ordersError: string | null;
+  shippersLoading: boolean;
+  shippersError: string | null;
 
   fetchOrders: () => Promise<void>;
   fetchProducts: () => Promise<void>;
@@ -143,7 +145,7 @@ export interface ManagerState {
 
   addProduct: (
     productData: Omit<Product, 'id'> | Product
-  ) => { success: boolean; product?: Product; error?: string };
+  ) => Promise<{ success: boolean; product?: Product; error?: string }>;
 
   resetToSeedData: () => void;
 
@@ -243,8 +245,8 @@ function deriveCustomersFromOrders(orders: Order[]): Customer[] {
         id: cid,
         code,
         name: o.customerName || 'Khách hàng',
-        phone: o.customerPhone || '0900000000',
-        email: `${code.toLowerCase().replace('-', '')}@khachhang.vn`,
+        phone: o.customerPhone || 'Chưa cập nhật',
+        email: 'Chưa cập nhật',
         address: o.shippingAddress || 'Chưa cập nhật địa chỉ',
         tier,
         createdAt: o.createdAt || new Date().toISOString(),
@@ -282,6 +284,8 @@ export const useManagerStore = create<ManagerState>()(
       ordersError: null,
       customers: [],
       shippers: [],
+      shippersLoading: false,
+      shippersError: null,
       stockLogs: [],
       codSettlements: [],
       initialized: true,
@@ -339,6 +343,7 @@ export const useManagerStore = create<ManagerState>()(
       },
 
       fetchShippers: async () => {
+        set({ shippersLoading: true, shippersError: null });
         try {
           const res = await api.get<{ data: any[]; total: number }>('/shippers');
           const rawList = res?.data || (Array.isArray(res) ? res : []);
@@ -346,18 +351,18 @@ export const useManagerStore = create<ManagerState>()(
           const mappedShippers: Shipper[] = mappedSummaries.map((s) => ({
             id: s.id,
             name: s.fullName,
-            phone: s.phone || '0901234567',
+            phone: s.phone || 'Chưa cập nhật',
             vehicle: 'Xe máy',
             activeOrders: s.activeOrderCount,
             status: s.activeOrderCount >= 5 ? 'busy' : 'available',
             shiftStatus: s.activeOrderCount >= 5 ? 'busy' : 'available',
           }));
-          if (mappedShippers.length > 0) {
-            set({ shippers: mappedShippers });
-          }
-        } catch (err) {
+          set({ shippers: mappedShippers, shippersLoading: false, shippersError: null });
+        } catch (err: any) {
+          const errMsg = getFriendlyErrorMessage(err);
+          set({ shippers: [], shippersLoading: false, shippersError: errMsg });
           if (process.env.NODE_ENV !== 'test') {
-            console.warn('[useManagerStore] Không thể tải danh sách shipper từ backend (/api/v1/shippers), sử dụng fallback local:', err);
+            console.warn('[useManagerStore] Không thể tải danh sách shipper từ backend (/api/v1/shippers):', err);
           }
         }
       },
@@ -627,8 +632,13 @@ export const useManagerStore = create<ManagerState>()(
             }),
           }));
 
-          // Trigger live workload refresh for shippers
-          if (targetStatus === 'SHIPPING' || targetStatus === 'DELIVERED' || targetStatus === 'CANCELLED') {
+          // Trigger live workload refresh for shippers (skip during unit tests)
+          if (
+            process.env.NODE_ENV !== 'test' &&
+            (targetStatus === 'SHIPPING' ||
+              targetStatus === 'DELIVERED' ||
+              targetStatus === 'CANCELLED')
+          ) {
             get().fetchShippers().catch(() => {});
           }
 
@@ -990,70 +1000,39 @@ export const useManagerStore = create<ManagerState>()(
       /**
        * addProduct: Add new material (Manager cannot delete per RBAC, but can add/adjust).
        */
-      addProduct: (productData: Omit<Product, 'id'> | Product) => {
+      addProduct: async (productData: Omit<Product, 'id'> | Product) => {
         if (!productData.name || !productData.code || !productData.brand) {
           return { success: false, error: 'Vui lòng điền đầy đủ tên, mã và thương hiệu' };
         }
 
-        const id =
-          'id' in productData && productData.id
-            ? productData.id
-            : `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        try {
+          const sku = productData.code || ('sku' in productData ? (productData as any).sku : 'SKU-STD');
+          const payload = {
+            sku,
+            name: productData.name,
+            brand: productData.brand,
+            category: productData.category || 'Vật tư M&E',
+            basePrice: productData.basePrice,
+            unit: productData.unit || 'cái',
+            image: productData.imageUrl || '/images/products/day-cap-don-1.jpg',
+            description: productData.description || productData.name,
+            specifications: {
+              unit: productData.unit || 'cái',
+              image: productData.imageUrl || '/images/products/day-cap-don-1.jpg',
+              description: productData.description || productData.name,
+              discountRate: productData.discountPercent ?? 10,
+              stock: productData.stockQuantity,
+              minStockLevel: productData.minStockLevel,
+            },
+          };
 
-        const newProd: Product = {
-          ...productData,
-          id,
-          stockQuantity: productData.stockQuantity || 0,
-          minStockLevel: productData.minStockLevel || 5,
-        };
-
-        const now = new Date().toISOString();
-        const logs: StockLog[] = [];
-        if (newProd.stockQuantity > 0) {
-          logs.push({
-            id: `log-init-${Date.now()}`,
-            productId: newProd.id,
-            productName: newProd.name,
-            changeAmount: newProd.stockQuantity,
-            previousStock: 0,
-            newStock: newProd.stockQuantity,
-            type: 'INITIAL_IMPORT',
-            referenceId: 'Thêm vật tư mới vào hệ thống',
-            createdAt: now,
-            createdByName: 'Manager',
-          });
+          const created = await api.post<any>('/products', payload);
+          await get().fetchProducts();
+          const newProd: Product = mapApiProductToManagerProduct(created || payload);
+          return { success: true, product: newProd };
+        } catch (err: any) {
+          return { success: false, error: getFriendlyErrorMessage(err) };
         }
-
-        set((prev) => ({
-          products: [newProd, ...prev.products],
-          stockLogs: [...logs, ...prev.stockLogs],
-        }));
-
-        if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
-          api
-            .post('/products', {
-              sku: newProd.sku || newProd.code,
-              name: newProd.name,
-              brand: newProd.brand,
-              category: newProd.category || 'Vật tư M&E',
-              basePrice: newProd.basePrice,
-              unit: newProd.unit || 'cái',
-              image: newProd.imageUrl || '/images/products/day-cap-don-1.jpg',
-              description: newProd.description || newProd.name,
-              specifications: {
-                unit: newProd.unit || 'cái',
-                image: newProd.imageUrl || '/images/products/day-cap-don-1.jpg',
-                description: newProd.description || newProd.name,
-                discountRate: newProd.discountPercent ?? 10,
-                stock: newProd.stockQuantity,
-                minStockLevel: newProd.minStockLevel,
-              },
-            })
-            .then(() => get().fetchProducts())
-            .catch(() => {});
-        }
-
-        return { success: true, product: newProd };
       },
 
       /**

@@ -142,10 +142,10 @@ func main() {
 			r.Post("/orders/{id}/mark-paid", productHandler.MarkPaid)
 		})
 
-		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER)
+		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER, CUSTOMER)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper))
+			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper, domain.RoleCustomer))
 			r.Patch("/orders/{id}/status", productHandler.UpdateOrderStatus)
 		})
 
@@ -394,17 +394,17 @@ ON CONFLICT (code) DO NOTHING;
 			        (SELECT id FROM me_supplies.brands WHERE code = 'BINHMINH'),
 			        (SELECT id FROM me_supplies.categories WHERE code = 'WATER_PIPE'),
 			        85000.00, 42.0, NULL, NULL,
-			        '{"material": "PVC", "pressure_class": "C1", "length_per_cay": 4.0, "unit": "Cây (4m)", "image": "/images/products/pvc-pipes.png", "description": "Ống nhựa uPVC Bình Minh Phi 42mm Class 1 chính hãng, chịu áp lực cao cho hệ thống cấp thoát nước công trình."}'::JSONB),
+			        '{"material": "PVC", "pressure_class": "C1", "length_per_cay": 4.0, "unit": "Cây (4m)", "image": "/images/products/ong-binh-minh-1.jpg", "description": "Ống nhựa uPVC Bình Minh Phi 42mm Class 1 chính hãng, chịu áp lực cao cho hệ thống cấp thoát nước công trình."}'::JSONB),
 			    ('10000000-0000-0000-0000-000000000002', 'CV-CV-2.5', 'Dây đơn Cadivi CV 2.5mm2',
 			        (SELECT id FROM me_supplies.brands WHERE code = 'CADIVI'),
 			        (SELECT id FROM me_supplies.categories WHERE code = 'CABLE'),
 			        18500.00, NULL, 2.5, 20.0,
-			        '{"type": "Cu/XLPE/PVC", "voltage": "0.6/1kV", "length_per_cuon": 100.0, "unit": "Mét", "image": "/images/products/copper-cables.png", "description": "Dây cáp điện đơn ruột đồng cách điện PVC Cadivi CV 2.5mm², dẫn điện tốt, an toàn chống cháy."}'::JSONB),
+			        '{"type": "Cu/XLPE/PVC", "voltage": "0.6/1kV", "length_per_cuon": 100.0, "unit": "Mét", "image": "/images/products/day-cap-don-1.jpg", "description": "Dây cáp điện đơn ruột đồng cách điện PVC Cadivi CV 2.5mm², dẫn điện tốt, an toàn chống cháy."}'::JSONB),
 			    ('10000000-0000-0000-0000-000000000003', 'PA-MCB-2P32', 'MCB Panasonic 2P 32A',
 			        (SELECT id FROM me_supplies.brands WHERE code = 'PANASONIC'),
 			        (SELECT id FROM me_supplies.categories WHERE code = 'DEVICE'),
 			        220000.00, NULL, NULL, 32.0,
-			        '{"poles": 2, "current_rating": 32, "breaking_capacity": "10kA", "trip_curve": "C", "unit": "Cái", "image": "/images/products/mcb-breakers.png", "description": "Aptomat MCB tép 2 pha 32A Panasonic dòng cắt 10kA bảo vệ quá tải và ngắn mạch chuẩn IEC."}'::JSONB)
+			        '{"poles": 2, "current_rating": 32, "breaking_capacity": "10kA", "trip_curve": "C", "unit": "Cái", "image": "/images/products/schneider-mcb-1.jpg", "description": "Aptomat MCB tép 2 pha 32A Panasonic dòng cắt 10kA bảo vệ quá tải và ngắn mạch chuẩn IEC."}'::JSONB)
 			ON CONFLICT (sku) DO NOTHING;
 		`)
 	}

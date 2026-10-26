@@ -42,7 +42,7 @@ function CallbackProcessor() {
           return;
         }
       }
-      router.replace('/account');
+      router.replace('/profile');
     } else {
       router.replace('/auth/error?reason=no_token');
     }

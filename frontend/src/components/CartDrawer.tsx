@@ -55,6 +55,12 @@ export default function CartDrawer() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'BANK'>('COD');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [existingCreatedOrderId, setExistingCreatedOrderId] = useState<string | null>(null);
+
+  // Invalidate pending created order ID if cart items change
+  React.useEffect(() => {
+    setExistingCreatedOrderId(null);
+  }, [items]);
 
   // PayOS QR Payment State
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
@@ -256,19 +262,33 @@ export default function CartDrawer() {
         }),
       };
 
-      const createdOrder = await api.post<any>('/orders', payload);
+      let activeOrderId: string | null = existingCreatedOrderId;
+      let orderNumberForPayment = newOrder.contractorName;
 
-      useAdminStore.getState().addOrder(newOrder);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('tdt-orders-updated'));
+      if (!activeOrderId) {
+        const createdOrder = await api.post<any>('/orders', payload);
+        activeOrderId = String(createdOrder?.id || '');
+        orderNumberForPayment = createdOrder?.orderNumber || newOrder.contractorName;
+        setExistingCreatedOrderId(activeOrderId);
+
+        useAdminStore.getState().addOrder(newOrder);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('tdt-orders-updated'));
+        }
       }
+
+      if (!activeOrderId) {
+        throw new Error('Không thể khởi tạo đơn hàng');
+      }
+
+      const validOrderId: string = activeOrderId;
 
       if (paymentMethod === 'BANK') {
         try {
-          const linkRes = await api.post<any>(`/orders/${createdOrder.id}/payment-link`);
+          const linkRes = await api.post<any>(`/orders/${validOrderId}/payment-link`);
           setPaymentInfo({
-            orderId: createdOrder.id,
-            orderNumber: createdOrder.orderNumber || newOrder.contractorName,
+            orderId: validOrderId,
+            orderNumber: orderNumberForPayment,
             orderCode: linkRes.orderCode,
             amount: linkRes.amount || total,
             checkoutUrl: linkRes.checkoutUrl,
@@ -278,12 +298,16 @@ export default function CartDrawer() {
           setIsPollTimedOut(false);
           setUnderpaidMessage(null);
           setCheckoutStep('qr_payment');
+          setExistingCreatedOrderId(null);
+          clearCart();
         } catch (linkErr: any) {
-          toast.error(`Tạo link thanh toán thất bại: ${getFriendlyErrorMessage(linkErr)}`);
+          const errMsg = getFriendlyErrorMessage(linkErr);
+          toast.error(`Đơn hàng #${validOrderId.slice(0, 8)} đã ghi nhận nhưng tạo link PayOS thất bại: ${errMsg}. Nhấn đặt hàng để thử lại thanh toán.`);
         }
       } else {
         toast.success('Đặt hàng thành công! Đơn hàng đang được xử lý.');
         setCheckoutStep('success');
+        setExistingCreatedOrderId(null);
         clearCart();
       }
     } catch (err: any) {
@@ -300,6 +324,7 @@ export default function CartDrawer() {
     setPollCount(0);
     setIsPollTimedOut(false);
     setUnderpaidMessage(null);
+    setExistingCreatedOrderId(null);
   };
 
   return (
@@ -647,9 +672,16 @@ export default function CartDrawer() {
                     type="submit"
                     form="checkout-form"
                     disabled={isSubmitting}
-                    className="flex-2 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg text-xs flex items-center justify-center gap-2"
+                    className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg text-xs flex items-center justify-center gap-2"
                   >
-                    {isSubmitting ? 'Đang Xử Lý...' : 'Xác Nhận Đặt Hàng'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Đang Xử Lý...</span>
+                      </>
+                    ) : (
+                      'Xác Nhận Đặt Hàng'
+                    )}
                   </button>
                 </div>
               )}

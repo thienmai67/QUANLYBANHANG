@@ -55,9 +55,18 @@ export function AnalyticsView() {
     [orders]
   );
 
+  const paidOrders = useMemo(
+    () =>
+      orders.filter(
+        (o) =>
+          (o as any).paymentStatus === 'PAID' || (o as any).payment_status === 'PAID'
+      ),
+    [orders]
+  );
+
   const totalRevenue = useMemo(
-    () => validOrders.reduce((s, o) => s + (o.finalAmount || 0), 0),
-    [validOrders]
+    () => paidOrders.reduce((s, o) => s + (o.finalAmount || 0), 0),
+    [paidOrders]
   );
 
   const avgOrderValue = useMemo(() => {
@@ -195,7 +204,7 @@ export function AnalyticsView() {
         <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-xs font-bold text-slate-400 uppercase">Tổng doanh thu thực tế</span>
           <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
-            {validOrders.length > 0 ? (
+            {paidOrders.length > 0 ? (
               <>
                 {totalRevenue.toLocaleString('vi-VN')} <span className="text-xs">VND</span>
               </>
@@ -204,7 +213,10 @@ export function AnalyticsView() {
             )}
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            {validOrders.length > 0 ? `${validOrders.length} đơn hàng hợp lệ` : 'Chưa phát sinh đơn hàng'}
+            {paidOrders.length > 0 ? `${paidOrders.length} đơn đã thanh toán (PAID)` : 'Chưa có đơn đã thanh toán'}
+          </p>
+          <p className="text-[10px] text-slate-400 italic mt-0.5">
+            * Chỉ ghi nhận doanh thu từ các đơn hàng có trạng thái thanh toán PAID
           </p>
         </div>
 
