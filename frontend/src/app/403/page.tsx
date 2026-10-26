@@ -39,8 +39,7 @@ export default function ForbiddenPage() {
           </h1>
           <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
             Khu vực này được bảo vệ nghiêm ngặt và chỉ dành riêng cho vai trò{' '}
-            <strong className="text-amber-400 font-bold">MANAGER</strong> hoặc{' '}
-            <strong className="text-amber-400 font-bold">ADMIN</strong>.
+            <strong className="text-amber-400 font-bold">MANAGER</strong>.
           </p>
         </div>
 

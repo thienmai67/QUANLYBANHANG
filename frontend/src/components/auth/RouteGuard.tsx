@@ -55,7 +55,7 @@ export default function RouteGuard({
     }
 
     const hasRole = allowedRoles.some(
-      (r) => r.toUpperCase() === currentRole || currentRole === 'ADMIN'
+      (r) => r.toUpperCase() === currentRole
     );
 
     if (!hasRole) {

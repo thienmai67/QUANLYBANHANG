@@ -43,8 +43,6 @@ interface DBOrder {
 
 const formatRole = (role?: string): string => {
   switch (role?.toUpperCase()) {
-    case 'ADMIN':
-      return 'Quản trị viên';
     case 'MANAGER':
       return 'Quản lý';
     case 'SALE':

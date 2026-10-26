@@ -1,5 +1,5 @@
-import { ProductsManager } from '../../../components/admin/ProductsManager';
+import { redirect } from 'next/navigation';
 
 export default function ProductsPage() {
-  return <ProductsManager />;
+  redirect('/manager/products');
 }

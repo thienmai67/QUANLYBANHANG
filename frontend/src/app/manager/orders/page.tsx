@@ -47,7 +47,7 @@ const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
 function OrdersManagementContent() {
   const searchParams = useSearchParams();
   const toast = useToast();
-  const { orders, ordersLoading, ordersError, fetchOrders, fetchProducts, fetchShippers, approveOrder, deliverOrder, markOrderPaid } = useManagerStore();
+  const { orders, ordersLoading, ordersError, fetchOrders, fetchProducts, fetchShippers, approveOrder, markOrderPaid } = useManagerStore();
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
 
   // Fetch orders, products, and shippers from API on mount
@@ -148,21 +148,6 @@ function OrdersManagementContent() {
     }
   };
 
-  // Action: Deliver Order (Shipper completed delivery)
-  const handleDeliver = async (order: Order) => {
-    if (processingOrderId) return;
-    setProcessingOrderId(order.id);
-    try {
-      const res = await deliverOrder(order.id, 'Manager Hải Đăng');
-      if (res.success) {
-        toast.success(`Đã xác nhận đơn #${order.code} giao thành công`);
-      } else {
-        toast.error(res.error || 'Xác nhận giao hàng thất bại');
-      }
-    } finally {
-      setProcessingOrderId(null);
-    }
-  };
 
   // Action: Mark Bank Transfer as Paid
   const handleMarkPaid = async (order: Order) => {
@@ -697,25 +682,16 @@ function OrdersManagementContent() {
                       )}
 
                       {order.status === 'SHIPPING' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCancelTargetOrder(order);
-                              setIsCancelOpen(true);
-                            }}
-                            className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600"
-                          >
-                            Hủy
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeliver(order)}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm"
-                          >
-                            Đã giao
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCancelTargetOrder(order);
+                            setIsCancelOpen(true);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600"
+                        >
+                          Hủy
+                        </button>
                       )}
                     </div>
                   </div>

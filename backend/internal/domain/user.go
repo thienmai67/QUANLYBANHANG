@@ -17,7 +17,6 @@ const (
 	RoleSale     UserRole = "SALE"
 	RoleManager  UserRole = "MANAGER"
 	RoleShipper  UserRole = "SHIPPER"
-	RoleAdmin    UserRole = "ADMIN"
 )
 
 type AuthProvider string

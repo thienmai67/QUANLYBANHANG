@@ -38,6 +38,14 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: 'Khách Hàng Bán Lẻ',
     subtitle: 'Hồ sơ đại lý, thợ thầu và khách hàng công trình thân thiết',
   },
+  '/manager/categories': {
+    title: 'Danh Mục Sản Phẩm',
+    subtitle: 'Phân loại ngành hàng và nhóm vật tư cơ điện M&E',
+  },
+  '/manager/settings': {
+    title: 'Cấu Hình Hệ Thống',
+    subtitle: 'Tham số chiết khấu, thông tin hồ sơ và bảo mật quản trị',
+  },
 };
 
 export function ManagerHeader() {

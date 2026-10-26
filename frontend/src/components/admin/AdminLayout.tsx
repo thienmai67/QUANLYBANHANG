@@ -11,7 +11,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { darkMode, sidebarCollapsed, toasts, removeToast } = useAdminStore();
 
   return (
-    <RouteGuard allowedRoles={['ADMIN']}>
+    <RouteGuard allowedRoles={['MANAGER']}>
       <div className={darkMode ? 'dark' : ''}>
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors">
           <Sidebar />

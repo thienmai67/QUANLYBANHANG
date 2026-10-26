@@ -1,5 +1,5 @@
-import { CustomersManager } from '../../../components/admin/CustomersManager';
+import { redirect } from 'next/navigation';
 
 export default function CustomersPage() {
-  return <CustomersManager />;
+  redirect('/manager/customers');
 }

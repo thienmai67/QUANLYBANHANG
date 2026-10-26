@@ -57,7 +57,7 @@ func RequireRole(allowedRoles ...domain.UserRole) func(http.Handler) http.Handle
 			}
 
 			for _, role := range allowedRoles {
-				if claims.Role == role || claims.Role == domain.RoleAdmin {
+				if claims.Role == role {
 					next.ServeHTTP(w, r)
 					return
 				}

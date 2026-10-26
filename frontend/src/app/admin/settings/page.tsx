@@ -1,5 +1,5 @@
-import { SettingsView } from '../../../components/admin/SettingsView';
+import { redirect } from 'next/navigation';
 
 export default function SettingsPage() {
-  return <SettingsView />;
+  redirect('/manager/settings');
 }

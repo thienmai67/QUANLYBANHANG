@@ -68,7 +68,7 @@ describe('auth & RBAC - Empirical Stress Harness & Security Boundaries', () => {
     const simulateRouteGuard = (
       token: string | null,
       userRole: string | null,
-      allowedRoles: string[] = ['MANAGER', 'ADMIN']
+      allowedRoles: string[] = ['MANAGER']
     ): { allowed: boolean; redirectTo?: string } => {
       if (!token && !userRole) {
         return { allowed: false, redirectTo: '/login?reason=unauthenticated' };
@@ -88,7 +88,7 @@ describe('auth & RBAC - Empirical Stress Harness & Security Boundaries', () => {
       }
 
       const hasRole = allowedRoles.some(
-        (r) => r.toUpperCase() === effectiveRole || effectiveRole === 'ADMIN'
+        (r) => r.toUpperCase() === effectiveRole
       );
 
       if (!hasRole) {
@@ -105,10 +105,11 @@ describe('auth & RBAC - Empirical Stress Harness & Security Boundaries', () => {
       expect(result.redirectTo).toBeUndefined();
     });
 
-    it('allows ADMIN session into /manager/*', () => {
+    it('rejects obsolete ADMIN session attempting /manager/* to /403', () => {
       const token = createMockJwt('usr-adm', 'admin@tdt.vn', 'ADMIN');
       const result = simulateRouteGuard(token, 'ADMIN');
-      expect(result.allowed).toBe(true);
+      expect(result.allowed).toBe(false);
+      expect(result.redirectTo).toBe('/403');
     });
 
     it('strictly redirects CUSTOMER session attempting /manager/* to /403', () => {
@@ -139,29 +140,36 @@ describe('auth & RBAC - Empirical Stress Harness & Security Boundaries', () => {
     });
   });
 
-  describe('3. Strict Disallowed Actions for MANAGER Role', () => {
-    it('MANAGER cannot delete products', () => {
-      expect(canDeleteProduct('MANAGER')).toBe(false);
-      expect(hasPermission('MANAGER', 'product:delete')).toBe(false);
+  describe('3. Consolidated Permissions for MANAGER Role (ADMIN merged into MANAGER)', () => {
+    it('MANAGER has full management capabilities', () => {
+      expect(canDeleteProduct('MANAGER')).toBe(true);
+      expect(hasPermission('MANAGER', 'product:delete')).toBe(true);
+      expect(canDeleteOrder('MANAGER')).toBe(true);
+      expect(hasPermission('MANAGER', 'order:delete')).toBe(true);
+      expect(canEditCustomer('MANAGER')).toBe(true);
+      expect(canDeleteCustomer('MANAGER')).toBe(true);
+      expect(hasPermission('MANAGER', 'customer:edit')).toBe(true);
+      expect(hasPermission('MANAGER', 'customer:delete')).toBe(true);
+      expect(canManageCategories('MANAGER')).toBe(true);
+      expect(canManageUsers('MANAGER')).toBe(true);
+      expect(hasPermission('MANAGER', 'category:manage')).toBe(true);
+      expect(hasPermission('MANAGER', 'user:manage')).toBe(true);
     });
 
-    it('MANAGER cannot delete orders', () => {
-      expect(canDeleteOrder('MANAGER')).toBe(false);
-      expect(hasPermission('MANAGER', 'order:delete')).toBe(false);
+    it('CUSTOMER and SHIPPER cannot perform management actions', () => {
+      for (const role of ['CUSTOMER', 'SHIPPER']) {
+        expect(canDeleteProduct(role)).toBe(false);
+        expect(canDeleteOrder(role)).toBe(false);
+        expect(canEditCustomer(role)).toBe(false);
+        expect(canDeleteCustomer(role)).toBe(false);
+        expect(canManageCategories(role)).toBe(false);
+        expect(canManageUsers(role)).toBe(false);
+      }
     });
 
-    it('MANAGER cannot edit or delete customers', () => {
-      expect(canEditCustomer('MANAGER')).toBe(false);
-      expect(canDeleteCustomer('MANAGER')).toBe(false);
-      expect(hasPermission('MANAGER', 'customer:edit')).toBe(false);
-      expect(hasPermission('MANAGER', 'customer:delete')).toBe(false);
-    });
-
-    it('MANAGER cannot manage categories or users', () => {
-      expect(canManageCategories('MANAGER')).toBe(false);
-      expect(canManageUsers('MANAGER')).toBe(false);
-      expect(hasPermission('MANAGER', 'category:manage')).toBe(false);
-      expect(hasPermission('MANAGER', 'user:manage')).toBe(false);
+    it('obsolete ADMIN role is not recognized for permissions', () => {
+      expect(hasPermission('ADMIN', 'product:delete')).toBe(false);
+      expect(canDeleteProduct('ADMIN')).toBe(false);
     });
   });
 });

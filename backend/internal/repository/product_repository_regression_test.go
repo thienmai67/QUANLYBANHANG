@@ -208,7 +208,7 @@ func TestUpdateOrderStatus_LifecycleTransitions(t *testing.T) {
 	}()
 
 	// 1. Invalid jump: PENDING -> DELIVERED must fail with ErrInvalidTransition
-	_, err = repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusDelivered, 1, domain.RoleAdmin, uuid.Nil)
+	_, err = repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusDelivered, 1, domain.RoleManager, uuid.Nil)
 	if !errors.Is(err, domain.ErrInvalidTransition) {
 		t.Fatalf("expected ErrInvalidTransition for jump PENDING->DELIVERED, got %v", err)
 	}
@@ -251,7 +251,7 @@ func TestUpdateOrderStatus_LifecycleTransitions(t *testing.T) {
 	}
 
 	// 6. Terminal state: DELIVERED -> CANCELLED or any other status must fail
-	_, err = repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusCancelled, 4, domain.RoleAdmin, uuid.Nil)
+	_, err = repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusCancelled, 4, domain.RoleManager, uuid.Nil)
 	if !errors.Is(err, domain.ErrInvalidTransition) {
 		t.Fatalf("expected ErrInvalidTransition from terminal DELIVERED status, got %v", err)
 	}

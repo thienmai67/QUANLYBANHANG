@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { saveTokens, clearTokens, getAccessToken, getRefreshToken } from '@/lib/auth';
 import { useCartStore } from '@/store/useCartStore';
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'SHIPPER' | 'CUSTOMER' | 'CONTRACTOR';
+export type UserRole = 'MANAGER' | 'SHIPPER' | 'CUSTOMER' | 'CONTRACTOR';
 
 export interface UserProfile {
   id: string;

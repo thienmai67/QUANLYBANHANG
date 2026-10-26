@@ -87,7 +87,7 @@ export function Header() {
                   Đơn hàng chờ duyệt ({pendingOrders.length})
                 </span>
                 <Link
-                  href="/admin/orders"
+                  href="/manager/orders"
                   onClick={() => setShowNotifications(false)}
                   className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
                 >
@@ -104,7 +104,7 @@ export function Header() {
                   pendingOrders.map((order) => (
                     <Link
                       key={order.id}
-                      href="/admin/orders"
+                      href="/manager/orders"
                       onClick={() => setShowNotifications(false)}
                       className="flex items-start gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                     >
@@ -162,7 +162,7 @@ export function Header() {
               </div>
 
               <Link
-                href="/admin/settings"
+                href="/manager/settings"
                 onClick={() => setShowProfileMenu(false)}
                 className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50"
               >

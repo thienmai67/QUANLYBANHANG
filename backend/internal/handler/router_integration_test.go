@@ -64,36 +64,29 @@ func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.P
 			r.Get("/orders/{id}", productHandler.GetOrderByID)
 		})
 
-		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER)
+		// Order Lifecycle Management (MANAGER, SHIPPER, CUSTOMER)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper, domain.RoleCustomer))
+			r.Use(middleware.RequireRole(domain.RoleManager, domain.RoleShipper, domain.RoleCustomer))
 			r.Patch("/orders/{id}/status", productHandler.UpdateOrderStatus)
 		})
 
-		// Manager / Admin Protected Endpoints
+		// Manager Protected Endpoints
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager))
+			r.Use(middleware.RequireRole(domain.RoleManager))
 
 			r.Get("/shippers", productHandler.ListShippers)
 			r.Get("/admin/orders", productHandler.ListOrders)
 			r.Post("/products", productHandler.CreateProduct)
 			r.Put("/products/{id}", productHandler.UpdateProduct)
-		})
-
-		// Admin Only Protected Endpoints
-		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin))
-
 			r.Delete("/products/{id}", productHandler.DeleteProduct)
 		})
 
-		// COD Settlement APIs (MANAGER, ADMIN, SHIPPER)
+		// COD Settlement APIs (MANAGER, SHIPPER)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper))
+			r.Use(middleware.RequireRole(domain.RoleManager, domain.RoleShipper))
 
 			r.Post("/cod-settlements", productHandler.CreateCODSettlement)
 			r.Get("/cod-settlements", productHandler.ListCODSettlements)
@@ -309,7 +302,7 @@ func TestRouterIntegration_Orders_RBAC(t *testing.T) {
 	adminToken, _ := jwtSvc.GenerateTokenPair(&domain.User{
 		ID:    uuid.New(),
 		Email: "admin_order@tdt.vn",
-		Role:  domain.RoleAdmin,
+		Role:  domain.UserRole("ADMIN"),
 	})
 
 	// 1. POST /api/v1/orders without token -> 401 Unauthorized
@@ -423,15 +416,15 @@ func TestRouterIntegration_Orders_RBAC(t *testing.T) {
 		}
 	}
 
-	// 9. GET /api/v1/admin/orders with Admin token -> 200 OK (Superuser bypass)
+	// 9. GET /api/v1/admin/orders with old Admin token -> 403 Forbidden (legacy token rejected)
 	{
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders", nil)
 		req.Header.Set("Authorization", "Bearer "+adminToken.AccessToken)
 		rr := httptest.NewRecorder()
 
 		router.ServeHTTP(rr, req)
-		if rr.Code != http.StatusOK {
-			t.Fatalf("expected 200 when Admin accesses admin orders, got %d", rr.Code)
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 when old Admin token accesses admin orders, got %d", rr.Code)
 		}
 	}
 
@@ -518,19 +511,19 @@ func TestRouterIntegration_Orders_RBAC(t *testing.T) {
 			t.Fatalf("expected 403 when Customer calls POST /products, got %d", rrCust.Code)
 		}
 
-		// Admin POST /products -> 201
-		reqAdmin := httptest.NewRequest(http.MethodPost, "/api/v1/products", bytes.NewReader(prodPayload))
-		reqAdmin.Header.Set("Authorization", "Bearer "+adminToken.AccessToken)
-		reqAdmin.Header.Set("Content-Type", "application/json")
-		rrAdmin := httptest.NewRecorder()
-		router.ServeHTTP(rrAdmin, reqAdmin)
-		if rrAdmin.Code != http.StatusCreated {
-			t.Fatalf("expected 201 when Admin creates product, got %d: %s", rrAdmin.Code, rrAdmin.Body.String())
+		// Manager POST /products -> 201
+		reqMgr := httptest.NewRequest(http.MethodPost, "/api/v1/products", bytes.NewReader(prodPayload))
+		reqMgr.Header.Set("Authorization", "Bearer "+managerToken.AccessToken)
+		reqMgr.Header.Set("Content-Type", "application/json")
+		rrMgr := httptest.NewRecorder()
+		router.ServeHTTP(rrMgr, reqMgr)
+		if rrMgr.Code != http.StatusCreated {
+			t.Fatalf("expected 201 when Manager creates product, got %d: %s", rrMgr.Code, rrMgr.Body.String())
 		}
 
 		// Duplicate SKU -> 409
 		reqDup := httptest.NewRequest(http.MethodPost, "/api/v1/products", bytes.NewReader(prodPayload))
-		reqDup.Header.Set("Authorization", "Bearer "+adminToken.AccessToken)
+		reqDup.Header.Set("Authorization", "Bearer "+managerToken.AccessToken)
 		reqDup.Header.Set("Content-Type", "application/json")
 		rrDup := httptest.NewRecorder()
 		router.ServeHTTP(rrDup, reqDup)

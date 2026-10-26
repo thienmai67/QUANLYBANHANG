@@ -167,15 +167,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
             {/* User Auth Pill Header */}
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
-                {user?.role === 'ADMIN' ? (
-                  <Link
-                    href="/admin/dashboard"
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-cyan-600 font-bold text-xs shadow-sm hover:scale-105 transition-all"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-cyan-400 dark:text-white" />
-                    <span>Admin Control</span>
-                  </Link>
-                ) : user?.role === 'MANAGER' ? (
+                {user?.role === 'MANAGER' ? (
                   <Link
                     href="/manager"
                     className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-sm hover:scale-105 transition-all"

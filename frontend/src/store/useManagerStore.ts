@@ -74,6 +74,7 @@ export interface ManagerState {
 
   fetchOrders: () => Promise<void>;
   fetchProducts: () => Promise<void>;
+  deleteProduct: (id: string) => Promise<{ success: boolean; error?: string }>;
   fetchCustomers: () => Promise<void>;
   setOrders: (orders: Order[]) => void;
   fetchShippers: () => Promise<void>;
@@ -335,6 +336,17 @@ export const useManagerStore = create<ManagerState>()(
           if (process.env.NODE_ENV !== 'test') {
             console.warn('[useManagerStore] Không thể tải danh sách sản phẩm (/api/v1/products):', err);
           }
+        }
+      },
+
+      deleteProduct: async (id: string) => {
+        try {
+          await api.delete(`/products/${id}`);
+          await get().fetchProducts();
+          return { success: true };
+        } catch (err: any) {
+          const errMsg = getFriendlyErrorMessage(err);
+          return { success: false, error: errMsg };
         }
       },
 

@@ -550,7 +550,7 @@ func (h *Handler) ListShippers(w http.ResponseWriter, req *http.Request) {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
 	}
-	if claims.Role != domain.RoleManager && claims.Role != domain.RoleAdmin {
+	if claims.Role != domain.RoleManager {
 		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền truy cập danh sách shipper")
 		return
 	}
@@ -633,7 +633,7 @@ func (h *Handler) CreateCODSettlement(w http.ResponseWriter, req *http.Request) 
 	var targetShipperID uuid.UUID
 	if claims.Role == domain.RoleShipper {
 		targetShipperID = actorID
-	} else if claims.Role == domain.RoleManager || claims.Role == domain.RoleAdmin {
+	} else if claims.Role == domain.RoleManager {
 		shipperIDPtr := reqBody.GetShipperID()
 		if shipperIDPtr != nil && *shipperIDPtr != "" {
 			parsedID, err := uuid.Parse(*shipperIDPtr)
@@ -706,7 +706,7 @@ func (h *Handler) ListCODSettlements(w http.ResponseWriter, req *http.Request) {
 	var targetShipperID *uuid.UUID
 	if claims.Role == domain.RoleShipper {
 		targetShipperID = &actorID
-	} else if claims.Role == domain.RoleManager || claims.Role == domain.RoleAdmin {
+	} else if claims.Role == domain.RoleManager {
 		filterShipperStr := req.URL.Query().Get("shipper_id")
 		if filterShipperStr == "" {
 			filterShipperStr = req.URL.Query().Get("shipperId")
@@ -960,8 +960,8 @@ func (h *Handler) MarkPaid(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if claims.Role != domain.RoleSale && claims.Role != domain.RoleManager && claims.Role != domain.RoleAdmin {
-		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Chỉ Sale/Manager/Admin mới có quyền đánh dấu đã thanh toán")
+	if claims.Role != domain.RoleSale && claims.Role != domain.RoleManager {
+		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Chỉ Sale/Manager mới có quyền đánh dấu đã thanh toán")
 		return
 	}
 

@@ -20,8 +20,7 @@ function CallbackProcessor() {
       if (user) {
         const rawRole = (user.role || '').toUpperCase();
         let role: any = 'CUSTOMER';
-        if (rawRole === 'ADMIN') role = 'ADMIN';
-        else if (rawRole === 'MANAGER') role = 'MANAGER';
+        if (rawRole === 'MANAGER' || rawRole === 'ADMIN') role = 'MANAGER';
         else if (rawRole === 'SHIPPER') role = 'SHIPPER';
 
         useAuthStore.getState().setAuth(token, {
@@ -31,10 +30,7 @@ function CallbackProcessor() {
           role: role,
         });
 
-        if (role === 'ADMIN') {
-          router.replace('/admin/dashboard');
-          return;
-        } else if (role === 'MANAGER') {
+        if (role === 'MANAGER') {
           router.replace('/manager');
           return;
         } else if (role === 'SHIPPER') {

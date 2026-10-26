@@ -159,10 +159,10 @@ func TestRequireAuth_ValidToken(t *testing.T) {
 
 func TestRequireRole_MissingClaims(t *testing.T) {
 	// Request without claims in context
-	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	req := httptest.NewRequest(http.MethodGet, "/manager", nil)
 	rr := httptest.NewRecorder()
 
-	handler := RequireRole(domain.RoleAdmin)(dummyOKHandler())
+	handler := RequireRole(domain.RoleManager)(dummyOKHandler())
 	handler.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusUnauthorized {
@@ -190,14 +190,14 @@ func TestRequireRole_Forbidden(t *testing.T) {
 			allowedRoles: []domain.UserRole{domain.RoleManager},
 		},
 		{
-			name:         "sale accessing admin",
+			name:         "sale accessing manager",
 			userRole:     domain.RoleSale,
-			allowedRoles: []domain.UserRole{domain.RoleAdmin},
+			allowedRoles: []domain.UserRole{domain.RoleManager},
 		},
 		{
-			name:         "customer accessing admin and manager",
+			name:         "customer accessing shipper and manager",
 			userRole:     domain.RoleCustomer,
-			allowedRoles: []domain.UserRole{domain.RoleAdmin, domain.RoleManager},
+			allowedRoles: []domain.UserRole{domain.RoleShipper, domain.RoleManager},
 		},
 	}
 
@@ -278,8 +278,8 @@ func TestRequireRole_AllowedExact(t *testing.T) {
 	}
 }
 
-func TestRequireRole_AdminOverride(t *testing.T) {
-	// ADMIN role must have universal bypass across any role restriction
+func TestRequireRole_AdminTokenRejected(t *testing.T) {
+	// Old ADMIN tokens are rejected by RequireRole after ADMIN role consolidation
 	targetRoles := [][]domain.UserRole{
 		{domain.RoleCustomer},
 		{domain.RoleManager},
@@ -291,8 +291,8 @@ func TestRequireRole_AdminOverride(t *testing.T) {
 	for _, roles := range targetRoles {
 		claims := &auth.Claims{
 			UserID: uuid.New().String(),
-			Email:  "admin@tdt-me.com.vn",
-			Role:   domain.RoleAdmin,
+			Email:  "admin@tdt.vn",
+			Role:   domain.UserRole("ADMIN"),
 		}
 
 		req := httptest.NewRequest(http.MethodGet, "/any-route", nil)
@@ -303,8 +303,8 @@ func TestRequireRole_AdminOverride(t *testing.T) {
 		handler := RequireRole(roles...)(dummyOKHandler())
 		handler.ServeHTTP(rr, req)
 
-		if rr.Code != http.StatusOK {
-			t.Fatalf("expected ADMIN to bypass check for roles %v, got %d", roles, rr.Code)
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("expected old ADMIN token to be rejected with 403 for roles %v, got %d", roles, rr.Code)
 		}
 	}
 }

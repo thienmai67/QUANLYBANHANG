@@ -18,9 +18,6 @@ export default function DashboardRedirectPage() {
 
     const role = user?.role?.toUpperCase();
     switch (role) {
-      case 'ADMIN':
-        router.replace('/admin/dashboard');
-        break;
       case 'MANAGER':
         router.replace('/manager/dashboard');
         break;

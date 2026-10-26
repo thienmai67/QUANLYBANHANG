@@ -156,7 +156,7 @@ export function DashboardOverview() {
             </p>
           </div>
           <Link
-            href="/admin/orders"
+            href="/manager/orders"
             className="flex items-center gap-1 text-xs font-semibold text-cyan-600 dark:text-cyan-400 hover:underline"
           >
             Tất cả đơn hàng <ExternalLink className="w-3.5 h-3.5" />

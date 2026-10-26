@@ -17,7 +17,7 @@ export default function ManagerLayout({
 
   return (
     <RouteGuard
-      allowedRoles={['MANAGER', 'ADMIN']}
+      allowedRoles={['MANAGER']}
       fallbackUrl="/login"
       forbiddenUrl="/403"
     >

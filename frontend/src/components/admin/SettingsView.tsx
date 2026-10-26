@@ -36,10 +36,10 @@ export function SettingsView() {
   };
 
   const profileData = {
-    name: user?.name || 'Quản Trị Viên TDT',
-    email: user?.email || 'admin@tdt.vn',
+    name: user?.name || 'Quản Lý Vận Hành TDT',
+    email: user?.email || 'manager@tdt.vn',
     phone: user?.phone || '0908888999',
-    role: 'Quản Trị Viên Hệ Thống M&E (ADMIN)',
+    role: 'Quản Lý Hệ Thống M&E (MANAGER)',
   };
 
   // Password state for Security tab

@@ -15,7 +15,6 @@ func TestUserRoles(t *testing.T) {
 		RoleSale:     "SALE",
 		RoleManager:  "MANAGER",
 		RoleShipper:  "SHIPPER",
-		RoleAdmin:    "ADMIN",
 	}
 
 	for role, expected := range expectedRoles {

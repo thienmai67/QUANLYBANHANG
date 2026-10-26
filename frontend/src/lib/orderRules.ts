@@ -188,7 +188,7 @@ export function createStatusHistoryEntry(
   };
 }
 
-export type ActorRole = 'MANAGER' | 'ADMIN' | 'SHIPPER' | 'CUSTOMER';
+export type ActorRole = 'MANAGER' | 'SHIPPER' | 'CUSTOMER';
 
 export interface Actor {
   role: ActorRole;
@@ -258,8 +258,8 @@ export function canActorTransition(
     };
   }
 
-  // 2. MANAGER & ADMIN Actor logic
-  if (actor.role === 'ADMIN' || actor.role === 'MANAGER') {
+  // 2. MANAGER Actor logic
+  if (actor.role === 'MANAGER') {
     if (order.status === 'PACKING' && to === 'SHIPPING') {
       const targetOrder = extra?.shipperId ? { ...order, shipperId: extra.shipperId } : order;
       const guard = guardShippingTransition(targetOrder);

@@ -107,7 +107,7 @@ function formatPaymentMethod(method?: string): string {
 const MOCK_ACCOUNTS: Record<
   string,
   {
-    role: 'ADMIN' | 'MANAGER' | 'SHIPPER' | 'CUSTOMER';
+    role: 'MANAGER' | 'SHIPPER' | 'CUSTOMER';
     pass: string;
     name: string;
     userId: string;
@@ -132,7 +132,7 @@ const MOCK_ACCOUNTS: Record<
     userId: 'mock-shipper-001',
   },
   'admin@tdt.vn': {
-    role: 'ADMIN',
+    role: 'MANAGER',
     pass: 'Admin@123',
     name: 'Quản Trị Hệ Thống',
     userId: 'mock-admin-001',
@@ -214,8 +214,7 @@ export default function AccountPage() {
     if (decoded && accessToken) {
       const rawRole = (decoded.role || '').toUpperCase();
       let role: any = 'CUSTOMER';
-      if (rawRole === 'ADMIN') role = 'ADMIN';
-      else if (rawRole === 'MANAGER') role = 'MANAGER';
+      if (rawRole === 'MANAGER' || rawRole === 'ADMIN') role = 'MANAGER';
       else if (rawRole === 'SHIPPER') role = 'SHIPPER';
 
       if (!user || user.id !== decoded.userId || user.email !== decoded.email) {
@@ -234,10 +233,7 @@ export default function AccountPage() {
         );
       }
 
-      if (role === 'ADMIN') {
-        router.replace('/admin/dashboard');
-        return;
-      } else if (role === 'MANAGER') {
+      if (role === 'MANAGER') {
         router.replace('/manager');
         return;
       } else if (role === 'SHIPPER') {
@@ -247,8 +243,7 @@ export default function AccountPage() {
 
       fetchMyOrders();
     } else if (user) {
-      if (user.role === 'ADMIN') router.replace('/admin/dashboard');
-      else if (user.role === 'MANAGER') router.replace('/manager');
+      if (user.role === 'MANAGER') router.replace('/manager');
       else if (user.role === 'SHIPPER') router.replace('/shipper');
       else fetchMyOrders();
     } else if (!decoded && !user && !isAuthenticated) {
@@ -280,13 +275,11 @@ export default function AccountPage() {
       if (decoded) {
         const rawRole = (decoded.role || 'CUSTOMER').toUpperCase();
         const role: any =
-          rawRole === 'ADMIN'
-            ? 'ADMIN'
-            : rawRole === 'MANAGER'
-              ? 'MANAGER'
-              : rawRole === 'SHIPPER'
-                ? 'SHIPPER'
-                : 'CUSTOMER';
+          rawRole === 'MANAGER' || rawRole === 'ADMIN'
+            ? 'MANAGER'
+            : rawRole === 'SHIPPER'
+              ? 'SHIPPER'
+              : 'CUSTOMER';
 
         setAuth(
           accessToken,
@@ -299,10 +292,7 @@ export default function AccountPage() {
           refreshToken
         );
 
-        if (role === 'ADMIN') {
-          router.replace('/admin/dashboard');
-          return;
-        } else if (role === 'MANAGER') {
+        if (role === 'MANAGER') {
           router.replace('/manager');
           return;
         } else if (role === 'SHIPPER') {

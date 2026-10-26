@@ -8,6 +8,8 @@ import {
   ShoppingCart,
   Boxes,
   Users,
+  FolderTree,
+  Settings,
   ChevronLeft,
   ChevronRight,
   X,
@@ -41,7 +43,7 @@ export function ManagerSidebar() {
 
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
 
-  // STRICT REQUIREMENT: Exactly 4 navigation links for Manager role. NO admin/delete actions!
+  // Consolidated navigation menu for Manager role
   const navItems: NavItem[] = [
     {
       name: 'Dashboard',
@@ -60,9 +62,19 @@ export function ManagerSidebar() {
       icon: Boxes,
     },
     {
+      name: 'Danh mục',
+      href: '/manager/categories',
+      icon: FolderTree,
+    },
+    {
       name: 'Khách hàng',
       href: '/manager/customers',
       icon: Users,
+    },
+    {
+      name: 'Cài đặt',
+      href: '/manager/settings',
+      icon: Settings,
     },
   ];
 

@@ -14,7 +14,7 @@ import { API_BASE_URL } from "@/lib/api";
 const MOCK_ACCOUNTS: Record<
   string,
   {
-    role: 'ADMIN' | 'MANAGER' | 'SHIPPER' | 'CUSTOMER';
+    role: 'MANAGER' | 'SHIPPER' | 'CUSTOMER';
     pass: string;
     name: string;
     userId: string;
@@ -39,7 +39,7 @@ const MOCK_ACCOUNTS: Record<
     userId: 'mock-shipper-001',
   },
   'admin@tdt.vn': {
-    role: 'ADMIN',
+    role: 'MANAGER',
     pass: 'Admin@123',
     name: 'Quản Trị Hệ Thống',
     userId: 'mock-admin-001',
@@ -84,8 +84,7 @@ export default function LoginPage() {
 
     const rawRole = (user.role || '').toUpperCase();
     let role: any = 'CUSTOMER';
-    if (rawRole === 'ADMIN') role = 'ADMIN';
-    else if (rawRole === 'MANAGER') role = 'MANAGER';
+    if (rawRole === 'MANAGER' || rawRole === 'ADMIN') role = 'MANAGER';
     else if (rawRole === 'SHIPPER') role = 'SHIPPER';
 
     useAuthStore.getState().setAuth(
@@ -110,10 +109,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (role === 'ADMIN') {
-      window.location.href = '/admin/dashboard';
-      return;
-    } else if (role === 'MANAGER') {
+    if (role === 'MANAGER') {
       window.location.href = '/manager/dashboard';
       return;
     } else if (role === 'SHIPPER') {
@@ -123,12 +119,9 @@ export default function LoginPage() {
     window.location.href = '/profile';
   };
 
-  const handleQuickMockLogin = (role: 'ADMIN' | 'MANAGER' | 'CUSTOMER' | 'SHIPPER') => {
+  const handleQuickMockLogin = (role: 'MANAGER' | 'CUSTOMER' | 'SHIPPER') => {
     setErrorMsg(null);
-    if (role === 'ADMIN') {
-      setEmail('admin@tdt.vn');
-      setPassword('Admin@123');
-    } else if (role === 'MANAGER') {
+    if (role === 'MANAGER') {
       setEmail('manager@tdt.vn');
       setPassword('Manager@123');
     } else if (role === 'SHIPPER') {

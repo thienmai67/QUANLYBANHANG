@@ -1,5 +1,5 @@
-import { AnalyticsView } from '../../../components/admin/AnalyticsView';
+import { redirect } from 'next/navigation';
 
 export default function AnalyticsPage() {
-  return <AnalyticsView />;
+  redirect('/manager/dashboard');
 }

@@ -108,12 +108,11 @@ export default function ShipperOrderDetailPage() {
     order &&
     (order.shipperId === currentShipperId ||
       order.shipperId === user?.id ||
-      user?.role === 'ADMIN' ||
       user?.role === 'MANAGER');
 
   if (!order || !isAuthorizedShipper) {
     return (
-      <RouteGuard allowedRoles={['SHIPPER', 'ADMIN']}>
+      <RouteGuard allowedRoles={['SHIPPER', 'MANAGER']}>
         <ShipperShell>
           <div className="p-8 text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 mx-auto">
@@ -180,7 +179,7 @@ export default function ShipperOrderDetailPage() {
   };
 
   return (
-    <RouteGuard allowedRoles={['SHIPPER', 'ADMIN']}>
+    <RouteGuard allowedRoles={['SHIPPER', 'MANAGER']}>
       <ShipperShell>
         {/* Navigation & Header */}
         <div className="p-4 border-b border-slate-800 flex items-center justify-between gap-3">

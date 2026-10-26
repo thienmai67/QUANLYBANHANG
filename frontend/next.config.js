@@ -14,6 +14,60 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/admin',
+        destination: '/manager/dashboard',
+        permanent: true,
+      },
+      {
+        source: '/admin/dashboard',
+        destination: '/manager/dashboard',
+        permanent: true,
+      },
+      {
+        source: '/admin/orders',
+        destination: '/manager/orders',
+        permanent: true,
+      },
+      {
+        source: '/admin/products',
+        destination: '/manager/products',
+        permanent: true,
+      },
+      {
+        source: '/admin/customers',
+        destination: '/manager/customers',
+        permanent: true,
+      },
+      {
+        source: '/admin/categories',
+        destination: '/manager/categories',
+        permanent: true,
+      },
+      {
+        source: '/admin/settings',
+        destination: '/manager/settings',
+        permanent: true,
+      },
+      {
+        source: '/admin/analytics',
+        destination: '/manager/dashboard',
+        permanent: true,
+      },
+      {
+        source: '/admin/bom-requests',
+        destination: '/manager/dashboard',
+        permanent: true,
+      },
+      {
+        source: '/admin/:path*',
+        destination: '/manager/dashboard',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

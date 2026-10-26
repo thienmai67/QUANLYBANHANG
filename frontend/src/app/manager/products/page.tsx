@@ -7,6 +7,7 @@ import { calculateDiscountedPrice } from '@/lib/stock';
 import { formatCurrencyVND, formatNumberVND } from '@/lib/formatters';
 import { StockAdjustModal } from '@/components/manager/StockAdjustModal';
 import { AddMaterialModal } from '@/components/manager/AddMaterialModal';
+import { useToast } from '@/hooks/useToast';
 import {
   Boxes,
   Search,
@@ -18,6 +19,7 @@ import {
   CheckCircle2,
   Tag,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react';
 
 type BrandTab = 'ALL' | Brand;
@@ -31,11 +33,30 @@ const BRAND_TABS: Array<{ id: BrandTab; label: string }> = [
 ];
 
 export default function ManagerProductsPage() {
-  const { products, getDiscountedPrice, fetchProducts } = useManagerStore();
+  const toast = useToast();
+  const { products, getDiscountedPrice, fetchProducts, deleteProduct } = useManagerStore();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  const handleDelete = async (prod: Product) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prod.name}" (${prod.code})?`)) {
+      return;
+    }
+    setDeletingId(prod.id);
+    try {
+      const res = await deleteProduct(prod.id);
+      if (res.success) {
+        toast.success(`Đã xóa sản phẩm ${prod.name} thành công`);
+      } else {
+        toast.error(res.error || 'Xóa sản phẩm thất bại');
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const [selectedBrand, setSelectedBrand] = useState<BrandTab>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -339,20 +360,32 @@ export default function ManagerProductsPage() {
                           </span>
                         </td>
 
-                        {/* Action: Stock Adjust (NO DELETE PER STRICT RBAC!) */}
+                        {/* Action: Stock Adjust & Delete Product */}
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAdjustTargetProduct(prod);
-                              setIsAdjustOpen(true);
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800/60 transition-colors"
-                            title="Điều chỉnh số lượng tồn kho"
-                          >
-                            <SlidersHorizontal className="w-3.5 h-3.5" />
-                            <span>Điều chỉnh kho</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAdjustTargetProduct(prod);
+                                setIsAdjustOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800/60 transition-colors"
+                              title="Điều chỉnh số lượng tồn kho"
+                            >
+                              <SlidersHorizontal className="w-3.5 h-3.5" />
+                              <span>Điều chỉnh</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={deletingId === prod.id}
+                              onClick={() => handleDelete(prod)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800/60 transition-colors disabled:opacity-50"
+                              title="Xóa vật tư"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Xóa</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -423,6 +456,30 @@ export default function ManagerProductsPage() {
                         </span>
                       </span>
                     </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdjustTargetProduct(prod);
+                        setIsAdjustOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      <span>Điều chỉnh kho</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deletingId === prod.id}
+                      onClick={() => handleDelete(prod)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Xóa</span>
+                    </button>
                   </div>
                 </div>
               );

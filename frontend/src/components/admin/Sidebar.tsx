@@ -28,13 +28,13 @@ export function Sidebar() {
   } = useAdminStore();
 
   const navItems = [
-    { name: 'Tổng quan', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Vật tư M&E', href: '/admin/products', icon: Package },
-    { name: 'Danh mục', href: '/admin/categories', icon: FolderTree },
-    { name: 'Đơn hàng công trình', href: '/admin/orders', icon: ShoppingBag },
-    { name: 'Nhà thầu & Đại lý', href: '/admin/customers', icon: Users },
-    { name: 'Báo cáo & Phân tích', href: '/admin/analytics', icon: BarChart3 },
-    { name: 'Cấu hình hệ thống', href: '/admin/settings', icon: Settings },
+    { name: 'Tổng quan', href: '/manager/dashboard', icon: LayoutDashboard },
+    { name: 'Vật tư M&E', href: '/manager/products', icon: Package },
+    { name: 'Danh mục', href: '/manager/categories', icon: FolderTree },
+    { name: 'Đơn hàng công trình', href: '/manager/orders', icon: ShoppingBag },
+    { name: 'Nhà thầu & Đại lý', href: '/manager/customers', icon: Users },
+    { name: 'Báo cáo & Phân tích', href: '/manager/dashboard', icon: BarChart3 },
+    { name: 'Cấu hình hệ thống', href: '/manager/settings', icon: Settings },
   ];
 
   const sidebarContent = (

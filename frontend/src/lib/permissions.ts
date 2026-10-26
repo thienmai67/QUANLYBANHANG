@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'MANAGER' | 'CUSTOMER' | 'SHIPPER' | 'SALE';
+export type UserRole = 'MANAGER' | 'CUSTOMER' | 'SHIPPER' | 'SALE';
 
 export type ActionKey =
   | 'order:view'
@@ -32,7 +32,7 @@ export type ActionKey =
 function normalizeRole(role?: string): UserRole | null {
   if (!role) return null;
   const upper = role.trim().toUpperCase();
-  if (upper === 'ADMIN' || upper === 'MANAGER' || upper === 'CUSTOMER' || upper === 'SHIPPER' || upper === 'SALE') {
+  if (upper === 'MANAGER' || upper === 'CUSTOMER' || upper === 'SHIPPER' || upper === 'SALE') {
     return upper as UserRole;
   }
   return null;
@@ -40,8 +40,7 @@ function normalizeRole(role?: string): UserRole | null {
 
 /**
  * Evaluates whether a role has permission for a specific action.
- * Enforces strict restrictions: MANAGER CANNOT delete product, order, customer,
- * CANNOT edit customer, and CANNOT manage categories or users.
+ * MANAGER has full management permissions (consolidated from ADMIN + MANAGER).
  * SHIPPER only has view-own-orders, order:pickup, order:deliver, order:report-incident, shift:update, cod:view, cod:settle.
  */
 export function hasPermission(role?: string | null, action?: ActionKey): boolean {
@@ -49,12 +48,7 @@ export function hasPermission(role?: string | null, action?: ActionKey): boolean
   const normalized = normalizeRole(role);
   if (!normalized) return false;
 
-  // ADMIN has full rights
-  if (normalized === 'ADMIN') {
-    return true;
-  }
-
-  // MANAGER permissions matrix
+  // MANAGER permissions matrix (Consolidated Admin + Manager)
   if (normalized === 'MANAGER') {
     switch (action) {
       case 'dashboard:view':
@@ -62,20 +56,18 @@ export function hasPermission(role?: string | null, action?: ActionKey): boolean
       case 'order:approve':
       case 'order:assign_shipper':
       case 'order:cancel':
+      case 'order:delete':
       case 'product:view':
       case 'product:create':
       case 'product:adjust_stock':
+      case 'product:delete':
       case 'customer:view':
       case 'customer:create':
-        return true;
-
-      // Disallowed actions for MANAGER
-      case 'order:delete':
-      case 'product:delete':
       case 'customer:edit':
       case 'customer:delete':
       case 'category:manage':
       case 'user:manage':
+        return true;
       default:
         return false;
     }
@@ -97,7 +89,7 @@ export function hasPermission(role?: string | null, action?: ActionKey): boolean
     }
   }
 
-  // Other roles do not have manager/admin/shipper actions
+  // Other roles do not have manager/shipper actions
   return false;
 }
 
@@ -109,58 +101,58 @@ export function can(role?: string | null, action?: ActionKey): boolean {
 }
 
 /**
- * Guard: Only MANAGER and ADMIN can access Manager Dashboard
+ * Guard: Only MANAGER can access Manager Dashboard
  */
 export function canAccessManagerDashboard(role?: string | null): boolean {
   const norm = normalizeRole(role ?? undefined);
-  return norm === 'ADMIN' || norm === 'MANAGER';
+  return norm === 'MANAGER';
 }
 
 /**
- * Guard: Only SHIPPER and ADMIN can access Shipper Portal
+ * Guard: Only SHIPPER can access Shipper Portal
  */
 export function canAccessShipperPortal(role?: string | null): boolean {
   const norm = normalizeRole(role ?? undefined);
-  return norm === 'ADMIN' || norm === 'SHIPPER';
+  return norm === 'SHIPPER';
 }
 
 /**
- * Guard: MANAGER cannot delete products (ADMIN only)
+ * Guard: Can delete products (MANAGER)
  */
 export function canDeleteProduct(role?: string | null): boolean {
   return hasPermission(role, 'product:delete');
 }
 
 /**
- * Guard: MANAGER cannot delete orders (ADMIN only)
+ * Guard: Can delete orders (MANAGER)
  */
 export function canDeleteOrder(role?: string | null): boolean {
   return hasPermission(role, 'order:delete');
 }
 
 /**
- * Guard: MANAGER cannot edit customers (ADMIN only)
+ * Guard: Can edit customers (MANAGER)
  */
 export function canEditCustomer(role?: string | null): boolean {
   return hasPermission(role, 'customer:edit');
 }
 
 /**
- * Guard: MANAGER cannot delete customers (ADMIN only)
+ * Guard: Can delete customers (MANAGER)
  */
 export function canDeleteCustomer(role?: string | null): boolean {
   return hasPermission(role, 'customer:delete');
 }
 
 /**
- * Guard: MANAGER cannot manage categories (ADMIN only)
+ * Guard: Can manage categories (MANAGER)
  */
 export function canManageCategories(role?: string | null): boolean {
   return hasPermission(role, 'category:manage');
 }
 
 /**
- * Guard: MANAGER cannot manage user accounts (ADMIN only)
+ * Guard: Can manage user accounts (MANAGER)
  */
 export function canManageUsers(role?: string | null): boolean {
   return hasPermission(role, 'user:manage');

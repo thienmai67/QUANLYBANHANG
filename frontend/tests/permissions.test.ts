@@ -16,16 +16,16 @@ import {
   ActionKey,
 } from '@/lib/permissions';
 
-describe('permissions - RBAC Matrix & Manager Security Guards', () => {
+describe('permissions - RBAC Matrix & Manager Consolidated Security Guards', () => {
   describe('Manager Dashboard Access Guard', () => {
-    it('allows access for MANAGER and ADMIN', () => {
+    it('allows access for MANAGER', () => {
       expect(canAccessManagerDashboard('MANAGER')).toBe(true);
-      expect(canAccessManagerDashboard('ADMIN')).toBe(true);
       expect(canAccessManagerDashboard('manager')).toBe(true);
-      expect(canAccessManagerDashboard('admin')).toBe(true);
     });
 
-    it('blocks access for non-manager roles and unauthenticated users', () => {
+    it('blocks access for deprecated ADMIN, non-manager roles and unauthenticated users', () => {
+      expect(canAccessManagerDashboard('ADMIN')).toBe(false);
+      expect(canAccessManagerDashboard('admin')).toBe(false);
       expect(canAccessManagerDashboard('CUSTOMER')).toBe(false);
       expect(canAccessManagerDashboard('customer')).toBe(false);
       expect(canAccessManagerDashboard('SHIPPER')).toBe(false);
@@ -36,29 +36,26 @@ describe('permissions - RBAC Matrix & Manager Security Guards', () => {
     });
   });
 
-  describe('Manager Action Restrictions (Disallowed Actions)', () => {
-    it('strictly forbids MANAGER from deleting products', () => {
-      expect(canDeleteProduct('MANAGER')).toBe(false);
-      expect(hasPermission('MANAGER', 'product:delete')).toBe(false);
+  describe('Manager Inherited Management Actions (Consolidated Admin + Manager)', () => {
+    it('allows MANAGER to delete products and orders', () => {
+      expect(canDeleteProduct('MANAGER')).toBe(true);
+      expect(hasPermission('MANAGER', 'product:delete')).toBe(true);
+      expect(canDeleteOrder('MANAGER')).toBe(true);
+      expect(hasPermission('MANAGER', 'order:delete')).toBe(true);
     });
 
-    it('strictly forbids MANAGER from deleting orders', () => {
-      expect(canDeleteOrder('MANAGER')).toBe(false);
-      expect(hasPermission('MANAGER', 'order:delete')).toBe(false);
+    it('allows MANAGER to edit and delete customers', () => {
+      expect(canEditCustomer('MANAGER')).toBe(true);
+      expect(canDeleteCustomer('MANAGER')).toBe(true);
+      expect(hasPermission('MANAGER', 'customer:edit')).toBe(true);
+      expect(hasPermission('MANAGER', 'customer:delete')).toBe(true);
     });
 
-    it('strictly forbids MANAGER from editing or deleting customers', () => {
-      expect(canEditCustomer('MANAGER')).toBe(false);
-      expect(canDeleteCustomer('MANAGER')).toBe(false);
-      expect(hasPermission('MANAGER', 'customer:edit')).toBe(false);
-      expect(hasPermission('MANAGER', 'customer:delete')).toBe(false);
-    });
-
-    it('strictly forbids MANAGER from managing product categories or user accounts', () => {
-      expect(canManageCategories('MANAGER')).toBe(false);
-      expect(canManageUsers('MANAGER')).toBe(false);
-      expect(hasPermission('MANAGER', 'category:manage')).toBe(false);
-      expect(hasPermission('MANAGER', 'user:manage')).toBe(false);
+    it('allows MANAGER to manage product categories and user accounts', () => {
+      expect(canManageCategories('MANAGER')).toBe(true);
+      expect(canManageUsers('MANAGER')).toBe(true);
+      expect(hasPermission('MANAGER', 'category:manage')).toBe(true);
+      expect(hasPermission('MANAGER', 'user:manage')).toBe(true);
     });
   });
 
@@ -86,7 +83,7 @@ describe('permissions - RBAC Matrix & Manager Security Guards', () => {
     });
   });
 
-  describe('Admin Full Access Verification', () => {
+  describe('Deprecated Admin Role Boundary Verification', () => {
     const allActions: ActionKey[] = [
       'dashboard:view',
       'order:view',
@@ -106,17 +103,17 @@ describe('permissions - RBAC Matrix & Manager Security Guards', () => {
       'user:manage',
     ];
 
-    it('permits ADMIN to execute all system actions without restriction', () => {
+    it('denies deprecated ADMIN role on all system actions', () => {
       for (const action of allActions) {
-        expect(hasPermission('ADMIN', action)).toBe(true);
+        expect(hasPermission('ADMIN', action)).toBe(false);
       }
 
-      expect(canDeleteProduct('ADMIN')).toBe(true);
-      expect(canDeleteOrder('ADMIN')).toBe(true);
-      expect(canEditCustomer('ADMIN')).toBe(true);
-      expect(canDeleteCustomer('ADMIN')).toBe(true);
-      expect(canManageCategories('ADMIN')).toBe(true);
-      expect(canManageUsers('ADMIN')).toBe(true);
+      expect(canDeleteProduct('ADMIN')).toBe(false);
+      expect(canDeleteOrder('ADMIN')).toBe(false);
+      expect(canEditCustomer('ADMIN')).toBe(false);
+      expect(canDeleteCustomer('ADMIN')).toBe(false);
+      expect(canManageCategories('ADMIN')).toBe(false);
+      expect(canManageUsers('ADMIN')).toBe(false);
     });
   });
 

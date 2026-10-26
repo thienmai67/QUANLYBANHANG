@@ -32,7 +32,7 @@ export const adminApi = {
   // Dashboard Stats
   getDashboardStats: async (): Promise<DashboardStats> => {
     try {
-      const res = await apiClient.get('/admin/stats');
+      const res = await apiClient.get('/manager/stats');
       return res.data;
     } catch {
       return {
@@ -58,7 +58,7 @@ export const adminApi = {
 
   createProduct: async (product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> => {
     try {
-      const res = await apiClient.post('/admin/products', product);
+      const res = await apiClient.post('/products', product);
       return res.data;
     } catch {
       return {
@@ -92,7 +92,7 @@ export const adminApi = {
   // Customers
   getCustomers: async (): Promise<Customer[]> => {
     try {
-      const res = await apiClient.get('/admin/customers');
+      const res = await apiClient.get('/customers');
       return res.data;
     } catch {
       return [];

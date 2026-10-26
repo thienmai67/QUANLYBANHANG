@@ -1078,7 +1078,7 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 
 	// 3. Validate role-based permissions
 	switch actorRole {
-	case domain.RoleAdmin, domain.RoleManager:
+	case domain.RoleManager:
 		// Full transition rights
 	case domain.RoleShipper:
 		// Shipper can only update orders assigned to them
@@ -1292,7 +1292,7 @@ func (r *productRepository) CreateCODSettlement(
 
 	// RBAC check: Shipper can only settle their own orders, Manager/Admin can settle for any shipper
 	switch actorRole {
-	case domain.RoleAdmin, domain.RoleManager:
+	case domain.RoleManager:
 		// Allowed
 	case domain.RoleShipper:
 		if shipperID != actorID {

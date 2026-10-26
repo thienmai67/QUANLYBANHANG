@@ -76,7 +76,6 @@ func TestValidateClaims_Success(t *testing.T) {
 		domain.RoleCustomer,
 		domain.RoleManager,
 		domain.RoleShipper,
-		domain.RoleAdmin,
 		domain.RoleSale,
 	}
 

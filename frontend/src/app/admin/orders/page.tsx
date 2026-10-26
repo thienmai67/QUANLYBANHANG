@@ -1,5 +1,5 @@
-import { OrdersManager } from '../../../components/admin/OrdersManager';
+import { redirect } from 'next/navigation';
 
 export default function OrdersPage() {
-  return <OrdersManager />;
+  redirect('/manager/orders');
 }

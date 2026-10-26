@@ -135,43 +135,36 @@ func main() {
 			r.Get("/orders/{id}/payment-status", productHandler.GetPaymentStatus)
 		})
 
-		// Manual Payment Confirmation (SALE, MANAGER, ADMIN)
+		// Manual Payment Confirmation (SALE, MANAGER)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleSale))
+			r.Use(middleware.RequireRole(domain.RoleManager, domain.RoleSale))
 			r.Post("/orders/{id}/mark-paid", productHandler.MarkPaid)
 		})
 
-		// Order Lifecycle Management (MANAGER, ADMIN, SHIPPER, CUSTOMER)
+		// Order Lifecycle Management (MANAGER, SHIPPER, CUSTOMER)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper, domain.RoleCustomer))
+			r.Use(middleware.RequireRole(domain.RoleManager, domain.RoleShipper, domain.RoleCustomer))
 			r.Patch("/orders/{id}/status", productHandler.UpdateOrderStatus)
 		})
 
-		// Manager / Admin Protected Endpoints
+		// Manager Protected Endpoints
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager))
+			r.Use(middleware.RequireRole(domain.RoleManager))
 
 			r.Get("/shippers", productHandler.ListShippers)
 			r.Get("/admin/orders", productHandler.ListOrders)
 			r.Post("/products", productHandler.CreateProduct)
 			r.Put("/products/{id}", productHandler.UpdateProduct)
-		})
-
-		// Admin Only Protected Endpoints
-		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin))
-
 			r.Delete("/products/{id}", productHandler.DeleteProduct)
 		})
 
-		// COD Settlement APIs (MANAGER, ADMIN, SHIPPER)
+		// COD Settlement APIs (MANAGER, SHIPPER)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
-			r.Use(middleware.RequireRole(domain.RoleAdmin, domain.RoleManager, domain.RoleShipper))
+			r.Use(middleware.RequireRole(domain.RoleManager, domain.RoleShipper))
 
 			r.Post("/cod-settlements", productHandler.CreateCODSettlement)
 			r.Get("/cod-settlements", productHandler.ListCODSettlements)
@@ -286,6 +279,11 @@ CREATE TABLE IF NOT EXISTS users (
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+
+UPDATE users SET role = 'MANAGER' WHERE role = 'ADMIN';
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+    CHECK (role IN ('CUSTOMER', 'SALE', 'MANAGER', 'SHIPPER'));
 
 CREATE TABLE IF NOT EXISTS orders (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -421,7 +419,7 @@ ON CONFLICT (code) DO NOTHING;
 		{email: "shipper@tdt.vn", fullName: "Trần Quốc Toản", role: "SHIPPER", password: "Shipper@123", phone: "0902345678"},
 		{email: "shipper1@tdt.vn", fullName: "Nguyễn Văn Hùng", role: "SHIPPER", password: "Shipper@123", phone: "0901234567"},
 		{email: "customer@tdt.vn", fullName: "Khách Hàng Bán Lẻ", role: "CUSTOMER", password: "Customer@123", phone: "0903456789"},
-		{email: "admin@tdt.vn", fullName: "Quản Trị Hệ Thống", role: "ADMIN", password: "Admin@123", phone: "0908888999"},
+		{email: "admin@tdt.vn", fullName: "Quản Trị Hệ Thống", role: "MANAGER", password: "Admin@123", phone: "0908888999"},
 	}
 
 	for _, u := range demoUsers {
