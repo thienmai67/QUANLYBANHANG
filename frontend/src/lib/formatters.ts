@@ -107,3 +107,19 @@ export function formatCountdownMinutes(remainingMinutes: number | null): string 
   }
   return `Còn ${mins}p`;
 }
+
+/**
+ * Formats an amount with standard vi-VN thousand separators up to 9 digits.
+ * If number has more than 9 digits, keeps first 9 digits formatted and appends '...'
+ * e.g. 120000000 -> "120.000.000"
+ * e.g. 337611799976 -> "337.611.799..."
+ */
+export function formatMax9DigitsAmount(amount: number): string {
+  const raw = Math.round(amount).toString();
+  if (raw.length <= 9) {
+    return amount.toLocaleString('vi-VN');
+  }
+  const first9 = raw.slice(0, 9);
+  const formatted9 = Number(first9).toLocaleString('vi-VN');
+  return `${formatted9}...`;
+}

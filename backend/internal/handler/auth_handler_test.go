@@ -106,13 +106,16 @@ func (m *mockUserRepo) CreateUser(ctx context.Context, user *domain.User) error 
 	return nil
 }
 
-func (m *mockUserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, phone *string) (*domain.User, error) {
+func (m *mockUserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, phone *string, avatarURL *string) (*domain.User, error) {
 	m.Lock()
 	defer m.Unlock()
 	for _, u := range m.users {
 		if u.ID == id {
 			u.FullName = fullName
 			u.Phone = phone
+			if avatarURL != nil {
+				u.AvatarURL = avatarURL
+			}
 			u.UpdatedAt = time.Now().UTC()
 			return u, nil
 		}

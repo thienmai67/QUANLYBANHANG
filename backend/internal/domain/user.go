@@ -63,8 +63,9 @@ type TokenPair struct {
 }
 
 type UpdateProfileRequest struct {
-	FullName string  `json:"fullName"`
-	Phone    *string `json:"phone,omitempty"`
+	FullName  string  `json:"fullName"`
+	Phone     *string `json:"phone,omitempty"`
+	AvatarURL *string `json:"avatarUrl,omitempty"`
 }
 
 type ChangePasswordRequest struct {
@@ -98,6 +99,6 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	CreateUser(ctx context.Context, user *User) error
-	UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, phone *string) (*User, error)
+	UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, phone *string, avatarURL *string) (*User, error)
 	UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error
 }

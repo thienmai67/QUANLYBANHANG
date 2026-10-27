@@ -1,13 +1,37 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Building2 } from 'lucide-react';
+import {
+  Building2,
+  Camera,
+  Trash2,
+  Printer,
+  Calendar,
+  Layers,
+  DollarSign,
+  Package,
+  RotateCcw,
+  Loader2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getAccessToken, clearTokens } from '@/lib/auth';
 import { api, getFriendlyErrorMessage } from '@/lib/api';
+import { resizeImageCanvas } from '@/lib/shipperHelpers';
+import { formatMax9DigitsAmount } from '@/lib/formatters';
+import ProfileDropdown, { ProfileDropdownOption } from '@/components/profile/ProfileDropdown';
+import InvoiceModal from '@/components/profile/InvoiceModal';
 import './profile.css';
 
 interface DBOrderItem {
@@ -116,6 +140,15 @@ const formatAuthProvider = (provider?: string): string => {
   }
 };
 
+
+
+const formatPriceTick = (val: number): string => {
+  if (val >= 1_000_000_000) return `${(val / 1_000_000_000).toFixed(1).replace('.0', '')} tỷ`;
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(0)} tr`;
+  if (val >= 1_000) return `${(val / 1_000).toFixed(0)} k`;
+  return `${val}`;
+};
+
 export default function CustomerProfilePage() {
   const router = useRouter();
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -143,10 +176,20 @@ export default function CustomerProfilePage() {
   const [oldPasswordFeedback, setOldPasswordFeedback] = useState<string>('');
   const [shakeOldPasswordField, setShakeOldPasswordField] = useState<boolean>(false);
 
-  // Orders Filter & Search
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED'>('ALL');
+  // Avatar State & File Ref
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const chartScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Orders Filter & Sort Categories
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [dateFilter, setDateFilter] = useState<string>('NEWEST');
+  const [priceFilter, setPriceFilter] = useState<string>('ALL');
+  const [qtyFilter, setQtyFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<DBOrder | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState<boolean>(false);
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -158,6 +201,39 @@ export default function CustomerProfilePage() {
     }, 3200);
   }, []);
 
+  // Handle Avatar Selection with Client-side Canvas Compression
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Vui lòng chọn file hình ảnh (PNG, JPG, WebP)');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Kích thước ảnh đại diện không vượt quá 5MB');
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      const resized = await resizeImageCanvas(file, 256, 0.85);
+      setAvatarPreview(resized);
+      showToast('Đã tải ảnh lên xem trước. Bấm "Lưu thông tin tài khoản" để hoàn tất.');
+    } catch (err: any) {
+      showToast(err?.message || 'Không thể xử lý ảnh đại diện');
+    } finally {
+      setIsUploadingAvatar(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRevertAvatar = () => {
+    setAvatarPreview(user?.avatarUrl || user?.avatar || null);
+    showToast('Đã khôi phục ảnh đại diện ban đầu');
+  };
+
   // Sync / Fetch user profile from DB
   const loadProfile = useCallback(async () => {
     const token = getAccessToken();
@@ -168,6 +244,9 @@ export default function CustomerProfilePage() {
       if (data && data.id) {
         setFullNameInput(data.fullName || '');
         setPhoneInput(data.phone || '');
+        if (data.avatarUrl) {
+          setAvatarPreview(data.avatarUrl);
+        }
         const currentUser = useAuthStore.getState().user;
         if (currentUser) {
           setAuth(token, {
@@ -176,6 +255,8 @@ export default function CustomerProfilePage() {
             email: data.email,
             name: data.fullName,
             phone: data.phone,
+            avatarUrl: data.avatarUrl || currentUser.avatarUrl,
+            avatar: data.avatarUrl || currentUser.avatar,
             role: data.role,
             authProvider: data.authProvider,
             createdAt: data.createdAt,
@@ -189,6 +270,9 @@ export default function CustomerProfilePage() {
       if (currentUser) {
         setFullNameInput(currentUser.name || '');
         setPhoneInput(currentUser.phone || '');
+        if (currentUser.avatarUrl || currentUser.avatar) {
+          setAvatarPreview(currentUser.avatarUrl || currentUser.avatar || null);
+        }
       }
     }
   }, [setAuth]);
@@ -265,11 +349,31 @@ export default function CustomerProfilePage() {
       return;
     }
 
+    const cleanPhone = phoneInput.trim() ? phoneInput.trim() : null;
+
+    // Check mock session
+    const isMock = user?.id?.startsWith('mock-') || (token && token.includes('.mock-signature'));
+    if (isMock) {
+      if (user) {
+        setAuth(token, {
+          ...user,
+          name: cleanName,
+          phone: cleanPhone || undefined,
+          avatarUrl: avatarPreview || undefined,
+          avatar: avatarPreview || undefined,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      showToast('Đã lưu thông tin tài khoản thành công!');
+      return;
+    }
+
     try {
       setIsSavingProfile(true);
       const updated = await api.put<any>('/users/me', {
         fullName: cleanName,
-        phone: phoneInput.trim() ? phoneInput.trim() : null,
+        phone: cleanPhone,
+        avatarUrl: avatarPreview || null,
       });
 
       if (updated && user) {
@@ -277,6 +381,8 @@ export default function CustomerProfilePage() {
           ...user,
           name: updated.fullName,
           phone: updated.phone,
+          avatarUrl: updated.avatarUrl || avatarPreview || undefined,
+          avatar: updated.avatarUrl || avatarPreview || undefined,
           updatedAt: updated.updatedAt,
         });
       }
@@ -459,22 +565,6 @@ export default function CustomerProfilePage() {
     }
   };
 
-  // Filter & Search Logic
-  const filteredOrders = orders.filter((o) => {
-    if (statusFilter !== 'ALL' && o.status !== statusFilter) {
-      return false;
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const codeMatch = o.orderNumber.toLowerCase().includes(q);
-      const itemMatch = o.items.some(
-        (it) => it.name.toLowerCase().includes(q) || it.sku.toLowerCase().includes(q)
-      );
-      return codeMatch || itemMatch;
-    }
-    return true;
-  });
-
   // Calculate Spend & Status breakdown
   const totalSpend = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   const countPending = orders.filter((o) => o.status === 'PENDING').length;
@@ -482,6 +572,189 @@ export default function CustomerProfilePage() {
   const countShipping = orders.filter((o) => o.status === 'SHIPPING').length;
   const countDelivered = orders.filter((o) => o.status === 'DELIVERED').length;
   const countCancelled = orders.filter((o) => o.status === 'CANCELLED').length;
+
+  // 30 Days (1 Month) Continuous Timeline Daily Spend Data
+  const { dailySpendData, maxSpendAmount } = useMemo(() => {
+    const spendMap: Record<string, { amount: number; count: number }> = {};
+
+    orders
+      .filter((o) => o.status !== 'CANCELLED')
+      .forEach((o) => {
+        const d = new Date(o.createdAt);
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (!spendMap[dateKey]) {
+          spendMap[dateKey] = { amount: 0, count: 0 };
+        }
+        spendMap[dateKey].amount += Number(o.totalAmount) || 0;
+        spendMap[dateKey].count += 1;
+      });
+
+    const now = new Date();
+    const result: Array<{ date: string; displayDate: string; amount: number; count: number }> = [];
+    let maxVal = 0;
+
+    for (let i = 29; i >= 0; i--) {
+      const past = new Date(now);
+      past.setDate(past.getDate() - i);
+      const dateKey = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}`;
+      const displayDate = `${String(past.getDate()).padStart(2, '0')}/${String(past.getMonth() + 1).padStart(2, '0')}`;
+      const entry = spendMap[dateKey] || { amount: 0, count: 0 };
+      if (entry.amount > maxVal) {
+        maxVal = entry.amount;
+      }
+      result.push({
+        date: dateKey,
+        displayDate,
+        amount: entry.amount,
+        count: entry.count,
+      });
+    }
+
+    const paddedMax = maxVal > 0 ? Math.ceil(maxVal * 1.15) : 1000000;
+    return { dailySpendData: result, maxSpendAmount: paddedMax };
+  }, [orders]);
+
+  const yAxisTicks = useMemo(() => [
+    formatPriceTick(maxSpendAmount),
+    formatPriceTick(Math.round(maxSpendAmount * 0.66)),
+    formatPriceTick(Math.round(maxSpendAmount * 0.33)),
+    '0',
+  ], [maxSpendAmount]);
+
+  // Handle Chart Horizontal Scroll via Shift + Wheel
+  const handleChartWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.shiftKey || Math.abs(e.deltaX) > 0) {
+      e.currentTarget.scrollLeft += e.deltaY || e.deltaX;
+    }
+  }, []);
+
+  // Auto-scroll to latest days on the right when Overview tab mounts
+  useEffect(() => {
+    if (activeTab === 'overview' && chartScrollRef.current) {
+      const timer = setTimeout(() => {
+        if (chartScrollRef.current) {
+          chartScrollRef.current.scrollLeft = chartScrollRef.current.scrollWidth;
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab]);
+
+  // Dropdown Category Options
+  const statusOptions: ProfileDropdownOption[] = useMemo(() => [
+    { key: 'ALL', label: 'Tất cả trạng thái', count: orders.length },
+    { key: 'PENDING', label: 'Chờ xử lý', count: countPending },
+    { key: 'PACKING', label: 'Đang đóng gói', count: countPacking },
+    { key: 'SHIPPING', label: 'Đang giao hàng', count: countShipping },
+    { key: 'DELIVERED', label: 'Đã giao thành công', count: countDelivered },
+    { key: 'CANCELLED', label: 'Đã hủy', count: countCancelled },
+  ], [orders.length, countPending, countPacking, countShipping, countDelivered, countCancelled]);
+
+  const dateOptions: ProfileDropdownOption[] = [
+    { key: 'NEWEST', label: 'Mới nhất', hint: 'Gần đây' },
+    { key: 'OLDEST', label: 'Cũ nhất', hint: 'Từ trước' },
+    { key: '7_DAYS', label: '7 ngày qua' },
+    { key: '30_DAYS', label: '30 ngày qua' },
+  ];
+
+  const priceOptions: ProfileDropdownOption[] = [
+    { key: 'ALL', label: 'Tất cả mức giá' },
+    { key: 'PRICE_DESC', label: 'Giảm dần' },
+    { key: 'PRICE_ASC', label: 'Tăng dần' },
+    { key: 'UNDER_5M', label: 'Dưới 5 triệu' },
+    { key: '5M_20M', label: 'Từ 5 - 20 triệu' },
+    { key: 'OVER_20M', label: 'Trên 20 triệu' },
+  ];
+
+  const qtyOptions: ProfileDropdownOption[] = [
+    { key: 'ALL', label: 'Tất cả số lượng' },
+    { key: 'QTY_DESC', label: 'Giảm dần' },
+    { key: 'QTY_ASC', label: 'Tăng dần' },
+    { key: 'ITEMS_1_3', label: 'Từ 1 - 3 sp' },
+    { key: 'ITEMS_OVER_3', label: 'Trên 3 sp' },
+  ];
+
+  const isAnyFilterActive =
+    statusFilter !== 'ALL' ||
+    dateFilter !== 'NEWEST' ||
+    priceFilter !== 'ALL' ||
+    qtyFilter !== 'ALL' ||
+    searchQuery.trim() !== '';
+
+  const handleResetFilters = () => {
+    setStatusFilter('ALL');
+    setDateFilter('NEWEST');
+    setPriceFilter('ALL');
+    setQtyFilter('ALL');
+    setSearchQuery('');
+  };
+
+  // Comprehensive Filter & Sort Logic
+  const filteredOrders = useMemo(() => {
+    let result = orders.filter((o) => {
+      // 1. Status Filter
+      if (statusFilter !== 'ALL' && o.status !== statusFilter) {
+        return false;
+      }
+
+      // 2. Date Range Filter
+      const orderTime = new Date(o.createdAt).getTime();
+      const now = Date.now();
+      if (dateFilter === '7_DAYS' && now - orderTime > 7 * 86400000) {
+        return false;
+      }
+      if (dateFilter === '30_DAYS' && now - orderTime > 30 * 86400000) {
+        return false;
+      }
+
+      // 3. Price Range Filter
+      const total = Number(o.totalAmount) || 0;
+      if (priceFilter === 'UNDER_5M' && total >= 5000000) return false;
+      if (priceFilter === '5M_20M' && (total < 5000000 || total > 20000000)) return false;
+      if (priceFilter === 'OVER_20M' && total <= 20000000) return false;
+
+      // 4. Quantity Range Filter
+      const totalItems = o.items.reduce((sum, it) => sum + (it.quantity || 1), 0);
+      if (qtyFilter === 'ITEMS_1_3' && totalItems > 3) return false;
+      if (qtyFilter === 'ITEMS_OVER_3' && totalItems <= 3) return false;
+
+      // 5. Keyword Search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const codeMatch = o.orderNumber.toLowerCase().includes(q);
+        const itemMatch = o.items.some(
+          (it) => it.name.toLowerCase().includes(q) || it.sku.toLowerCase().includes(q)
+        );
+        return codeMatch || itemMatch;
+      }
+      return true;
+    });
+
+    // Sort order
+    result = [...result].sort((a, b) => {
+      if (dateFilter === 'OLDEST') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (priceFilter === 'PRICE_DESC') {
+        return (b.totalAmount || 0) - (a.totalAmount || 0);
+      }
+      if (priceFilter === 'PRICE_ASC') {
+        return (a.totalAmount || 0) - (b.totalAmount || 0);
+      }
+      const qtyA = a.items.reduce((s, it) => s + (it.quantity || 1), 0);
+      const qtyB = b.items.reduce((s, it) => s + (it.quantity || 1), 0);
+      if (qtyFilter === 'QTY_DESC') {
+        return qtyB - qtyA;
+      }
+      if (qtyFilter === 'QTY_ASC') {
+        return qtyA - qtyB;
+      }
+      // Default: NEWEST
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    return result;
+  }, [orders, statusFilter, dateFilter, priceFilter, qtyFilter, searchQuery]);
 
   const activeTheme = mounted ? resolvedTheme || theme || 'dark' : 'dark';
   const displayName = fullNameInput || user?.name || 'Khách hàng';
@@ -605,7 +878,17 @@ export default function CustomerProfilePage() {
                   </div>
 
                   <div className="profile-user-header">
-                    <div className="profile-user-avatar">{userAvatar}</div>
+                    <div className="profile-user-avatar">
+                      {(avatarPreview || user?.avatarUrl || user?.avatar) ? (
+                        <img
+                          src={avatarPreview || user?.avatarUrl || user?.avatar}
+                          alt={displayName}
+                          className="profile-user-avatar-img"
+                        />
+                      ) : (
+                        userAvatar
+                      )}
+                    </div>
                     <div className="profile-user-titles">
                       <h3>{displayName}</h3>
                       <div className="profile-user-meta">
@@ -678,12 +961,8 @@ export default function CustomerProfilePage() {
                 <div>
                   <div className="profile-stat-label">
                     <span>TỔNG CHI TIÊU</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="12" y1="1" x2="12" y2="23" />
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
                   </div>
-                  <div className="profile-stat-number">
+                  <div className="profile-stat-number money-val">
                     {totalSpend.toLocaleString('vi-VN')} <small>đ</small>
                   </div>
                   <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>
@@ -691,8 +970,78 @@ export default function CustomerProfilePage() {
                   </div>
                 </div>
 
-                <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--faint)' }}>
-                  Dữ liệu được cập nhật tự động theo thời gian thực
+                {/* Redesigned 30-Day Spend Bar Chart with Fixed Y-Axis & Shift+Scroll */}
+                <div className="profile-spend-chart-container">
+                  <div className="profile-chart-header">
+                    <span>Chi tiêu 30 ngày qua</span>
+                    <span className="profile-chart-sub">Giữ Shift + cuộn chuột</span>
+                  </div>
+
+                  <div className="profile-chart-body-layout">
+                    {/* Fixed Left Y-Axis */}
+                    <div className="profile-chart-yaxis-fixed" style={{ height: 150 }}>
+                      {yAxisTicks.map((tickStr, idx) => (
+                        <span key={idx} className="yaxis-tick">
+                          {tickStr}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Horizontal Scrollable 30-Day Canvas */}
+                    <div
+                      ref={chartScrollRef}
+                      className="profile-chart-scroll-wrapper"
+                      onWheel={handleChartWheel}
+                      style={{ height: 150 }}
+                      title="Giữ phím Shift và cuộn chuột để xem toàn bộ 30 ngày"
+                    >
+                      <div style={{ width: 30 * 36, height: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={dailySpendData}
+                            margin={{ top: 8, right: 10, left: 6, bottom: 0 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line-soft)" />
+                            <YAxis hide domain={[0, maxSpendAmount]} />
+                            <XAxis
+                              dataKey="displayDate"
+                              stroke="var(--faint)"
+                              fontSize={10}
+                              tickLine={false}
+                              axisLine={{ stroke: 'var(--line-soft)' }}
+                              interval={0}
+                            />
+                            <Tooltip
+                              cursor={{ fill: 'rgba(37, 99, 235, 0.08)' }}
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const item = payload[0].payload;
+                                  return (
+                                    <div className="profile-chart-tooltip">
+                                      <div className="tooltip-date">Ngày {item.displayDate}</div>
+                                      <div className="tooltip-amount">
+                                        {item.amount.toLocaleString('vi-VN')} đ
+                                      </div>
+                                      <div className="tooltip-count">
+                                        {item.count > 0 ? `${item.count} đơn hàng` : '0 đơn'}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            <Bar
+                              dataKey="amount"
+                              fill="var(--accent)"
+                              radius={[4, 4, 0, 0]}
+                              maxBarSize={22}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -759,11 +1108,12 @@ export default function CustomerProfilePage() {
                                 textAlign: 'right',
                                 fontWeight: 700,
                                 fontFamily: 'var(--font-mono)',
-                                color: 'var(--accent)',
+                                color: 'var(--money-ink)',
                                 whiteSpace: 'nowrap',
                               }}
+                              title={`${ord.totalAmount.toLocaleString('vi-VN')} đ`}
                             >
-                              {ord.totalAmount.toLocaleString('vi-VN')}&nbsp;đ
+                              {formatMax9DigitsAmount(ord.totalAmount)}&nbsp;đ
                             </td>
                           </tr>
                         ))}
@@ -781,44 +1131,51 @@ export default function CustomerProfilePage() {
              ==================================================================== */}
         {activeTab === 'orders' && (
           <section className="profile-tab-pane active" role="tabpanel">
-            <div className="profile-orders-toolbar">
-              <div className="profile-chips">
-                <button
-                  className={`profile-chip-btn ${statusFilter === 'ALL' ? 'active' : ''}`}
-                  onClick={() => setStatusFilter('ALL')}
-                >
-                  Tất cả <span className="profile-chip-count">{orders.length}</span>
-                </button>
-                <button
-                  className={`profile-chip-btn ${statusFilter === 'PENDING' ? 'active' : ''}`}
-                  onClick={() => setStatusFilter('PENDING')}
-                >
-                  Chờ xử lý <span className="profile-chip-count">{countPending}</span>
-                </button>
-                <button
-                  className={`profile-chip-btn ${statusFilter === 'PACKING' ? 'active' : ''}`}
-                  onClick={() => setStatusFilter('PACKING')}
-                >
-                  Đóng gói <span className="profile-chip-count">{countPacking}</span>
-                </button>
-                <button
-                  className={`profile-chip-btn ${statusFilter === 'SHIPPING' ? 'active' : ''}`}
-                  onClick={() => setStatusFilter('SHIPPING')}
-                >
-                  Đang giao <span className="profile-chip-count">{countShipping}</span>
-                </button>
-                <button
-                  className={`profile-chip-btn ${statusFilter === 'DELIVERED' ? 'active' : ''}`}
-                  onClick={() => setStatusFilter('DELIVERED')}
-                >
-                  Đã giao <span className="profile-chip-count">{countDelivered}</span>
-                </button>
-                <button
-                  className={`profile-chip-btn ${statusFilter === 'CANCELLED' ? 'active' : ''}`}
-                  onClick={() => setStatusFilter('CANCELLED')}
-                >
-                  Đã hủy <span className="profile-chip-count">{countCancelled}</span>
-                </button>
+            <div className="profile-filter-toolbar">
+              <div className="profile-dropdowns-row">
+                <ProfileDropdown
+                  label="Trạng thái"
+                  value={statusFilter}
+                  options={statusOptions}
+                  onChange={setStatusFilter}
+                  icon={<Layers size={15} />}
+                />
+
+                <ProfileDropdown
+                  label="Ngày tạo"
+                  value={dateFilter}
+                  options={dateOptions}
+                  onChange={setDateFilter}
+                  icon={<Calendar size={15} />}
+                />
+
+                <ProfileDropdown
+                  label="Tổng tiền"
+                  value={priceFilter}
+                  options={priceOptions}
+                  onChange={setPriceFilter}
+                  icon={<DollarSign size={15} />}
+                />
+
+                <ProfileDropdown
+                  label="Số lượng"
+                  value={qtyFilter}
+                  options={qtyOptions}
+                  onChange={setQtyFilter}
+                  icon={<Package size={15} />}
+                />
+
+                {isAnyFilterActive && (
+                  <button
+                    type="button"
+                    className="profile-btn-reset-filters"
+                    onClick={handleResetFilters}
+                    title="Xóa tất cả bộ lọc và sắp xếp"
+                  >
+                    <RotateCcw size={13} />
+                    <span>Đặt lại bộ lọc</span>
+                  </button>
+                )}
               </div>
 
               <div className="profile-search-box">
@@ -861,12 +1218,18 @@ export default function CustomerProfilePage() {
               </div>
             ) : (
               <div className="profile-orders-list">
-                {filteredOrders.map((ord) => (
+                {filteredOrders.map((ord, orderIdx) => (
                   <article key={ord.id} className="profile-order-card">
                     <div className="profile-order-main">
                       <div className="profile-order-head">
-                        <div className="profile-order-code">
-                          <span>#</span>{ord.orderNumber}
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div className="profile-order-stt-badge">
+                            <span>STT:</span>
+                            <b>#{String(orderIdx + 1).padStart(2, '0')}</b>
+                          </div>
+                          <div className="profile-order-code">
+                            <span>#</span>{ord.orderNumber}
+                          </div>
                         </div>
                         <div className="profile-order-date">
                           Ngày tạo: {new Date(ord.createdAt).toLocaleString('vi-VN')}
@@ -957,6 +1320,64 @@ export default function CustomerProfilePage() {
                   Hồ sơ tài khoản
                 </h3>
                 <p className="desc">Thông tin tài khoản cá nhân của bạn trên hệ thống TDT M&amp;E.</p>
+
+                {/* Upload Avatar & Live Preview Section */}
+                <div className="profile-avatar-upload-section">
+                  <div className="profile-avatar-preview-box">
+                    <div className="profile-avatar-preview-circle">
+                      {(avatarPreview || user?.avatarUrl || user?.avatar) ? (
+                        <img
+                          src={avatarPreview || user?.avatarUrl || user?.avatar}
+                          alt="Avatar preview"
+                          className="profile-avatar-img"
+                        />
+                      ) : (
+                        <span className="profile-avatar-initial">{userAvatar}</span>
+                      )}
+                      {isUploadingAvatar && (
+                        <div className="profile-avatar-loading-overlay">
+                          <Loader2 className="spin-icon" size={20} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="profile-avatar-info">
+                      <div className="profile-avatar-title">Ảnh đại diện tài khoản</div>
+                      <div className="profile-avatar-sub">
+                        Định dạng PNG, JPG, WebP. Tối đa 5MB. Ảnh hiển thị tức thì và lưu khi cập nhật hồ sơ.
+                      </div>
+                      <div className="profile-avatar-actions">
+                        <button
+                          type="button"
+                          className="profile-btn-upload-avatar"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingAvatar}
+                        >
+                          <Camera size={14} />
+                          <span>{avatarPreview ? 'Chọn ảnh khác' : 'Tải ảnh lên'}</span>
+                        </button>
+
+                        {avatarPreview && avatarPreview !== (user?.avatarUrl || user?.avatar || null) && (
+                          <button
+                            type="button"
+                            className="profile-btn-revert-avatar"
+                            onClick={handleRevertAvatar}
+                            title="Hủy thay đổi ảnh"
+                          >
+                            <Trash2 size={13} />
+                            <span>Hoàn tác</span>
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={handleAvatarFileChange}
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <form onSubmit={handleSaveProfile}>
                   <div className="profile-form-group">
@@ -1397,7 +1818,7 @@ export default function CustomerProfilePage() {
                           </td>
                           <td style={{ minWidth: '180px' }}><b>{it.name}</b></td>
                           <td className="nowrap" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>{it.quantity}</td>
-                          <td className="nowrap" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                          <td className="nowrap" style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--money-ink)', whiteSpace: 'nowrap' }}>
                             {it.unitPrice.toLocaleString('vi-VN')}&nbsp;đ
                           </td>
                           <td
@@ -1406,7 +1827,7 @@ export default function CustomerProfilePage() {
                               textAlign: 'right',
                               fontWeight: 700,
                               fontFamily: 'var(--font-mono)',
-                              color: 'var(--accent)',
+                              color: 'var(--money-ink)',
                               whiteSpace: 'nowrap',
                             }}
                           >
@@ -1433,7 +1854,7 @@ export default function CustomerProfilePage() {
                     style={{
                       fontSize: '18px',
                       fontWeight: 700,
-                      color: 'var(--accent)',
+                      color: 'var(--money-ink)',
                       fontFamily: 'var(--font-mono)',
                       whiteSpace: 'nowrap',
                     }}
@@ -1445,17 +1866,38 @@ export default function CustomerProfilePage() {
             </div>
 
             <div className="profile-modal-footer">
-              <button
-                className="profile-btn-primary"
-                onClick={() => setSelectedOrder(null)}
-                style={{ background: 'var(--surface-3)', color: 'var(--text)' }}
-              >
-                Đóng
-              </button>
+              <div className="profile-modal-footer-actions">
+                <button
+                  type="button"
+                  className="profile-btn-invoice"
+                  onClick={() => setShowInvoiceModal(true)}
+                  title="Xem và xuất hóa đơn bán hàng"
+                >
+                  <Printer size={15} />
+                  <span>In hóa đơn</span>
+                </button>
+                <button
+                  type="button"
+                  className="profile-btn-primary"
+                  onClick={() => setSelectedOrder(null)}
+                  style={{ background: 'var(--surface-3)', color: 'var(--text)' }}
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* POPUP HÓA ĐƠN ĐIỆN TỬ */}
+      <InvoiceModal
+        order={selectedOrder}
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        customerPhone={phoneInput || user?.phone}
+        customerEmail={user?.email}
+      />
 
       {/* TOAST NOTIFICATION */}
       {toastMessage && (

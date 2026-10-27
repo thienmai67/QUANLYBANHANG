@@ -364,7 +364,15 @@ func (h *AuthHandler) HandleUpdateProfile(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	updatedUser, err := h.userRepo.UpdateProfile(r.Context(), userID, cleanName, cleanPhone)
+	var cleanAvatar *string
+	if req.AvatarURL != nil {
+		av := strings.TrimSpace(*req.AvatarURL)
+		if av != "" {
+			cleanAvatar = &av
+		}
+	}
+
+	updatedUser, err := h.userRepo.UpdateProfile(r.Context(), userID, cleanName, cleanPhone, cleanAvatar)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
 			writeJSONError(w, http.StatusNotFound, "Không tìm thấy người dùng", "NOT_FOUND")
