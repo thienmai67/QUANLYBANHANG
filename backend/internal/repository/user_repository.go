@@ -38,7 +38,7 @@ func (r *userRepository) UpsertGoogleUser(ctx context.Context, info *domain.Goog
 
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const query = `
-		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, must_change_password, created_at, updated_at
+		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, must_change_password, is_active, created_at, updated_at
 		FROM me_supplies.users
 		WHERE email = $1`
 
@@ -54,7 +54,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	const query = `
-		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, must_change_password, created_at, updated_at
+		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, must_change_password, is_active, created_at, updated_at
 		FROM me_supplies.users
 		WHERE id = $1`
 

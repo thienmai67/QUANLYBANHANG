@@ -37,6 +37,9 @@ type User struct {
 	Role               UserRole     `json:"role"                 db:"role"`
 	AuthProvider       AuthProvider `json:"authProvider"         db:"auth_provider"`
 	MustChangePassword bool         `json:"mustChangePassword" db:"must_change_password"`
+	// IsActive false = tài khoản bị vô hiệu hóa (manager thu hồi mail):
+	// không đăng nhập được nữa, nhưng lịch sử đơn hàng vẫn giữ nguyên.
+	IsActive           bool         `json:"isActive"             db:"is_active"`
 	CreatedAt          time.Time    `json:"createdAt"            db:"created_at"`
 	UpdatedAt          time.Time    `json:"updatedAt"            db:"updated_at"`
 }

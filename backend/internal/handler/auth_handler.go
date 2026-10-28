@@ -212,6 +212,13 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tài khoản bị vô hiệu hóa (manager thu hồi mail): kiểm tra sau khi mật
+	// khẩu đúng để khỏi lộ tài khoản nào đang bị vô hiệu hóa.
+	if !user.IsActive {
+		writeJSONError(w, http.StatusForbidden, "Tài khoản đã bị vô hiệu hóa, vui lòng liên hệ quản lý")
+		return
+	}
+
 	// Login successful - reset fail counter
 	resetFailedAttempt(cleanEmail)
 

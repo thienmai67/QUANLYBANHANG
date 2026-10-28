@@ -2,6 +2,8 @@ package handler
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"math/big"
@@ -25,20 +27,28 @@ func NewShipperHandler(repo domain.ShipperRepository) *ShipperHandler {
 	return &ShipperHandler{repo: repo}
 }
 
-// tempPasswordChars bỏ các ký tự dễ nhầm (0/O, 1/l/I) để manager đọc cho shipper khỏi nhầm.
-const tempPasswordChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+// randomCodeChars bỏ các ký tự dễ nhầm (0/O, 1/l/I) để người nộp gõ lại mã
+// hay manager đọc mật khẩu tạm cho shipper khỏi nhầm.
+const randomCodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
 
-func generateTempPassword(length int) (string, error) {
+func generateRandomCode(length int) (string, error) {
 	b := make([]byte, length)
-	max := big.NewInt(int64(len(tempPasswordChars)))
+	max := big.NewInt(int64(len(randomCodeChars)))
 	for i := range b {
 		n, err := rand.Int(rand.Reader, max)
 		if err != nil {
 			return "", err
 		}
-		b[i] = tempPasswordChars[n.Int64()]
+		b[i] = randomCodeChars[n.Int64()]
 	}
 	return string(b), nil
+}
+
+// hashLookupCode băm mã tra cứu bằng SHA-256: database chỉ giữ dạng băm,
+// không giữ bản text gốc nên lộ database cũng không lộ mã.
+func hashLookupCode(code string) string {
+	sum := sha256.Sum256([]byte(code))
+	return hex.EncodeToString(sum[:])
 }
 
 // isValidVNPhone chấp nhận SĐT di động Việt Nam 10 số bắt đầu bằng 0.
@@ -158,6 +168,15 @@ func (h *ShipperHandler) CreateApplication(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	// Mã tra cứu cấp ngay lúc nộp xong, trả về đúng 1 lần trong response này.
+	// Người nộp tự lưu mã; hệ thống chỉ lưu dạng băm.
+	lookupCode, err := generateRandomCode(8)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Không thể tạo mã tra cứu")
+		return
+	}
+	codeHash := hashLookupCode(lookupCode)
+
 	app := &domain.ShipperApplication{
 		ID:                   uuid.New(),
 		FullName:             cleanName,
@@ -170,6 +189,7 @@ func (h *ShipperHandler) CreateApplication(w http.ResponseWriter, r *http.Reques
 		TermsAccepted:        true,
 		TrainingConfirmed:    true,
 		Status:               domain.ApplicationPending,
+		LookupCodeHash:       &codeHash,
 	}
 
 	if err := h.repo.CreateApplication(r.Context(), app); err != nil {
@@ -177,7 +197,10 @@ func (h *ShipperHandler) CreateApplication(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, app)
+	writeJSON(w, http.StatusCreated, domain.CreateApplicationResult{
+		Application: app,
+		LookupCode:  lookupCode,
+	})
 }
 
 // ListApplications trả về danh sách hồ sơ, lọc theo ?status=PENDING|APPROVED|REJECTED.
@@ -221,8 +244,229 @@ func (h *ShipperHandler) GetApplication(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, app)
 }
 
-// ApproveApplication duyệt hồ sơ: cấp 1 mail trống trong pool + mật khẩu tạm.
-// Mật khẩu tạm chỉ trả về đúng 1 lần trong response này.
+// LookupApplication cho shipper tự tra cứu trạng thái hồ sơ bằng SĐT + mã tra cứu.
+// Public, không cần đăng nhập. Mã sai và SĐT không có hồ sơ đều trả cùng 1
+// lỗi 404 chung chung để khỏi lộ hồ sơ nào tồn tại. Với hồ sơ APPROVED thì
+// kèm email đã cấp + cờ đã đặt mật khẩu hay chưa (chỉ người có mã mới thấy).
+// Nộp lại hồ sơ mới thì tra cứu thấy hồ sơ mới nhất (mã cũ hết hiệu lực).
+func (h *ShipperHandler) LookupApplication(w http.ResponseWriter, r *http.Request) {
+	phone := strings.TrimSpace(r.URL.Query().Get("phone"))
+	code := strings.TrimSpace(r.URL.Query().Get("code"))
+	if !isValidVNPhone(phone) {
+		writeJSONError(w, http.StatusBadRequest, "Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)")
+		return
+	}
+	if code == "" {
+		writeJSONError(w, http.StatusBadRequest, "Vui lòng nhập mã tra cứu")
+		return
+	}
+
+	app, err := h.repo.FindLatestByPhone(r.Context(), phone)
+	if err != nil {
+		if errors.Is(err, domain.ErrApplicationNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy hồ sơ với số điện thoại và mã tra cứu này")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi truy vấn hồ sơ")
+		return
+	}
+	if app.LookupCodeHash == nil || *app.LookupCodeHash != hashLookupCode(code) {
+		writeJSONError(w, http.StatusNotFound, "Không tìm thấy hồ sơ với số điện thoại và mã tra cứu này")
+		return
+	}
+	writeJSON(w, http.StatusOK, domain.PublicApplicationStatus{
+		Status:          app.Status,
+		RejectionReason: app.RejectionReason,
+		IssuedEmail:     app.IssuedEmail,
+		PasswordSet:     app.PasswordSetAt != nil,
+	})
+}
+
+// SetShipperPassword cho shipper đã duyệt tự đặt mật khẩu bằng SĐT + mã tra cứu.
+// Public, không cần đăng nhập — mã tra cứu chính là bằng chứng là người nộp.
+// Chỉ đặt được 1 lần; đặt rồi thì phải đăng nhập, quên mật khẩu thì liên hệ
+// quản lý (chưa có luồng quên mật khẩu cho shipper).
+func (h *ShipperHandler) SetShipperPassword(w http.ResponseWriter, r *http.Request) {
+	var req domain.SetShipperPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Dữ liệu yêu cầu không hợp lệ")
+		return
+	}
+
+	phone := strings.TrimSpace(req.Phone)
+	code := strings.TrimSpace(req.Code)
+	if !isValidVNPhone(phone) {
+		writeJSONError(w, http.StatusBadRequest, "Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)")
+		return
+	}
+	if code == "" {
+		writeJSONError(w, http.StatusBadRequest, "Vui lòng nhập mã tra cứu")
+		return
+	}
+	if len([]rune(req.NewPassword)) < 8 {
+		writeJSONError(w, http.StatusBadRequest, "Mật khẩu mới phải có ít nhất 8 ký tự")
+		return
+	}
+
+	app, err := h.repo.FindLatestByPhone(r.Context(), phone)
+	if err != nil {
+		if errors.Is(err, domain.ErrApplicationNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy hồ sơ với số điện thoại và mã tra cứu này")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi truy vấn hồ sơ")
+		return
+	}
+	if app.LookupCodeHash == nil || *app.LookupCodeHash != hashLookupCode(code) {
+		writeJSONError(w, http.StatusNotFound, "Không tìm thấy hồ sơ với số điện thoại và mã tra cứu này")
+		return
+	}
+	if app.Status != domain.ApplicationApproved {
+		if app.Status == domain.ApplicationPending {
+			writeJSONError(w, http.StatusConflict, "Hồ sơ đang chờ duyệt, chưa thể đặt mật khẩu")
+		} else {
+			writeJSONError(w, http.StatusConflict, "Hồ sơ đã bị từ chối, không thể đặt mật khẩu")
+		}
+		return
+	}
+	if app.IssuedUserID == nil {
+		writeJSONError(w, http.StatusInternalServerError, "Hồ sơ đã duyệt nhưng chưa có tài khoản")
+		return
+	}
+	if app.PasswordSetAt != nil {
+		writeJSONError(w, http.StatusConflict, "Mật khẩu đã được đặt, vui lòng đăng nhập")
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi mã hóa mật khẩu")
+		return
+	}
+	hashStr := string(hash)
+	if err := h.repo.SetShipperPassword(r.Context(), app.ID, *app.IssuedUserID, hashStr); err != nil {
+		if errors.Is(err, domain.ErrPasswordAlreadySet) {
+			writeJSONError(w, http.StatusConflict, "Mật khẩu đã được đặt, vui lòng đăng nhập")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Không thể đặt mật khẩu")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"issuedEmail": app.IssuedEmail,
+		"message":     "Đã đặt mật khẩu thành công",
+	})
+}
+
+// ReissueLookupCode cho manager cấp lại mã tra cứu khi người nộp làm mất mã.
+// Mã mới trả về đúng 1 lần, mã cũ hết hiệu lực ngay.
+func (h *ShipperHandler) ReissueLookupCode(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseApplicationID(w, r)
+	if !ok {
+		return
+	}
+
+	newCode, err := generateRandomCode(8)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Không thể tạo mã tra cứu")
+		return
+	}
+	newHash := hashLookupCode(newCode)
+
+	if _, err := h.repo.ReissueLookupCode(r.Context(), id, newHash); err != nil {
+		switch {
+		case errors.Is(err, domain.ErrApplicationNotFound):
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy hồ sơ")
+		case errors.Is(err, domain.ErrApplicationNotPending):
+			writeJSONError(w, http.StatusConflict, "Hồ sơ đã bị từ chối, không thể cấp lại mã")
+		default:
+			writeJSONError(w, http.StatusInternalServerError, "Không thể cấp lại mã tra cứu")
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, domain.ReissueLookupCodeResult{LookupCode: newCode})
+}
+
+// ResetShipperPassword cho manager đặt lại mật khẩu khi shipper quên mật khẩu.
+// Chỉ làm được với hồ sơ APPROVED (đã có tài khoản). Mật khẩu tạm sinh mới
+// trả về đúng 1 lần trong response này, manager chuyển riêng cho shipper;
+// mật khẩu cũ hết hiệu lực ngay, shipper đăng nhập bằng mật khẩu tạm sẽ bị
+// bắt đổi mật khẩu mới ngay (must_change_password = TRUE).
+func (h *ShipperHandler) ResetShipperPassword(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseApplicationID(w, r)
+	if !ok {
+		return
+	}
+
+	app, err := h.repo.GetApplicationByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, domain.ErrApplicationNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy hồ sơ")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi truy vấn hồ sơ")
+		return
+	}
+	if app.Status != domain.ApplicationApproved || app.IssuedUserID == nil || app.IssuedEmail == nil {
+		writeJSONError(w, http.StatusConflict, "Chỉ đặt lại mật khẩu được cho hồ sơ đã duyệt")
+		return
+	}
+
+	tempPassword, err := generateRandomCode(12)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Không thể tạo mật khẩu tạm")
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi mã hóa mật khẩu")
+		return
+	}
+	hashStr := string(hash)
+	if err := h.repo.ResetUserPassword(r.Context(), *app.IssuedUserID, hashStr); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Không thể đặt lại mật khẩu")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, domain.ResetShipperPasswordResult{
+		TempPassword: tempPassword,
+		IssuedEmail:  *app.IssuedEmail,
+	})
+}
+
+// ReclaimPoolEmail cho manager thu hồi mail của shipper đã nghỉ: tài khoản cũ
+// bị vô hiệu hóa (không đăng nhập được nữa) và mail về lại pool trống.
+// Lịch sử đơn hàng của shipper cũ vẫn được giữ nguyên.
+func (h *ShipperHandler) ReclaimPoolEmail(w http.ResponseWriter, r *http.Request) {
+	email := strings.ToLower(strings.TrimSpace(chi.URLParam(r, "email")))
+	if email == "" {
+		writeJSONError(w, http.StatusBadRequest, "Email không hợp lệ")
+		return
+	}
+
+	entry, err := h.repo.ReclaimPoolEmail(r.Context(), email)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrPoolEmailNotFound):
+			writeJSONError(w, http.StatusNotFound, "Email này không nằm trong pool 20 mail")
+		case errors.Is(err, domain.ErrPoolEmailNotUsed):
+			writeJSONError(w, http.StatusConflict, "Email này đang trống, không cần thu hồi")
+		case errors.Is(err, domain.ErrReclaimBlocked):
+			writeJSONError(w, http.StatusConflict, "Shipper còn đơn đang giao (PACKING/SHIPPING), không thể thu hồi lúc này")
+		default:
+			writeJSONError(w, http.StatusInternalServerError, "Không thể thu hồi mail")
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, entry)
+}
+
+// ApproveApplication duyệt hồ sơ: cấp 1 mail trống trong pool.
+// Không còn mật khẩu tạm: tài khoản mới tạo với 1 mật khẩu ngẫu nhiên không
+// ai biết, shipper tự đặt mật khẩu thật qua trang tra cứu bằng mã của mình.
 func (h *ShipperHandler) ApproveApplication(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseApplicationID(w, r)
 	if !ok {
@@ -264,12 +508,14 @@ func (h *ShipperHandler) ApproveApplication(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	tempPassword, err := generateTempPassword(12)
+	// Mật khẩu giữ chỗ ngẫu nhiên, không ai biết: tài khoản chưa dùng được
+	// cho tới khi shipper tự đặt mật khẩu thật qua trang tra cứu.
+	placeholder, err := generateRandomCode(32)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Không thể tạo mật khẩu tạm")
+		writeJSONError(w, http.StatusInternalServerError, "Không thể tạo tài khoản")
 		return
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(placeholder), bcrypt.DefaultCost)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "Lỗi mã hóa mật khẩu")
 		return
@@ -284,7 +530,8 @@ func (h *ShipperHandler) ApproveApplication(w http.ResponseWriter, r *http.Reque
 		PasswordHash:       &hashStr,
 		Role:               domain.RoleShipper,
 		AuthProvider:       domain.AuthProviderLocal,
-		MustChangePassword: true,
+		MustChangePassword: false,
+		IsActive:           true,
 	}
 
 	updated, err := h.repo.ApproveApplication(r.Context(), id, reviewerID, cleanEmail, req.Checks, newUser)
@@ -305,9 +552,8 @@ func (h *ShipperHandler) ApproveApplication(w http.ResponseWriter, r *http.Reque
 	}
 
 	writeJSON(w, http.StatusOK, domain.ApproveShipperApplicationResult{
-		Application:  updated,
-		IssuedEmail:  cleanEmail,
-		TempPassword: tempPassword,
+		Application: updated,
+		IssuedEmail: cleanEmail,
 	})
 }
 

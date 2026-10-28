@@ -117,6 +117,12 @@ func main() {
 
 		// Public Shipper Application API (GĐ1): ai cũng nộp hồ sơ được, không cần đăng nhập
 		r.Post("/shipper-applications", shipperHandler.CreateApplication)
+		// Tra cứu trạng thái hồ sơ theo SĐT + mã tra cứu: public, không cần đăng nhập.
+		// Đường tĩnh "/lookup" được Chi ưu tiên hơn "/{id}" nên không bị nuốt
+		// vào route xem chi tiết của MANAGER.
+		r.Get("/shipper-applications/lookup", shipperHandler.LookupApplication)
+		// Shipper đã duyệt tự đặt mật khẩu bằng SĐT + mã tra cứu (public).
+		r.Post("/shipper-applications/set-password", shipperHandler.SetShipperPassword)
 
 		// Public Catalog APIs
 		r.Get("/products", productHandler.ListProducts)
@@ -164,7 +170,10 @@ func main() {
 			r.Get("/shipper-applications/{id}", shipperHandler.GetApplication)
 			r.Post("/shipper-applications/{id}/approve", shipperHandler.ApproveApplication)
 			r.Post("/shipper-applications/{id}/reject", shipperHandler.RejectApplication)
+			r.Post("/shipper-applications/{id}/reissue-code", shipperHandler.ReissueLookupCode)
+			r.Post("/shipper-applications/{id}/reset-password", shipperHandler.ResetShipperPassword)
 			r.Get("/shipper-email-pool", shipperHandler.ListEmailPool)
+			r.Post("/shipper-email-pool/{email}/reclaim", shipperHandler.ReclaimPoolEmail)
 			r.Get("/admin/orders", productHandler.ListOrders)
 			r.Post("/products", productHandler.CreateProduct)
 			r.Put("/products/{id}", productHandler.UpdateProduct)
@@ -417,6 +426,12 @@ INSERT INTO me_supplies.shipper_email_pool (email) VALUES
     ('shipper11@gmail.com'), ('shipper12@gmail.com'), ('shipper13@gmail.com'), ('shipper14@gmail.com'), ('shipper15@gmail.com'),
     ('shipper16@gmail.com'), ('shipper17@gmail.com'), ('shipper18@gmail.com'), ('shipper19@gmail.com'), ('shipper20@gmail.com')
 ON CONFLICT (email) DO NOTHING;
+
+-- Luồng mã tra cứu: mã chỉ lưu dạng băm, tài khoản bị thu hồi thì vô hiệu hóa.
+-- Đặt ở đây để luồng chạy bằng go run cũng tự có schema như migration 000011.
+ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE me_supplies.shipper_applications ADD COLUMN IF NOT EXISTS lookup_code_hash TEXT;
+ALTER TABLE me_supplies.shipper_applications ADD COLUMN IF NOT EXISTS password_set_at TIMESTAMPTZ;
 
 INSERT INTO brands (code, name, discount_rate) VALUES
     ('BINHMINH', 'Bình Minh', 18.00),

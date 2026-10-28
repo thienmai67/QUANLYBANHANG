@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -16,11 +16,13 @@ import {
   ShieldCheck,
   LogOut,
   Layers,
+  Truck,
 } from 'lucide-react';
 import { useManagerShellStore } from '@/store/useManagerShellStore';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { removeTokens } from '@/lib/auth';
+import { shipperApi } from '@/services/shipperApi';
 
 interface NavItem {
   name: string;
@@ -42,6 +44,18 @@ export function ManagerSidebar() {
   const { user, logout } = useAuthStore();
 
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
+
+  // Thông báo có hồ sơ shipper mới: badge số hồ sơ đang chờ duyệt.
+  // Lấy lúc vào khu vực manager; vào lại hoặc tải lại trang thì cập nhật.
+  const [pendingShipperCount, setPendingShipperCount] = useState(0);
+  useEffect(() => {
+    shipperApi
+      .listApplications('PENDING')
+      .then((apps) => setPendingShipperCount(apps.length))
+      .catch(() => {
+        // Không có quyền hoặc lỗi mạng thì ẩn badge, không chặn sidebar.
+      });
+  }, []);
 
   // Consolidated navigation menu for Manager role
   const navItems: NavItem[] = [
@@ -70,6 +84,12 @@ export function ManagerSidebar() {
       name: 'Khách hàng',
       href: '/manager/customers',
       icon: Users,
+    },
+    {
+      name: 'Duyệt shipper',
+      href: '/manager/shipper-applications',
+      icon: Truck,
+      badge: pendingShipperCount > 0 ? pendingShipperCount : undefined,
     },
     {
       name: 'Cài đặt',
