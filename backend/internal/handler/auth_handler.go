@@ -227,10 +227,11 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		"refreshToken": tokenPair.RefreshToken,
 		"expiresIn":    tokenPair.ExpiresIn,
 		"user": map[string]any{
-			"id":       user.ID,
-			"email":    user.Email,
-			"fullName": user.FullName,
-			"role":     user.Role,
+			"id":                 user.ID,
+			"email":              user.Email,
+			"fullName":           user.FullName,
+			"role":               user.Role,
+			"mustChangePassword": user.MustChangePassword,
 		},
 	})
 }
@@ -284,8 +285,6 @@ func (h *AuthHandler) HandleRefreshToken(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-
-
 // HandleGetMe trả về toàn bộ thông tin profile của user hiện tại
 func (h *AuthHandler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 	userIDStr, ok := middleware.GetUserIDFromContext(r.Context())
@@ -311,15 +310,16 @@ func (h *AuthHandler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := domain.UserProfileResponse{
-		ID:           user.ID,
-		Email:        user.Email,
-		FullName:     user.FullName,
-		Phone:        user.Phone,
-		AvatarURL:    user.AvatarURL,
-		Role:         user.Role,
-		AuthProvider: user.AuthProvider,
-		CreatedAt:    user.CreatedAt,
-		UpdatedAt:    user.UpdatedAt,
+		ID:                 user.ID,
+		Email:              user.Email,
+		FullName:           user.FullName,
+		Phone:              user.Phone,
+		AvatarURL:          user.AvatarURL,
+		Role:               user.Role,
+		AuthProvider:       user.AuthProvider,
+		MustChangePassword: user.MustChangePassword,
+		CreatedAt:          user.CreatedAt,
+		UpdatedAt:          user.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -375,15 +375,16 @@ func (h *AuthHandler) HandleUpdateProfile(w http.ResponseWriter, r *http.Request
 	}
 
 	resp := domain.UserProfileResponse{
-		ID:           updatedUser.ID,
-		Email:        updatedUser.Email,
-		FullName:     updatedUser.FullName,
-		Phone:        updatedUser.Phone,
-		AvatarURL:    updatedUser.AvatarURL,
-		Role:         updatedUser.Role,
-		AuthProvider: updatedUser.AuthProvider,
-		CreatedAt:    updatedUser.CreatedAt,
-		UpdatedAt:    updatedUser.UpdatedAt,
+		ID:                 updatedUser.ID,
+		Email:              updatedUser.Email,
+		FullName:           updatedUser.FullName,
+		Phone:              updatedUser.Phone,
+		AvatarURL:          updatedUser.AvatarURL,
+		Role:               updatedUser.Role,
+		AuthProvider:       updatedUser.AuthProvider,
+		MustChangePassword: updatedUser.MustChangePassword,
+		CreatedAt:          updatedUser.CreatedAt,
+		UpdatedAt:          updatedUser.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -461,7 +462,6 @@ func (h *AuthHandler) HandleChangePassword(w http.ResponseWriter, r *http.Reques
 		"message": "Đổi mật khẩu thành công",
 	})
 }
-
 
 // HandleVerifyPassword kiểm tra mật khẩu hiện tại có chính xác hay không
 func (h *AuthHandler) HandleVerifyPassword(w http.ResponseWriter, r *http.Request) {
