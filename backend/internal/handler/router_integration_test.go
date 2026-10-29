@@ -20,6 +20,7 @@ import (
 func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.ProductRepository, jwtSvc *auth.JWTService) http.Handler {
 	authMiddleware := middleware.NewAuthMiddleware(jwtSvc)
 	productHandler := New(productRepo)
+	chatHandler := NewChatHandler(productRepo)
 	ssoHandler := NewSSOHandler(userRepo, jwtSvc)
 	authHandler := NewAuthHandler(userRepo, jwtSvc)
 
@@ -55,6 +56,7 @@ func buildIntegrationRouter(userRepo domain.UserRepository, productRepo domain.P
 		r.Get("/units", productHandler.ListUnits)
 		r.Get("/brands", productHandler.ListBrands)
 		r.Get("/categories", productHandler.ListCategories)
+		r.Post("/chat", chatHandler.HandleChat)
 
 		// Authenticated Routes (Any Logged In User / Customer)
 		r.Group(func(r chi.Router) {
@@ -203,6 +205,17 @@ func TestRouterIntegration_PublicCatalogRoutes(t *testing.T) {
 		router.ServeHTTP(rr, req)
 		if rr.Code != http.StatusOK {
 			t.Fatalf("GET /api/v1/categories expected 200, got %d", rr.Code)
+		}
+	}
+
+	// 7. POST /api/v1/chat (Public)
+	{
+		body := bytes.NewBufferString(`{"message": "Bảng giá ống Bình Minh chiết khấu bao nhiêu?"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/chat", body)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("POST /api/v1/chat expected 200, got %d", rr.Code)
 		}
 	}
 }
