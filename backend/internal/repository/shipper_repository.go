@@ -75,6 +75,17 @@ func (r *shipperRepository) FindLatestByPhone(ctx context.Context, phone string)
 	return &app, nil
 }
 
+// PhoneHasActiveApplication kiểm tra SĐT đã có hồ sơ PENDING hoặc APPROVED.
+// Hồ sơ REJECTED không tính: người bị từ chối được nộp hồ sơ mới.
+func (r *shipperRepository) PhoneHasActiveApplication(ctx context.Context, phone string) (bool, error) {
+	var exists bool
+	err := r.db.GetContext(ctx, &exists, `SELECT EXISTS(SELECT 1 FROM me_supplies.shipper_applications WHERE phone = $1 AND status IN ('PENDING', 'APPROVED'))`, phone)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 func (r *shipperRepository) ListEmailPool(ctx context.Context) ([]*domain.ShipperEmailPoolEntry, error) {
 	const query = `
 		SELECT p.email, p.status, p.assigned_user_id, u.full_name AS shipper_name, p.assigned_at, p.created_at, p.updated_at
@@ -108,6 +119,23 @@ func (r *shipperRepository) ApproveApplication(ctx context.Context, appID uuid.U
 	}
 	if app.Status != domain.ApplicationPending {
 		return nil, domain.ErrApplicationNotPending
+	}
+
+	// Chặn trùng SĐT: khóa tất cả hồ sơ của SĐT này để 2 lần duyệt cùng
+	// SĐT không chạy song song được, rồi kiểm tra SĐT đã thuộc về tài
+	// khoản shipper đang hoạt động hay chưa. Tài khoản đã bị thu hồi
+	// (is_active = FALSE) thì không tính: người nghỉ rồi quay lại được
+	// duyệt mới.
+	var phoneAppIDs []uuid.UUID
+	if err := tx.SelectContext(ctx, &phoneAppIDs, `SELECT id FROM me_supplies.shipper_applications WHERE phone = $1 FOR UPDATE`, app.Phone); err != nil {
+		return nil, err
+	}
+	var phoneTaken bool
+	if err := tx.GetContext(ctx, &phoneTaken, `SELECT EXISTS(SELECT 1 FROM me_supplies.users WHERE phone = $1 AND role = 'SHIPPER' AND is_active = TRUE)`, app.Phone); err != nil {
+		return nil, err
+	}
+	if phoneTaken {
+		return nil, domain.ErrPhoneAlreadyShipper
 	}
 
 	var poolStatus string

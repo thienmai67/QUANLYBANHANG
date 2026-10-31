@@ -46,15 +46,31 @@ export function ManagerSidebar() {
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
 
   // Thông báo có hồ sơ shipper mới: badge số hồ sơ đang chờ duyệt.
-  // Lấy lúc vào khu vực manager; vào lại hoặc tải lại trang thì cập nhật.
+  // Sidebar nằm trong layout manager nên không remount khi chuyển trang
+  // trong khu vực manager — vì vậy poll mỗi 30 giây + tải lại khi quay
+  // lại tab, để hồ sơ mới đăng ký hiện badge mà không cần tải lại trang.
   const [pendingShipperCount, setPendingShipperCount] = useState(0);
   useEffect(() => {
-    shipperApi
-      .listApplications('PENDING')
-      .then((apps) => setPendingShipperCount(apps.length))
-      .catch(() => {
-        // Không có quyền hoặc lỗi mạng thì ẩn badge, không chặn sidebar.
-      });
+    let cancelled = false;
+    const fetchPendingShipperCount = () => {
+      shipperApi
+        .listApplications('PENDING')
+        .then((apps) => {
+          if (!cancelled) setPendingShipperCount(apps.length);
+        })
+        .catch(() => {
+          // Không có quyền hoặc lỗi mạng thì ẩn badge, không chặn sidebar.
+          // Lần poll sau sẽ thử lại.
+        });
+    };
+    fetchPendingShipperCount();
+    const timer = setInterval(fetchPendingShipperCount, 30000);
+    window.addEventListener('focus', fetchPendingShipperCount);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      window.removeEventListener('focus', fetchPendingShipperCount);
+    };
   }, []);
 
   // Consolidated navigation menu for Manager role

@@ -17,6 +17,7 @@ var (
 	ErrInvalidLookupCode     = errors.New("invalid lookup code")
 	ErrPasswordAlreadySet    = errors.New("password already set")
 	ErrReclaimBlocked        = errors.New("shipper has active orders")
+	ErrPhoneAlreadyShipper   = errors.New("phone already belongs to an active shipper")
 )
 
 type ApplicationStatus string
@@ -158,6 +159,9 @@ type ShipperRepository interface {
 	GetApplicationByID(ctx context.Context, id uuid.UUID) (*ShipperApplication, error)
 	// FindLatestByPhone lấy hồ sơ mới nhất của 1 SĐT (phục vụ tra cứu).
 	FindLatestByPhone(ctx context.Context, phone string) (*ShipperApplication, error)
+	// PhoneHasActiveApplication báo SĐT đã có hồ sơ PENDING hoặc APPROVED
+	// hay chưa (phục vụ chặn nộp trùng: bị từ chối thì nộp lại được).
+	PhoneHasActiveApplication(ctx context.Context, phone string) (bool, error)
 	ListEmailPool(ctx context.Context) ([]*ShipperEmailPoolEntry, error)
 	ApproveApplication(ctx context.Context, appID uuid.UUID, reviewerID uuid.UUID, poolEmail string, checks ReviewChecks, newUser *User) (*ShipperApplication, error)
 	RejectApplication(ctx context.Context, appID uuid.UUID, reviewerID uuid.UUID, reason string) (*ShipperApplication, error)

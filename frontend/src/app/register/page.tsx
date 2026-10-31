@@ -77,7 +77,12 @@ export default function RegisterPage() {
     } else if ((Date.now() - dob.getTime()) / (365.25 * 24 * 3600 * 1000) < 18) {
       errors.dateOfBirth = "Shipper phải đủ 18 tuổi";
     }
-    if (shipperDocNumber.trim().length < 4) {
+    const docNumber = shipperDocNumber.trim();
+    if (shipperDocType === "CCCD") {
+      if (!/^\d{12}$/.test(docNumber)) {
+        errors.documentNumber = "Số CCCD phải đúng 12 chữ số";
+      }
+    } else if (docNumber.length < 4) {
       errors.documentNumber = "Số giấy tờ phải có ít nhất 4 ký tự";
     }
     if (Object.keys(errors).length > 0) {

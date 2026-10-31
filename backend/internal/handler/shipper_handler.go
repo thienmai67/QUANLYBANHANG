@@ -64,6 +64,19 @@ func isValidVNPhone(phone string) bool {
 	return true
 }
 
+// isValidCCCD yêu cầu CCCD đúng 12 chữ số, không ít hơn cũng không nhiều hơn.
+func isValidCCCD(number string) bool {
+	if len(number) != 12 {
+		return false
+	}
+	for i := 0; i < len(number); i++ {
+		if number[i] < '0' || number[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func calculateAge(dob time.Time, now time.Time) int {
 	age := now.Year() - dob.Year()
 	if now.Month() < dob.Month() || (now.Month() == dob.Month() && now.Day() < dob.Day()) {
@@ -146,13 +159,32 @@ func (h *ShipperHandler) CreateApplication(w http.ResponseWriter, r *http.Reques
 		writeJSONError(w, http.StatusBadRequest, "Vui lòng chọn loại giấy tờ")
 		return
 	}
-	if len([]rune(strings.TrimSpace(req.DocumentNumber))) < 4 {
+	cleanDocNumber := strings.TrimSpace(req.DocumentNumber)
+	if cleanDocType == "CCCD" {
+		if !isValidCCCD(cleanDocNumber) {
+			writeJSONError(w, http.StatusBadRequest, "Số CCCD phải đúng 12 chữ số")
+			return
+		}
+	} else if len([]rune(cleanDocNumber)) < 4 {
 		writeJSONError(w, http.StatusBadRequest, "Số giấy tờ phải có ít nhất 4 ký tự")
 		return
 	}
 
 	if !req.TermsAccepted || !req.TrainingConfirmed {
 		writeJSONError(w, http.StatusBadRequest, "Cần đồng ý điều khoản hợp tác và xác nhận đã học quy trình")
+		return
+	}
+
+	// Chặn trùng SĐT: SĐT đã có hồ sơ PENDING hoặc APPROVED thì không nộp
+	// thêm được nữa (bị từ chối thì nộp lại được). Người đã có hồ sơ thì
+	// dùng trang tra cứu hoặc liên hệ quản lý.
+	hasActive, err := h.repo.PhoneHasActiveApplication(r.Context(), cleanPhone)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Không thể kiểm tra hồ sơ đăng ký")
+		return
+	}
+	if hasActive {
+		writeJSONError(w, http.StatusConflict, "Số điện thoại này đã có hồ sơ đăng ký, vui lòng tra cứu trạng thái hồ sơ hoặc liên hệ quản lý")
 		return
 	}
 
@@ -545,6 +577,8 @@ func (h *ShipperHandler) ApproveApplication(w http.ResponseWriter, r *http.Reque
 			writeJSONError(w, http.StatusNotFound, "Email này không nằm trong pool 20 mail")
 		case errors.Is(err, domain.ErrPoolEmailNotFree):
 			writeJSONError(w, http.StatusConflict, "Email này đã được cấp cho shipper khác")
+		case errors.Is(err, domain.ErrPhoneAlreadyShipper):
+			writeJSONError(w, http.StatusConflict, "Số điện thoại này đã thuộc về một tài khoản shipper đang hoạt động, không thể duyệt thêm")
 		default:
 			writeJSONError(w, http.StatusInternalServerError, "Không thể duyệt hồ sơ")
 		}
