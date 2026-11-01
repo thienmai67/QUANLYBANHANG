@@ -20,6 +20,7 @@ import (
 
 type Handler struct {
 	productRepo domain.ProductRepository
+	saleRepo    domain.SaleRepository
 	payosClient *payos.Client
 	frontendURL string
 }
@@ -29,6 +30,10 @@ func New(productRepo domain.ProductRepository) *Handler {
 		productRepo: productRepo,
 		frontendURL: "http://localhost:3000",
 	}
+}
+
+func (h *Handler) SetSaleRepo(repo domain.SaleRepository) {
+	h.saleRepo = repo
 }
 
 func (h *Handler) SetPayOSClient(client *payos.Client) {
@@ -340,6 +345,63 @@ func (h *Handler) ListOrders(w http.ResponseWriter, req *http.Request) {
 	var customerID *uuid.UUID
 	claims, ok := middleware.GetClaimsFromContext(req.Context())
 	if ok && claims != nil {
+		if claims.Role == domain.RoleSale {
+			if h.saleRepo == nil {
+				writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Sale repository chưa được khởi tạo")
+				return
+			}
+			parsedSaleID, err := uuid.Parse(claims.UserID)
+			if err != nil {
+				writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID người dùng không hợp lệ")
+				return
+			}
+			var statusPtr, paymentStatusPtr, qPtr *string
+			var custPtr *uuid.UUID
+			if s := req.URL.Query().Get("status"); s != "" {
+				statusPtr = &s
+			}
+			if p := req.URL.Query().Get("payment_status"); p != "" {
+				paymentStatusPtr = &p
+			}
+			if c := req.URL.Query().Get("customer_id"); c != "" {
+				if cid, err := uuid.Parse(c); err == nil {
+					custPtr = &cid
+				}
+			}
+			if q := req.URL.Query().Get("q"); q != "" {
+				qPtr = &q
+			}
+			var fromPtr, toPtr *time.Time
+			if f := req.URL.Query().Get("from"); f != "" {
+				if t, err := time.Parse(time.RFC3339, f); err == nil {
+					fromPtr = &t
+				}
+			}
+			if tStr := req.URL.Query().Get("to"); tStr != "" {
+				if t, err := time.Parse(time.RFC3339, tStr); err == nil {
+					toPtr = &t
+				}
+			}
+
+			orders, _, err := h.saleRepo.ListOrdersBySale(req.Context(), parsedSaleID, domain.SaleOrderFilters{
+				Status:        statusPtr,
+				PaymentStatus: paymentStatusPtr,
+				CustomerID:    custPtr,
+				From:          fromPtr,
+				To:            toPtr,
+				Query:         qPtr,
+				Limit:         limit,
+				Offset:        offset,
+			})
+			if err != nil {
+				writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn đơn hàng")
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(orders)
+			return
+		}
+
 		if claims.Role == domain.RoleShipper {
 			if parsedID, err := uuid.Parse(claims.UserID); err == nil {
 				orders, err := h.productRepo.ListOrdersByShipper(req.Context(), parsedID, limit, offset)
@@ -396,6 +458,27 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if claims.Role == domain.RoleSale {
+		saleUUID, parseErr := uuid.Parse(claims.UserID)
+		if parseErr != nil {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+		isOwned := false
+		if order.SaleID != nil && *order.SaleID == saleUUID {
+			isOwned = true
+		} else if order.CustomerID != nil && h.saleRepo != nil {
+			inScope, _ := h.saleRepo.IsCustomerInSaleScope(req.Context(), saleUUID, *order.CustomerID)
+			if inScope {
+				isOwned = true
+			}
+		}
+		if !isOwned {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+	}
+
 	if claims.Role == domain.RoleCustomer {
 		customerUUID, parseErr := uuid.Parse(claims.UserID)
 		if parseErr != nil || order.CustomerID == nil || *order.CustomerID != customerUUID {
@@ -434,8 +517,33 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 
 	claims, ok := middleware.GetClaimsFromContext(req.Context())
 	if ok && claims != nil {
-		if parsedID, err := uuid.Parse(claims.UserID); err == nil {
-			order.CustomerID = &parsedID
+		if claims.Role == domain.RoleCustomer {
+			// Always force customer_id = claims.UserID, ignore any customer_id passed in payload
+			if parsedID, err := uuid.Parse(claims.UserID); err == nil {
+				order.CustomerID = &parsedID
+			}
+		} else if claims.Role == domain.RoleSale {
+			// SALE assisted order creation: keep customer_id and set sale_id
+			if parsedSaleID, err := uuid.Parse(claims.UserID); err == nil {
+				order.SaleID = &parsedSaleID
+			}
+			if order.CustomerID == nil || *order.CustomerID == uuid.Nil {
+				writeAPIError(w, http.StatusBadRequest, "INVALID_CUSTOMER", "Cần chọn khách hàng phụ trách để tạo đơn")
+				return
+			}
+			if h.saleRepo != nil {
+				inScope, err := h.saleRepo.IsCustomerInSaleScope(req.Context(), *order.SaleID, *order.CustomerID)
+				if err != nil || !inScope {
+					writeAPIError(w, http.StatusNotFound, "CUSTOMER_NOT_FOUND", "Khách hàng không thuộc phạm vi phụ trách của bạn")
+					return
+				}
+			}
+		} else if claims.Role == domain.RoleManager {
+			if order.CustomerID == nil {
+				if parsedID, err := uuid.Parse(claims.UserID); err == nil {
+					order.CustomerID = &parsedID
+				}
+			}
 		}
 	}
 
@@ -983,6 +1091,27 @@ func (h *Handler) MarkPaid(w http.ResponseWriter, req *http.Request) {
 		}
 		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi lấy thông tin đơn hàng")
 		return
+	}
+
+	if claims.Role == domain.RoleSale {
+		saleUUID, parseErr := uuid.Parse(claims.UserID)
+		if parseErr != nil {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
+		isOwned := false
+		if order.SaleID != nil && *order.SaleID == saleUUID {
+			isOwned = true
+		} else if order.CustomerID != nil && h.saleRepo != nil {
+			inScope, _ := h.saleRepo.IsCustomerInSaleScope(req.Context(), saleUUID, *order.CustomerID)
+			if inScope {
+				isOwned = true
+			}
+		}
+		if !isOwned {
+			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+			return
+		}
 	}
 
 	now := time.Now()

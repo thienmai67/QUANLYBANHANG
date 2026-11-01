@@ -21,6 +21,9 @@ export default function DashboardRedirectPage() {
       case 'MANAGER':
         router.replace('/manager/dashboard');
         break;
+      case 'SALE':
+        router.replace('/sale/dashboard');
+        break;
       case 'SHIPPER':
         router.replace('/shipper');
         break;

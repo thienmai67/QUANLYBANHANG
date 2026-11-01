@@ -621,7 +621,7 @@ const orderBaseSelectColumns = `
     version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
     cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
     payment_status, payos_order_code, paid_at, payment_receipt_url, refund_tx_code, refunded_at,
-    created_at, updated_at
+    created_at, updated_at, sale_id
 `
 
 type orderScanner interface {
@@ -630,7 +630,7 @@ type orderScanner interface {
 
 func scanOrderRow(s orderScanner) (*domain.Order, error) {
 	var o domain.Order
-	var custID, shipID, incidentReportedBy uuid.NullUUID
+	var custID, shipID, incidentReportedBy, saleID uuid.NullUUID
 	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail, payStatus, payReceipt, refundTx sql.NullString
 	var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt, paidAt, refundedAt sql.NullTime
 	var payosOrderCode sql.NullInt64
@@ -641,7 +641,7 @@ func scanOrderRow(s orderScanner) (*domain.Order, error) {
 		&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
 		&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
 		&payStatus, &payosOrderCode, &paidAt, &payReceipt, &refundTx, &refundedAt,
-		&o.CreatedAt, &o.UpdatedAt,
+		&o.CreatedAt, &o.UpdatedAt, &saleID,
 	)
 	if err != nil {
 		return nil, err
@@ -652,6 +652,9 @@ func scanOrderRow(s orderScanner) (*domain.Order, error) {
 	}
 	if shipID.Valid {
 		o.ShipperID = &shipID.UUID
+	}
+	if saleID.Valid {
+		o.SaleID = &saleID.UUID
 	}
 	if payMethod.Valid {
 		o.PaymentMethod = &payMethod.String
@@ -950,15 +953,15 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
         INSERT INTO me_supplies.orders (
             id, order_number, customer_id, customer_name, shipper_id, payment_method,
             is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-            version, created_at, updated_at, payment_status
+            version, created_at, updated_at, payment_status, sale_id
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
         )
     `
 	_, err = tx.ExecContext(ctx, orderQuery,
 		order.ID, order.OrderNumber, order.CustomerID, order.CustomerName, order.ShipperID, order.PaymentMethod,
 		order.Is2H, order.Deadline2H, order.DeliveredAt, order.CancellationReason, order.TotalAmount, order.Status,
-		order.Version, order.CreatedAt, order.UpdatedAt, order.PaymentStatus,
+		order.Version, order.CreatedAt, order.UpdatedAt, order.PaymentStatus, order.SaleID,
 	)
 	if err != nil {
 		_ = tx.Rollback()

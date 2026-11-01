@@ -69,6 +69,8 @@ export interface Order {
   deadline2h?: string;
   shipperId?: string;
   shipperName?: string;
+  saleId?: string;
+  saleName?: string;
   siteContact?: {
     name: string;
     roleLabel?: string;
@@ -146,6 +148,11 @@ export interface CodSettlement {
   orderCount?: number;
 }
 
+export interface ProductConversion {
+  unit: string;
+  factor: number;
+}
+
 export interface Product {
   id: string;
   code: string;
@@ -160,6 +167,17 @@ export interface Product {
   imageUrl?: string;
   description?: string;
   sku?: string;
+
+  // Additional fields for sale & catalog
+  discountRate?: number;
+  stock?: number;
+  diameterMm?: number;
+  pressureClass?: string;
+  crossSectionMm2?: number;
+  ampRating?: number;
+  conversions?: ProductConversion[];
+  specifications?: Record<string, string>;
+  createdAt?: string;
 }
 
 export type CustomerTier =

@@ -189,6 +189,8 @@ export function mapOrderFromApi(raw: any): Order {
     deadline2h: deadlineStr,
     shipperId: raw.shipperId || raw.shipper_id || undefined,
     shipperName: raw.shipperName || raw.shipper_name || undefined,
+    saleId: raw.saleId || raw.sale_id || undefined,
+    saleName: raw.saleName || raw.sale_name || undefined,
     podPhotoUrl,
     podRecipientName,
     podConfirmedAt,

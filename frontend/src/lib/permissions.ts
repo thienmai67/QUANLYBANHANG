@@ -2,6 +2,8 @@ export type UserRole = 'MANAGER' | 'CUSTOMER' | 'SHIPPER' | 'SALE';
 
 export type ActionKey =
   | 'order:view'
+  | 'order:create_assisted'
+  | 'order:mark_paid'
   | 'order:approve'
   | 'order:assign_shipper'
   | 'order:cancel'
@@ -14,9 +16,22 @@ export type ActionKey =
   | 'customer:create'
   | 'customer:edit'
   | 'customer:delete'
+  | 'customer:assign'
+  | 'quote:view'
+  | 'quote:create'
+  | 'quote:edit'
+  | 'quote:send'
+  | 'quote:convert'
+  | 'quote:approve'
+  | 'quote:reject'
+  | 'activity:view'
+  | 'activity:manage'
+  | 'payment:view'
+  | 'report:view_personal'
   | 'category:manage'
   | 'user:manage'
   | 'dashboard:view'
+  | 'sale_dashboard:view'
   // Shipper-specific actions
   | 'view-own-orders'
   | 'order:pickup'
@@ -41,6 +56,7 @@ function normalizeRole(role?: string): UserRole | null {
 /**
  * Evaluates whether a role has permission for a specific action.
  * MANAGER has full management permissions (consolidated from ADMIN + MANAGER).
+ * SALE has permissions strictly scoped to assigned customers, quotes, assisted orders, payments and activities.
  * SHIPPER only has view-own-orders, order:pickup, order:deliver, order:report-incident, shift:update, cod:view, cod:settle.
  */
 export function hasPermission(role?: string | null, action?: ActionKey): boolean {
@@ -52,7 +68,10 @@ export function hasPermission(role?: string | null, action?: ActionKey): boolean
   if (normalized === 'MANAGER') {
     switch (action) {
       case 'dashboard:view':
+      case 'sale_dashboard:view':
       case 'order:view':
+      case 'order:create_assisted':
+      case 'order:mark_paid':
       case 'order:approve':
       case 'order:assign_shipper':
       case 'order:cancel':
@@ -65,9 +84,48 @@ export function hasPermission(role?: string | null, action?: ActionKey): boolean
       case 'customer:create':
       case 'customer:edit':
       case 'customer:delete':
+      case 'customer:assign':
+      case 'quote:view':
+      case 'quote:create':
+      case 'quote:edit':
+      case 'quote:send':
+      case 'quote:convert':
+      case 'quote:approve':
+      case 'quote:reject':
+      case 'activity:view':
+      case 'activity:manage':
+      case 'payment:view':
+      case 'report:view_personal':
       case 'category:manage':
       case 'user:manage':
         return true;
+      default:
+        return false;
+    }
+  }
+
+  // SALE permissions matrix
+  if (normalized === 'SALE') {
+    switch (action) {
+      case 'sale_dashboard:view':
+      case 'order:view':
+      case 'order:create_assisted':
+      case 'order:mark_paid':
+      case 'product:view':
+      case 'customer:view':
+      case 'customer:create':
+      case 'customer:edit':
+      case 'quote:view':
+      case 'quote:create':
+      case 'quote:edit':
+      case 'quote:send':
+      case 'quote:convert':
+      case 'activity:view':
+      case 'activity:manage':
+      case 'payment:view':
+      case 'report:view_personal':
+        return true;
+      // SALE CANNOT: approve/cancel orders, assign shipper, adjust stock, manage categories/users, approve quotes
       default:
         return false;
     }
@@ -89,7 +147,7 @@ export function hasPermission(role?: string | null, action?: ActionKey): boolean
     }
   }
 
-  // Other roles do not have manager/shipper actions
+  // Other roles do not have manager/shipper/sale actions
   return false;
 }
 
@@ -98,6 +156,14 @@ export function hasPermission(role?: string | null, action?: ActionKey): boolean
  */
 export function can(role?: string | null, action?: ActionKey): boolean {
   return hasPermission(role, action);
+}
+
+/**
+ * Guard: Only SALE can access Sale Dashboard
+ */
+export function canAccessSaleDashboard(role?: string | null): boolean {
+  const norm = normalizeRole(role ?? undefined);
+  return norm === 'SALE';
 }
 
 /**

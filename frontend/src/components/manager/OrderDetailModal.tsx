@@ -20,6 +20,7 @@ import {
   AlertCircle,
   FileText,
 } from 'lucide-react';
+import { useSaleStore } from '@/store/useSaleStore';
 
 interface OrderDetailModalProps {
   order: Order | null;
@@ -33,6 +34,15 @@ export function OrderDetailModal({
   onClose,
 }: OrderDetailModalProps) {
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const { salesStaff, fetchSalesStaff, assignOrder } = useSaleStore();
+  const [isAssigningSale, setIsAssigningSale] = useState(false);
+  const [selectedSaleId, setSelectedSaleId] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchSalesStaff();
+    }
+  }, [isOpen, fetchSalesStaff]);
 
   useEffect(() => {
     if (!isOpen || !propOrder?.id) {
@@ -80,6 +90,33 @@ export function OrderDetailModal({
   }, [isOpen, onClose]);
 
   const order = detailOrder || propOrder;
+
+  useEffect(() => {
+    if (order?.saleId) {
+      setSelectedSaleId(order.saleId);
+    } else {
+      setSelectedSaleId('');
+    }
+  }, [order?.saleId]);
+
+  const handleAssignSale = async (newSaleId: string) => {
+    if (!order?.id || !newSaleId) return;
+    setIsAssigningSale(true);
+    const ok = await assignOrder(order.id, newSaleId);
+    if (ok) {
+      setSelectedSaleId(newSaleId);
+      const staff = salesStaff.find((s) => s.id === newSaleId);
+      if (staff && detailOrder) {
+        setDetailOrder({
+          ...detailOrder,
+          saleId: newSaleId,
+          saleName: staff.fullName,
+        });
+      }
+    }
+    setIsAssigningSale(false);
+  };
+
   if (!isOpen || !order) return null;
 
   const totalAmount = order.totalAmount || 0;
@@ -169,6 +206,28 @@ export function OrderDetailModal({
                 <span className="font-bold text-amber-600 dark:text-amber-400">
                   {order.shipperName || 'Chưa phân công'}
                 </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                <span className="text-slate-400">Nhân viên Sale:</span>
+                {salesStaff.length > 0 ? (
+                  <select
+                    value={selectedSaleId}
+                    disabled={isAssigningSale}
+                    onChange={(e) => handleAssignSale(e.target.value)}
+                    className="text-xs font-semibold px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[200px]"
+                  >
+                    <option value="">-- Chưa gán Sale --</option>
+                    {salesStaff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.fullName} ({s.email})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    {order.saleName || 'Chưa gán / Khách tự đặt'}
+                  </span>
+                )}
               </div>
               {order.deliveredAt && (
                 <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">

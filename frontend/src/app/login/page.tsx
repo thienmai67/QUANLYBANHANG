@@ -14,7 +14,7 @@ import { API_BASE_URL } from "@/lib/api";
 const MOCK_ACCOUNTS: Record<
   string,
   {
-    role: 'MANAGER' | 'SHIPPER' | 'CUSTOMER';
+    role: 'MANAGER' | 'SHIPPER' | 'CUSTOMER' | 'SALE';
     pass: string;
     name: string;
     userId: string;
@@ -25,6 +25,12 @@ const MOCK_ACCOUNTS: Record<
     pass: 'Customer@123',
     name: 'Khách Hàng Bán Lẻ',
     userId: 'mock-customer-001',
+  },
+  'sale@tdt.vn': {
+    role: 'SALE',
+    pass: 'Sale@123',
+    name: 'Nguyễn Văn Kinh Doanh',
+    userId: 'mock-sale-001',
   },
   'manager@tdt.vn': {
     role: 'MANAGER',
@@ -86,6 +92,7 @@ export default function LoginPage() {
     let role: any = 'CUSTOMER';
     if (rawRole === 'MANAGER' || rawRole === 'ADMIN') role = 'MANAGER';
     else if (rawRole === 'SHIPPER') role = 'SHIPPER';
+    else if (rawRole === 'SALE') role = 'SALE';
 
     useAuthStore.getState().setAuth(
       accessToken,
@@ -115,15 +122,21 @@ export default function LoginPage() {
     } else if (role === 'SHIPPER') {
       window.location.href = '/shipper';
       return;
+    } else if (role === 'SALE') {
+      window.location.href = '/sale/dashboard';
+      return;
     }
     window.location.href = '/profile';
   };
 
-  const handleQuickMockLogin = (role: 'MANAGER' | 'CUSTOMER' | 'SHIPPER') => {
+  const handleQuickMockLogin = (role: 'MANAGER' | 'CUSTOMER' | 'SHIPPER' | 'SALE') => {
     setErrorMsg(null);
     if (role === 'MANAGER') {
       setEmail('manager@tdt.vn');
       setPassword('Manager@123');
+    } else if (role === 'SALE') {
+      setEmail('sale@tdt.vn');
+      setPassword('Sale@123');
     } else if (role === 'SHIPPER') {
       setEmail('shipper@tdt.vn');
       setPassword('Shipper@123');
@@ -283,13 +296,20 @@ export default function LoginPage() {
           <div className="text-[11px] font-semibold text-slate-400 mb-2 text-center">
             Tài khoản thử nghiệm nhanh (Mock Login):
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => handleQuickMockLogin('MANAGER')}
               className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all text-center truncate"
             >
               👔 Manager
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickMockLogin('SALE')}
+              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 transition-all text-center truncate"
+            >
+              💼 Sale
             </button>
             <button
               type="button"
