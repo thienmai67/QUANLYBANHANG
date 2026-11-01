@@ -937,9 +937,12 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 	// Round total to integer VND
 	order.TotalAmount = math.Round(computedTotal)
 	order.Version = 1
-	if order.PaymentStatus == "" {
-		order.PaymentStatus = domain.PaymentStatusUnpaid
-	}
+	// D1.1 (F03): Luôn ép UNPAID lúc tạo đơn, shipper/delivered/cancel = nil
+	order.PaymentStatus = domain.PaymentStatusUnpaid
+	order.ShipperID = nil
+	order.DeliveredAt = nil
+	order.CancellationReason = nil
+	order.Status = domain.OrderStatusPending
 	now := time.Now()
 	if order.CreatedAt.IsZero() {
 		order.CreatedAt = now
@@ -1145,8 +1148,9 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 				return nil, domain.ErrInvalidShipper
 			}
 			var shipperRole domain.UserRole
-			err = tx.QueryRowContext(ctx, `SELECT role FROM me_supplies.users WHERE id = $1`, parsedShipperID).Scan(&shipperRole)
-			if err != nil || shipperRole != domain.RoleShipper {
+			var isActive bool
+			err = tx.QueryRowContext(ctx, `SELECT role, is_active FROM me_supplies.users WHERE id = $1`, parsedShipperID).Scan(&shipperRole, &isActive)
+			if err != nil || shipperRole != domain.RoleShipper || !isActive {
 				_ = tx.Rollback()
 				return nil, domain.ErrInvalidShipper
 			}
@@ -1155,6 +1159,18 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		if newShipperID == nil {
 			_ = tx.Rollback()
 			return nil, domain.ErrShipperRequired
+		}
+
+		// D1.4: Kiểm tra shipper không quá 5 đơn đang giao (SHIPPING)
+		var activeShippingCount int
+		err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM me_supplies.orders WHERE shipper_id = $1 AND status = 'SHIPPING'`, *newShipperID).Scan(&activeShippingCount)
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("count shipper active orders: %w", err)
+		}
+		if activeShippingCount >= 5 {
+			_ = tx.Rollback()
+			return nil, domain.ErrShipperCapacityExceeded
 		}
 	}
 

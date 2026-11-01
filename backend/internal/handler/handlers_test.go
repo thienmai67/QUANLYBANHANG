@@ -1000,6 +1000,59 @@ func TestCreateOrder_Success(t *testing.T) {
 	}
 }
 
+// Test D1.1 (F03): CreateOrder must enforce PaymentStatus UNPAID and ignore client-sent status/shipper
+func TestCreateOrder_PaymentStatusEnforcedUnpaid(t *testing.T) {
+	repo := newMockProductRepo()
+	h := New(repo)
+
+	fakeShipperID := uuid.New()
+	reason := "client tried to cancel"
+	bankMethod := "BANK_TRANSFER"
+	orderPayload := domain.Order{
+		CustomerName:       "Khách Gửi Giả Mạo",
+		PaymentMethod:      &bankMethod,
+		PaymentStatus:      domain.PaymentStatusPaid, // Trying to cheat
+		Status:             domain.OrderStatusPacking, // Trying to cheat
+		ShipperID:          &fakeShipperID, // Trying to cheat
+		CancellationReason: &reason, // Trying to cheat
+		Items: []domain.OrderItem{
+			{
+				ProductID: uuid.New(),
+				Quantity:  2,
+				UnitPrice: 100000,
+			},
+		},
+	}
+
+	body, _ := json.Marshal(orderPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/orders", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	h.CreateOrder(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status 201 Created, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var created domain.Order
+	if err := json.Unmarshal(rr.Body.Bytes(), &created); err != nil {
+		t.Fatalf("failed to decode created order: %v", err)
+	}
+
+	if created.PaymentStatus != domain.PaymentStatusUnpaid {
+		t.Errorf("expected PaymentStatus to be forced to UNPAID, got %q", created.PaymentStatus)
+	}
+	if created.Status != domain.OrderStatusPending {
+		t.Errorf("expected Status to be forced to PENDING, got %q", created.Status)
+	}
+	if created.ShipperID != nil {
+		t.Errorf("expected ShipperID to be wiped to nil, got %v", created.ShipperID)
+	}
+	if created.CancellationReason != nil {
+		t.Errorf("expected CancellationReason to be wiped to nil, got %v", created.CancellationReason)
+	}
+}
+
 func TestCreateOrder_InvalidJSON(t *testing.T) {
 	repo := newMockProductRepo()
 	h := New(repo)

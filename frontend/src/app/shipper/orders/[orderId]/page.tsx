@@ -306,7 +306,7 @@ export default function ShipperOrderDetailPage() {
                   onClick={() => setIsIncidentModalOpen(true)}
                   className="w-full min-h-[48px] rounded-[6px] bg-white text-[#831c1e] border border-[#e6e6e6] hover:bg-[#ffedea] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
                 >
-                  Báo sự cố
+                  Liên hệ quản lý
                 </button>
               </>
             )}

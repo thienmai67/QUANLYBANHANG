@@ -95,7 +95,7 @@ export default function CartDrawer() {
       try {
         const res = await api.get<any>(`/orders/${orderId}/payment-status`);
         if (res.paymentStatus === 'PAID') {
-          toast.success('Thanh toán thành công! Đơn hàng đã chuyển sang trạng thái đóng gói.');
+          toast.success('Thanh toán thành công! Đơn hàng đang chờ quản lý duyệt đóng gói.');
           clearCart();
           setCheckoutStep('success');
           if (typeof window !== 'undefined') {
@@ -621,7 +621,7 @@ export default function CartDrawer() {
                 </h3>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
                   {paymentMethod === 'BANK'
-                    ? 'Đơn hàng đã được xác nhận thanh toán thành công và sẵn sàng đóng gói.'
+                    ? 'Đơn hàng đã được xác nhận thanh toán thành công và đang chờ duyệt đóng gói.'
                     : 'Đơn hàng của bạn đã được tiếp nhận thành công. Nhân viên TDT M&E sẽ liên hệ xác nhận giao hàng trong 15 phút.'}
                 </p>
                 <button
