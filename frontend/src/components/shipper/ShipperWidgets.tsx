@@ -16,10 +16,14 @@ import {
   Clock,
   Wallet,
   Zap,
-  CheckCircle,
+  CheckCircle2,
   AlertTriangle,
   Power,
   ChevronRight,
+  TrendingUp,
+  Moon,
+  ShieldCheck,
+  Flame,
 } from 'lucide-react';
 
 interface ShipperWidgetsProps {
@@ -47,7 +51,14 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
     activeOrders: 0,
   };
 
-  const currentShift = shipper.shiftStatus || (shipper.status?.toLowerCase() === 'offline' ? 'offline' : shipper.status?.toLowerCase() === 'busy' ? 'busy' : 'available');
+  const currentShift =
+    shipper.shiftStatus ||
+    (shipper.status?.toLowerCase() === 'offline'
+      ? 'offline'
+      : shipper.status?.toLowerCase() === 'busy'
+      ? 'busy'
+      : 'available');
+
   const workload = getShipperWorkload(orders, shipperId);
   const unsettledCod = getShipperUnsettledCod(shipperId);
   const onTimeStats = calculateShipper2HOnTimeRate(
@@ -64,10 +75,10 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
     if (res.success) {
       toast.success(
         targetStatus === 'available'
-          ? 'Đã bật ca: Sẵn sàng nhận đơn!'
+          ? 'Đã bật ca: Sẵn sàng nhận đơn mới!'
           : targetStatus === 'busy'
-          ? 'Đã chuyển trạng thái: Đang bận chở hàng!'
-          : 'Đã tắt ca: Nghỉ ca an toàn!'
+          ? 'Đã chuyển trạng thái: Đang bận giao hàng!'
+          : 'Đã tắt ca: Nghỉ ngơi an toàn!'
       );
     } else {
       toast.error(res.error || 'Không thể chuyển trạng thái ca');
@@ -76,26 +87,28 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
 
   return (
     <div className="space-y-3 px-4 pt-3">
-      {/* 1. Quick Shift Status Selector (Large touch targets >= 48px) */}
+      {/* 1. Quick Shift Status Selector (Tactile Segmented Controller) */}
       <div
-        className={`p-3 rounded-2xl border transition-colors ${
+        className={`p-3.5 rounded-3xl border transition-all ${
           isHighContrast
-            ? 'bg-white border-2 border-black'
-            : 'bg-slate-900/80 border-slate-800'
+            ? 'bg-white border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+            : 'bg-slate-900/90 border-slate-800/90 backdrop-blur-md shadow-lg shadow-black/20'
         }`}
       >
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2.5">
           <span
-            className={`text-xs font-bold flex items-center gap-1.5 ${
-              isHighContrast ? 'text-black' : 'text-slate-300'
+            className={`text-xs font-extrabold flex items-center gap-1.5 uppercase tracking-wider ${
+              isHighContrast ? 'text-black font-black' : 'text-slate-300'
             }`}
           >
             <Power className="w-3.5 h-3.5 text-amber-500" />
-            Trạng thái ca làm việc:
+            Ca làm việc trực tuyến:
           </span>
           <span
-            className={`text-[11px] font-mono font-bold ${
-              isHighContrast ? 'text-black' : 'text-slate-400'
+            className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${
+              isHighContrast
+                ? 'bg-black text-white font-black'
+                : 'bg-slate-800 text-slate-400'
             }`}
           >
             Hôm nay
@@ -104,33 +117,54 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
 
         <div className="grid grid-cols-3 gap-2">
           {[
-            { id: 'available', label: 'Sẵn sàng', color: 'emerald' },
-            { id: 'busy', label: 'Đang bận', color: 'amber' },
-            { id: 'offline', label: 'Nghỉ ca', color: 'slate' },
+            {
+              id: 'available',
+              label: 'Sẵn sàng',
+              icon: CheckCircle2,
+              color: 'emerald',
+            },
+            {
+              id: 'busy',
+              label: 'Đang bận',
+              icon: Clock,
+              color: 'amber',
+            },
+            {
+              id: 'offline',
+              label: 'Nghỉ ca',
+              icon: Moon,
+              color: 'slate',
+            },
           ].map((item) => {
             const isActive = currentShift === item.id;
+            const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => handleShiftChange(item.id as any)}
-                className={`min-h-[48px] py-2 px-1 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border active:scale-95 ${
+                className={`min-h-[50px] py-2 px-1 rounded-2xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 border active:scale-95 ${
                   isActive
                     ? isHighContrast
-                      ? 'bg-black text-white border-2 border-black shadow-md'
+                      ? 'bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
                       : item.id === 'available'
-                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-600/30 font-black'
+                      ? 'bg-gradient-to-b from-emerald-600 to-emerald-700 text-white border-emerald-500 shadow-md shadow-emerald-900/40'
                       : item.id === 'busy'
-                      ? 'bg-amber-600 text-white border-amber-500 shadow-lg shadow-amber-600/30 font-black'
-                      : 'bg-slate-700 text-white border-slate-600 shadow-lg shadow-slate-700/30 font-black'
+                      ? 'bg-gradient-to-b from-amber-600 to-amber-700 text-white border-amber-500 shadow-md shadow-amber-900/40'
+                      : 'bg-gradient-to-b from-slate-700 to-slate-800 text-white border-slate-600 shadow-md shadow-slate-900/40'
                     : isHighContrast
                     ? 'bg-slate-100 text-black border-2 border-black hover:bg-slate-200'
-                    : 'bg-slate-800/80 text-slate-400 hover:text-white border-slate-700/60 hover:bg-slate-800'
+                    : 'bg-slate-800/60 text-slate-400 hover:text-white border-slate-700/60 hover:bg-slate-800'
                 }`}
               >
-                <span>{item.label}</span>
+                <div className="flex items-center gap-1.5">
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{item.label}</span>
+                </div>
                 {isActive && (
-                  <span className="text-[9px] opacity-80 mt-0.5">• Đang chọn •</span>
+                  <span className="text-[9px] opacity-90 font-mono tracking-tight">
+                    • Đang kích hoạt •
+                  </span>
                 )}
               </button>
             );
@@ -138,34 +172,39 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
         </div>
       </div>
 
-      {/* 2. Three Metric Cards Grid */}
-      <div className="grid grid-cols-3 gap-2">
-        {/* Workload Metric */}
+      {/* 2. Field Metrics Grid (Tải đơn, Sổ quỹ COD, Tỷ lệ 2H) */}
+      <div className="grid grid-cols-3 gap-2.5">
+        {/* Metric 1: Workload */}
         <div
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-colors ${
+          className={`p-3.5 rounded-3xl border flex flex-col justify-between transition-all shadow-sm ${
             isHighContrast
-              ? 'bg-white border-2 border-black text-black'
-              : 'bg-slate-900/80 border-slate-800'
+              ? 'bg-white border-4 border-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+              : 'bg-slate-900/90 border-slate-800/90 backdrop-blur-md'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400">
+            <span
+              className={`text-[11px] font-extrabold uppercase tracking-tight ${
+                isHighContrast ? 'text-black font-black' : 'text-slate-400'
+              }`}
+            >
               Tải đơn
             </span>
             <Zap
-              className={`w-3.5 h-3.5 ${
+              className={`w-4 h-4 ${
                 workload >= MAX_SHIPPER_ACTIVE_ORDERS
-                  ? 'text-rose-500'
+                  ? 'text-rose-500 animate-bounce'
                   : workload >= 4
                   ? 'text-amber-500'
-                  : 'text-emerald-500'
+                  : 'text-emerald-400'
               }`}
             />
           </div>
-          <div className="mt-2">
+
+          <div className="mt-2.5">
             <div className="flex items-baseline gap-1">
               <span
-                className={`text-xl font-black font-mono leading-none ${
+                className={`text-2xl font-black font-mono leading-none tracking-tight ${
                   isHighContrast
                     ? 'text-black'
                     : workload >= MAX_SHIPPER_ACTIVE_ORDERS
@@ -177,12 +216,17 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
               >
                 {workload}
               </span>
-              <span className="text-xs text-slate-400 font-bold">
+              <span
+                className={`text-xs font-bold ${
+                  isHighContrast ? 'text-black' : 'text-slate-500'
+                }`}
+              >
                 /{MAX_SHIPPER_ACTIVE_ORDERS}
               </span>
             </div>
+
             {/* Mini Progress Bar */}
-            <div className="w-full bg-slate-700/40 rounded-full h-1.5 mt-2 overflow-hidden border border-slate-700/50">
+            <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2.5 overflow-hidden border border-slate-700/60">
               <div
                 className={`h-full transition-all duration-300 ${
                   workload >= MAX_SHIPPER_ACTIVE_ORDERS
@@ -199,73 +243,99 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
           </div>
         </div>
 
-        {/* COD Wallet Metric */}
+        {/* Metric 2: COD Wallet */}
         <Link
           href="/shipper/cod"
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-all active:scale-95 ${
+          className={`p-3.5 rounded-3xl border flex flex-col justify-between transition-all active:scale-95 shadow-sm ${
             isHighContrast
-              ? 'bg-white border-2 border-black text-black hover:bg-slate-50'
-              : 'bg-slate-900/80 border-slate-800 hover:border-emerald-500/50'
+              ? 'bg-white border-4 border-black text-black hover:bg-amber-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+              : 'bg-slate-900/90 border-slate-800/90 hover:border-amber-500/50 backdrop-blur-md group'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400">Ví COD</span>
-            <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+            <span
+              className={`text-[11px] font-extrabold uppercase tracking-tight ${
+                isHighContrast ? 'text-black font-black' : 'text-slate-400'
+              }`}
+            >
+              Ví COD
+            </span>
+            <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-0.5 group-hover:text-amber-400 transition-transform" />
           </div>
-          <div className="mt-2">
+
+          <div className="mt-2.5">
             <p
-              className={`text-sm font-black font-mono truncate leading-tight ${
+              className={`text-xs font-black font-mono truncate leading-tight ${
                 isHighContrast
-                  ? 'text-black'
+                  ? 'text-black font-extrabold'
                   : unsettledCod.totalAmount > 0
-                  ? 'text-emerald-400'
+                  ? 'text-amber-400 font-extrabold'
                   : 'text-slate-300'
               }`}
             >
-              {formatCurrencyVND(unsettledCod.totalAmount)}
+              {unsettledCod.totalAmount > 0
+                ? formatCurrencyVND(unsettledCod.totalAmount)
+                : '0 đ'}
             </p>
-            <p className="text-[10px] text-slate-400 truncate mt-1">
-              Hôm nay: {formatCurrencyVND(unsettledCod.todayAmount)}
+            <p
+              className={`text-[10px] font-medium truncate mt-1 flex items-center gap-1 ${
+                isHighContrast ? 'text-black font-bold' : 'text-slate-400'
+              }`}
+            >
+              <span>{unsettledCod.orders.length} đơn chờ nộp</span>
             </p>
           </div>
         </Link>
 
-        {/* 2H On-Time Rate Metric */}
+        {/* Metric 3: 2H On-Time Rate */}
         <div
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-colors ${
+          className={`p-3.5 rounded-3xl border flex flex-col justify-between transition-all shadow-sm ${
             isHighContrast
-              ? 'bg-white border-2 border-black text-black'
-              : 'bg-slate-900/80 border-slate-800'
+              ? 'bg-white border-4 border-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
+              : 'bg-slate-900/90 border-slate-800/90 backdrop-blur-md'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400">2H chuẩn</span>
-            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+            <span
+              className={`text-[11px] font-extrabold uppercase tracking-tight flex items-center gap-1 ${
+                isHighContrast ? 'text-black font-black' : 'text-slate-400'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              2H SLA
+            </span>
+            <Clock className="w-4 h-4 text-cyan-400" />
           </div>
-          <div className="mt-1">
+
+          <div className="mt-2.5">
             <div className="flex items-baseline justify-between">
               <span
-                className={`text-xl font-black font-mono leading-none ${
-                  isHighContrast ? 'text-black' : 'text-cyan-400'
+                className={`text-xl font-black font-mono leading-none tracking-tight ${
+                  isHighContrast ? 'text-black font-black' : 'text-cyan-400'
                 }`}
               >
                 {onTimeStats.rateFormatted}
               </span>
-              <span className="text-[10px] text-slate-400">
+              <span
+                className={`text-[10px] font-bold ${
+                  isHighContrast ? 'text-black' : 'text-slate-500'
+                }`}
+              >
                 {onTimeStats.onTime2H}/{onTimeStats.total2H}
               </span>
             </div>
-            {/* Filter Toggle Pill */}
-            <div className="flex items-center gap-1 mt-1.5">
+
+            {/* Filter Toggle Pill (Nay / 7N) */}
+            <div className="flex items-center gap-1 mt-2">
               <button
                 type="button"
                 onClick={() => setRateFilter('today')}
-                className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-all ${
+                className={`text-[9px] px-2 py-0.5 rounded-md font-extrabold transition-all ${
                   rateFilter === 'today'
                     ? isHighContrast
-                      ? 'bg-black text-white'
-                      : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                    : 'text-slate-400 hover:text-white'
+                      ? 'bg-black text-white font-black'
+                      : 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 Nay
@@ -273,12 +343,12 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
               <button
                 type="button"
                 onClick={() => setRateFilter('7days')}
-                className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-all ${
+                className={`text-[9px] px-2 py-0.5 rounded-md font-extrabold transition-all ${
                   rateFilter === '7days'
                     ? isHighContrast
-                      ? 'bg-black text-white'
-                      : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                    : 'text-slate-400 hover:text-white'
+                      ? 'bg-black text-white font-black'
+                      : 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 7N

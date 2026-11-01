@@ -17,6 +17,7 @@ export interface UserProfile {
   companyName?: string;
   taxId?: string;
   shipperId?: string;
+  fullName?: string;
   // GĐ1 shipper: tài khoản mới được cấp sau duyệt phải đổi mật khẩu lần đầu.
   mustChangePassword?: boolean;
   createdAt?: string;
