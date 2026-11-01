@@ -130,35 +130,7 @@ function PosQrCode({ value, size = 58 }: { value: string; size?: number }) {
   );
 }
 
-/**
- * Tạo tọa độ mép răng cưa trên của giấy in nhiệt (teeth pointing up)
- */
-function generateTearPointsTop(numTeeth = 36): string {
-  const toothWidth = 200 / numTeeth;
-  let points = '0,8';
-  for (let i = 0; i < numTeeth; i++) {
-    const xMid = (i + 0.5) * toothWidth;
-    const xEnd = (i + 1) * toothWidth;
-    points += ` ${xMid.toFixed(1)},1.2 ${xEnd.toFixed(1)},8`;
-  }
-  points += ' 200,8 0,8';
-  return points;
-}
 
-/**
- * Tạo tọa độ mép răng cưa dưới của giấy in nhiệt (teeth pointing down)
- */
-function generateTearPointsBottom(numTeeth = 36): string {
-  const toothWidth = 200 / numTeeth;
-  let points = '0,0';
-  for (let i = 0; i < numTeeth; i++) {
-    const xMid = (i + 0.5) * toothWidth;
-    const xEnd = (i + 1) * toothWidth;
-    points += ` ${xMid.toFixed(1)},6.8 ${xEnd.toFixed(1)},0`;
-  }
-  points += ' 200,0 0,0';
-  return points;
-}
 
 export default function InvoiceModal({
   order,
@@ -257,7 +229,7 @@ export default function InvoiceModal({
           <div className="invoice-modal-meta">
             <span className="invoice-badge-status">
               <Receipt size={14} />
-              Phiếu thanh toán POS
+              Phiếu POS
             </span>
             <span className="invoice-order-ref">#{ctCode}</span>
           </div>
@@ -275,7 +247,7 @@ export default function InvoiceModal({
               ) : (
                 <ImageIcon size={15} />
               )}
-              <span>Xuất PNG</span>
+              <span>PNG</span>
             </button>
 
             <button
@@ -290,7 +262,7 @@ export default function InvoiceModal({
               ) : (
                 <Download size={15} />
               )}
-              <span>Xuất PDF</span>
+              <span>PDF</span>
             </button>
 
             <button
@@ -300,7 +272,7 @@ export default function InvoiceModal({
               title="In bằng máy in hoặc lưu PDF"
             >
               <Printer size={15} />
-              <span>In ngay</span>
+              <span>In</span>
             </button>
 
             <button
@@ -322,13 +294,6 @@ export default function InvoiceModal({
             ref={invoicePaperRef}
             className="invoice-pos-receipt"
           >
-            {/* TOP SERRATED TEAR EDGE */}
-            <div className="invoice-pos-tear invoice-pos-tear-top" aria-hidden="true">
-              <svg viewBox="0 0 200 8" width="100%" height="8" preserveAspectRatio="none" style={{ display: 'block' }}>
-                <polygon points={generateTearPointsTop()} fill="#ffffff" />
-              </svg>
-            </div>
-
             {/* MAIN WHITE PAPER BODY */}
             <div className="invoice-pos-body">
               {/* Header: Title + QR Code */}
@@ -347,8 +312,9 @@ export default function InvoiceModal({
 
               {/* Table Column Headers */}
               <div className="invoice-pos-table-header">
+                <span className="col-name">Tên hàng hóa</span>
                 <span className="col-sl">SL</span>
-                <span className="col-price">Giá bán (có VAT)</span>
+                <span className="col-price">Đơn giá</span>
                 <span className="col-total">Thành tiền</span>
               </div>
 
@@ -358,24 +324,20 @@ export default function InvoiceModal({
                   order.items.map((item, index) => {
                     const lineTotal = (item.unitPrice || 0) * (item.quantity || 1);
                     return (
-                      <div key={item.id || index} className="invoice-pos-item">
-                        <div className="invoice-pos-item-name">{item.name}</div>
-                        <div className="invoice-pos-item-row">
-                          <span className="col-sl">{item.quantity}</span>
-                          <span className="col-price">{item.unitPrice.toLocaleString('vi-VN')}</span>
-                          <span className="col-total">{lineTotal.toLocaleString('vi-VN')}</span>
-                        </div>
+                      <div key={item.id || index} className="invoice-pos-item-row">
+                        <span className="col-name">{item.name}</span>
+                        <span className="col-sl">{item.quantity}</span>
+                        <span className="col-price">{item.unitPrice.toLocaleString('vi-VN')}</span>
+                        <span className="col-total">{lineTotal.toLocaleString('vi-VN')}</span>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="invoice-pos-item">
-                    <div className="invoice-pos-item-name">Đơn hàng vật tư xây dựng</div>
-                    <div className="invoice-pos-item-row">
-                      <span className="col-sl">1</span>
-                      <span className="col-price">{order.totalAmount.toLocaleString('vi-VN')}</span>
-                      <span className="col-total">{order.totalAmount.toLocaleString('vi-VN')}</span>
-                    </div>
+                  <div className="invoice-pos-item-row">
+                    <span className="col-name">Đơn hàng vật tư xây dựng</span>
+                    <span className="col-sl">1</span>
+                    <span className="col-price">{order.totalAmount.toLocaleString('vi-VN')}</span>
+                    <span className="col-total">{order.totalAmount.toLocaleString('vi-VN')}</span>
                   </div>
                 )}
               </div>
@@ -426,13 +388,6 @@ export default function InvoiceModal({
                 Hóa đơn tích điểm cho {customerPhone || '0987 *** 899'} sau 24h.
               </div>
             </div>
-
-            {/* BOTTOM SERRATED TEAR EDGE */}
-            <div className="invoice-pos-tear invoice-pos-tear-bottom" aria-hidden="true">
-              <svg viewBox="0 0 200 8" width="100%" height="8" preserveAspectRatio="none" style={{ display: 'block' }}>
-                <polygon points={generateTearPointsBottom()} fill="#ffffff" />
-              </svg>
-            </div>
           </div>
         </div>
 
@@ -443,10 +398,10 @@ export default function InvoiceModal({
             className="invoice-btn-back"
             onClick={onClose}
           >
-            &larr; Đóng và quay lại chi tiết đơn hàng
+            &larr; Quay lại
           </button>
           <div className="invoice-footer-hint">
-            Hóa đơn được tối ưu chuẩn khổ in nhiệt 80mm POS
+            Khổ in nhiệt 80mm POS
           </div>
         </footer>
       </div>
