@@ -9,53 +9,20 @@ import PodModal from '@/components/shipper/PodModal';
 import IncidentModal from '@/components/shipper/IncidentModal';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
-import { useShipperUIStore } from '@/store/useShipperUIStore';
-import { useNow } from '@/hooks/useNow';
 import { useToast } from '@/hooks/useToast';
-import {
-  getRemaining2HMinutes,
-  isOrderOverdue2H,
-} from '@/lib/orderRules';
-import {
-  formatCurrencyVND,
-  formatDateTime,
-} from '@/lib/formatters';
-import {
-  getTelUrl,
-  getGoogleMapsUrl,
-} from '@/lib/shipperHelpers';
+import { formatCurrencyVND, formatDateTime } from '@/lib/formatters';
+import { getTelUrl, getGoogleMapsUrl } from '@/lib/shipperHelpers';
 import { api } from '@/lib/api';
 import { mapOrderFromApi } from '@/lib/orderMapper';
 import { Order } from '@/types/manager';
-import {
-  ArrowLeft,
-  Truck,
-  Package,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
-  Phone,
-  Navigation,
-  MapPin,
-  User,
-  Banknote,
-  Camera,
-  ShieldAlert,
-  Loader2,
-  FileText,
-  Boxes,
-  Flame,
-  Check,
-} from 'lucide-react';
+import { ArrowLeft, Phone, Navigation, Loader2 } from 'lucide-react';
 
 export default function ShipperOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
-  const now = useNow(60000);
   const { user } = useAuthStore();
   const { orders, shippers, updateOrderStatusWithActor, fetchOrders } = useManagerStore();
-  const { isHighContrast } = useShipperUIStore();
 
   const [isPodModalOpen, setIsPodModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
@@ -105,7 +72,6 @@ export default function ShipperOrderDetailPage() {
       }
     : storeOrder;
 
-  // STRICT DATA ISOLATION:
   const isAuthorizedShipper =
     order &&
     (order.shipperId === currentShipperId ||
@@ -116,21 +82,18 @@ export default function ShipperOrderDetailPage() {
     return (
       <RouteGuard allowedRoles={['SHIPPER', 'MANAGER']}>
         <ShipperShell>
-          <div className="p-8 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 mx-auto shadow-inner">
-              <ShieldAlert className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-black text-white tracking-tight">
-              404 — Không Tìm Thấy Đơn Hàng
+          <div className="p-6 text-center space-y-4">
+            <h2 className="text-[24px] font-bold text-[#0a0a0a]">
+              404 — Không tìm thấy đơn hàng
             </h2>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-              Đơn hàng không tồn tại hoặc không thuộc quyền giao vận của bạn. Vui lòng quay lại danh sách đơn hàng.
+            <p className="text-[14px] text-[#6b6b6b]">
+              Đơn hàng không tồn tại hoặc không thuộc quyền giao vận của bạn.
             </p>
             <button
               onClick={() => router.replace('/shipper')}
-              className="min-h-[48px] px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs font-black transition-all active:scale-95 border border-slate-700"
+              className="min-h-[48px] px-6 rounded-[6px] bg-[#141414] text-white hover:bg-[#222222] text-[16px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
             >
-              Về Danh Sách Đơn Hàng
+              Về danh sách đơn hàng
             </button>
           </div>
         </ShipperShell>
@@ -138,18 +101,10 @@ export default function ShipperOrderDetailPage() {
     );
   }
 
-  const is2H = Boolean(order.is2H || order.deliveryType === '2H');
   const isCod = order.paymentMethod === 'COD';
   const totalAmount = order.total ?? order.totalAmount ?? 0;
-
-  const remainingMinutes = is2H
-    ? getRemaining2HMinutes(
-        { is2H: true, deadline2H: order.deadline2H, createdAt: order.createdAt },
-        now
-      )
-    : null;
-  const isOverdue = is2H && remainingMinutes !== null && remainingMinutes <= 0;
-  const isUrgent = is2H && remainingMinutes !== null && remainingMinutes <= 15 && remainingMinutes > 0;
+  const customerName =
+    order.siteContact?.name || order.customerName || 'Khách hàng';
 
   const telUrl = getTelUrl({
     siteContact: order.siteContact,
@@ -159,6 +114,24 @@ export default function ShipperOrderDetailPage() {
     deliveryCoords: order.deliveryCoords,
     shippingAddress: order.shippingAddress,
   });
+
+  const orderAny = order as any;
+  const weightText = orderAny.totalWeight
+    ? `${orderAny.totalWeight} kg`
+    : orderAny.weight
+    ? `${orderAny.weight} kg`
+    : '-';
+
+  const statusLabel =
+    order.status === 'SHIPPING'
+      ? 'Đang giao'
+      : order.status === 'PACKING'
+      ? 'Chờ nhận'
+      : order.status === 'DELIVERED'
+      ? 'Đã giao'
+      : order.status === 'CANCELLED'
+      ? 'Đã hủy'
+      : order.status;
 
   const handlePickup = async () => {
     if (isPickingUp) return;
@@ -184,544 +157,211 @@ export default function ShipperOrderDetailPage() {
   return (
     <RouteGuard allowedRoles={['SHIPPER', 'MANAGER']}>
       <ShipperShell>
-        {/* Navigation & Header */}
-        <div
-          className={`p-4 border-b flex items-center justify-between gap-3 ${
-            isHighContrast
-              ? 'bg-white border-b-4 border-black text-black'
-              : 'bg-slate-900/90 border-slate-800 backdrop-blur-md'
-          }`}
-        >
-          <Link
-            href="/shipper"
-            className={`min-h-[48px] min-w-[48px] p-2.5 rounded-2xl flex items-center justify-center transition-all active:scale-95 border ${
-              isHighContrast
-                ? 'bg-white text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-                : 'bg-slate-800 text-slate-300 hover:text-white border-slate-700 shadow-sm'
-            }`}
-            aria-label="Quay lại danh sách"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-
-          <div className="text-center min-w-0">
-            <h1
-              className={`text-base font-black font-mono tracking-tight ${
-                isHighContrast ? 'text-black' : 'text-white'
-              }`}
+        <div className="px-4 py-4 space-y-4">
+          {/* 1. Top bar: mã đơn + tên khách */}
+          <div className="flex items-start gap-3">
+            <Link
+              href="/shipper"
+              aria-label="Quay lại danh sách đơn"
+              className="min-h-[48px] min-w-[48px] rounded-[6px] border border-[#e6e6e6] bg-white flex items-center justify-center text-[#0a0a0a] hover:bg-[#f2f2f2] shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
             >
-              {order.code}
-            </h1>
-            <p className="text-[11px] text-slate-400 font-medium">
-              {formatDateTime(order.createdAt)}
-            </p>
-          </div>
+              <ArrowLeft className="w-[18px] h-[18px]" />
+            </Link>
 
-          <div className="shrink-0">
-            {order.status === 'PACKING' && (
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-black tracking-tight ${
-                  isHighContrast
-                    ? 'bg-amber-300 text-black border-2 border-black'
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                }`}
-              >
-                Chờ lấy kho
-              </span>
-            )}
-            {order.status === 'SHIPPING' && (
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-black tracking-tight ${
-                  isHighContrast
-                    ? 'bg-blue-300 text-black border-2 border-black'
-                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                }`}
-              >
-                Đang giao
-              </span>
-            )}
-            {order.status === 'DELIVERED' && (
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-black tracking-tight ${
-                  isHighContrast
-                    ? 'bg-emerald-300 text-black border-2 border-black'
-                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                }`}
-              >
-                Đã giao
-              </span>
-            )}
-            {order.status === 'CANCELLED' && (
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-black tracking-tight ${
-                  isHighContrast
-                    ? 'bg-rose-300 text-black border-2 border-black'
-                    : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                }`}
-              >
-                Đã hủy
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Detail Content */}
-        <div className="p-4 space-y-4">
-          {/* 2H Countdown Banner */}
-          {is2H && (
-            <div
-              className={`p-4 rounded-3xl border flex items-center justify-between gap-3 shadow-md ${
-                isOverdue
-                  ? isHighContrast
-                    ? 'bg-rose-300 border-4 border-black text-black'
-                    : 'bg-rose-950/60 border-rose-500 text-rose-200'
-                  : isUrgent
-                  ? isHighContrast
-                    ? 'bg-amber-300 border-4 border-black text-black'
-                    : 'bg-amber-950/60 border-amber-500 text-amber-200'
-                  : isHighContrast
-                  ? 'bg-slate-100 border-2 border-black text-black'
-                  : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Flame className="w-5 h-5 shrink-0 text-orange-400" />
-                <div>
-                  <p className="text-xs font-black uppercase tracking-wider">
-                    Đơn Hỏa Tốc 2H Công Trình
-                  </p>
-                  <p className="text-[11px] opacity-80 font-medium">
-                    Cam kết giao tận chân công trình trong 120 phút
-                  </p>
-                </div>
-              </div>
-
-              {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && remainingMinutes !== null && (
-                <div
-                  className={`text-xs font-black px-3 py-1.5 rounded-xl font-mono ${
-                    isOverdue
-                      ? 'bg-rose-600 text-white animate-pulse'
-                      : isUrgent
-                      ? 'bg-amber-500 text-black animate-pulse'
-                      : 'bg-amber-500 text-slate-950'
-                  }`}
-                >
-                  {isOverdue
-                    ? `Quá hạn ${Math.abs(remainingMinutes)}p!`
-                    : isUrgent
-                    ? `CÒN ${remainingMinutes}P (GẤP)!`
-                    : `Còn ${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}p`}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Construction Site Contact & Delivery Location */}
-          <div
-            className={`p-4 rounded-3xl border space-y-3.5 shadow-md ${
-              isHighContrast
-                ? 'bg-white border-4 border-black text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-                : 'bg-slate-900/90 border-slate-800 text-white backdrop-blur-md'
-            }`}
-          >
-            <h2
-              className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
-                isHighContrast ? 'text-black font-black' : 'text-slate-400'
-              }`}
-            >
-              <User className="w-4 h-4 text-emerald-400" /> Thông tin nhận hàng & công trình
-            </h2>
-
-            <div className="space-y-2">
-              <div className="flex items-baseline justify-between">
-                <span
-                  className={`text-base font-black ${
-                    isHighContrast ? 'text-black' : 'text-white'
-                  }`}
-                >
-                  {order.siteContact?.name || order.customerName || 'Khách hàng'}
-                </span>
-                {order.siteContact?.roleLabel && (
-                  <span
-                    className={`text-xs px-2.5 py-0.5 rounded-lg font-bold ${
-                      isHighContrast
-                        ? 'bg-black text-white font-black'
-                        : 'bg-slate-800 text-slate-300 border border-slate-700'
-                    }`}
-                  >
-                    {order.siteContact.roleLabel}
-                  </span>
-                )}
-              </div>
-
-              <p
-                className={`text-xs font-mono font-bold ${
-                  isHighContrast ? 'text-black' : 'text-emerald-400'
-                }`}
-              >
-                {order.siteContact?.phone || order.customerPhone}
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] text-[#6b6b6b] tabular-nums">
+                {order.code}
               </p>
-
-              <div className="flex items-start gap-2.5 pt-1 text-xs">
-                <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                <span
-                  className={`leading-relaxed font-medium ${
-                    isHighContrast ? 'text-black font-bold' : 'text-slate-300'
-                  }`}
-                >
-                  {order.shippingAddress}
-                </span>
-              </div>
-            </div>
-
-            {/* Quick 1-Tap Contact Cluster */}
-            <div
-              className={`grid grid-cols-2 gap-2.5 pt-3 border-t ${
-                isHighContrast ? 'border-t-2 border-black' : 'border-slate-800'
-              }`}
-            >
-              {telUrl ? (
-                <a
-                  href={telUrl}
-                  className={`min-h-[48px] px-3 py-2 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all active:scale-95 border ${
-                    isHighContrast
-                      ? 'bg-black text-white border-2 border-black hover:bg-slate-800'
-                      : 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-600/30'
-                  }`}
-                >
-                  <Phone className="w-4 h-4 text-emerald-400" />
-                  <span>Gọi người nhận</span>
-                </a>
-              ) : (
-                <button
-                  disabled
-                  className="min-h-[48px] px-3 py-2 rounded-2xl text-xs font-bold bg-slate-800 text-slate-500 flex items-center justify-center gap-2 cursor-not-allowed opacity-50 border border-slate-700/50"
-                >
-                  <Phone className="w-4 h-4" />
-                  <span>Không có SĐT</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => window.open(mapsUrl, '_blank')}
-                className={`min-h-[48px] px-3 py-2 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all active:scale-95 border ${
-                  isHighContrast
-                    ? 'bg-black text-white border-2 border-black hover:bg-slate-800'
-                    : 'bg-cyan-600/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-600/30'
-                }`}
-              >
-                <Navigation className="w-4 h-4 text-cyan-400" />
-                <span>Mở bản đồ Maps</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Prominent Payment & COD Money Box */}
-          <div
-            className={`p-4 rounded-3xl border shadow-md ${
-              isCod
-                ? isHighContrast
-                  ? 'bg-amber-300 border-4 border-black text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-                  : 'bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border-amber-500/50'
-                : isHighContrast
-                ? 'bg-emerald-200 border-4 border-black text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-                : 'bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-transparent border-emerald-500/50'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span
-                className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                  isCod
-                    ? isHighContrast
-                      ? 'text-black'
-                      : 'text-amber-400'
-                    : isHighContrast
-                    ? 'text-black'
-                    : 'text-emerald-400'
-                }`}
-              >
-                <Banknote className="w-4 h-4" /> Thanh toán đơn hàng
-              </span>
-              <span
-                className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                  isCod
-                    ? isHighContrast
-                      ? 'bg-black text-white font-black'
-                      : 'bg-amber-500/30 text-amber-200 border border-amber-500/50'
-                    : isHighContrast
-                    ? 'bg-black text-white font-black'
-                    : 'bg-emerald-500/30 text-emerald-200 border border-emerald-500/50'
-                }`}
-              >
-                {isCod ? 'Thu hộ COD' : 'Đã thanh toán (0 ₫)'}
-              </span>
-            </div>
-
-            <div className="flex items-baseline justify-between pt-1">
-              <span
-                className={`text-xs font-bold ${
-                  isHighContrast ? 'text-black font-extrabold' : 'text-slate-300'
-                }`}
-              >
-                {isCod ? 'Số tiền tài xế cần thu:' : 'Số tiền mặt thu khách:'}
-              </span>
-              <span
-                className={`text-2xl font-black font-mono tracking-tight ${
-                  isCod
-                    ? isHighContrast
-                      ? 'text-black font-black'
-                      : 'text-amber-300'
-                    : isHighContrast
-                    ? 'text-black font-black'
-                    : 'text-emerald-300'
-                }`}
-              >
+              <h1 className="text-[24px] font-bold text-[#0a0a0a] leading-tight truncate">
+                {customerName}
+              </h1>
+              <p className="text-[14px] text-[#6b6b6b] mt-1 leading-[1.5]">
+                {statusLabel} • {order.shippingAddress} • Thu hộ khi giao:{' '}
                 {isCod ? formatCurrencyVND(totalAmount) : '0 ₫'}
-              </span>
+              </p>
             </div>
           </div>
 
-          {/* Manifest Item List for Warehouse Inspection */}
-          <div
-            className={`p-4 rounded-3xl border space-y-3.5 shadow-md ${
-              isHighContrast
-                ? 'bg-white border-4 border-black text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-                : 'bg-slate-900/90 border-slate-800 text-white backdrop-blur-md'
-            }`}
-          >
-            <h2
-              className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
-                isHighContrast ? 'text-black font-black' : 'text-slate-400'
-              }`}
-            >
-              <Boxes className="w-4 h-4 text-blue-400" /> Danh mục vật tư kiểm đếm ({order.items.length} món)
+          {/* 2. 2 ô số liệu: Thu hộ và Khối lượng (tính từ đơn thật) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-3.5">
+              <span className="text-[14px] text-[#6b6b6b]">Thu hộ</span>
+              <p className="text-[20px] font-bold tabular-nums text-[#0a0a0a] mt-1">
+                {isCod ? formatCurrencyVND(totalAmount) : '0 ₫'}
+              </p>
+            </div>
+            <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-3.5">
+              <span className="text-[14px] text-[#6b6b6b]">Khối lượng</span>
+              <p className="text-[20px] font-normal tabular-nums text-[#0a0a0a] mt-1">
+                {weightText}
+              </p>
+            </div>
+          </div>
+
+          {/* 3. "Hàng cần giao": danh sách tên + số lượng từng món */}
+          <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4 space-y-3">
+            <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
+              Hàng cần giao ({order.items.length} món)
             </h2>
 
-            <div
-              className={`divide-y ${
-                isHighContrast ? 'divide-black' : 'divide-slate-800'
-              }`}
-            >
+            <div className="divide-y divide-[#e6e6e6]">
               {order.items.map((item, idx) => (
-                <div key={idx} className="py-3 flex items-center justify-between gap-3 text-xs">
+                <div
+                  key={idx}
+                  className="py-2.5 flex items-center justify-between gap-3 text-[14px]"
+                >
                   <div className="min-w-0 flex-1">
-                    <p
-                      className={`font-black truncate ${
-                        isHighContrast ? 'text-black' : 'text-white'
-                      }`}
-                    >
+                    <p className="text-[14px] font-medium text-[#0a0a0a] truncate">
                       {item.productName || item.name}
                     </p>
-                    <p
-                      className={`text-[11px] font-mono mt-0.5 ${
-                        isHighContrast ? 'text-black font-semibold' : 'text-slate-400'
-                      }`}
-                    >
-                      SKU: {item.sku} • Hãng: {item.brand}
+                    <p className="text-[14px] text-[#6b6b6b] tabular-nums mt-0.5">
+                      x{item.quantity} {item.unit || ''}
                     </p>
                   </div>
+
                   <div className="text-right shrink-0">
-                    <p
-                      className={`font-mono font-black text-sm ${
-                        isHighContrast ? 'text-black' : 'text-amber-300'
-                      }`}
-                    >
-                      x{item.quantity} {item.unit}
-                    </p>
-                    <p
-                      className={`text-[11px] font-mono ${
-                        isHighContrast ? 'text-black' : 'text-slate-400'
-                      }`}
-                    >
-                      {formatCurrencyVND(item.unitPrice)}
-                    </p>
+                    <span className="text-[14px] text-[#6b6b6b] tabular-nums">
+                      {item.unitPrice ? formatCurrencyVND(item.unitPrice) : '-'}
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* POD Information if Delivered */}
+          {/* Delivered POD details (if delivered) */}
           {order.status === 'DELIVERED' && order.pod && (
-            <div
-              className={`p-4 rounded-3xl border space-y-3 shadow-md ${
-                isHighContrast
-                  ? 'bg-emerald-100 border-4 border-black text-black'
-                  : 'bg-emerald-950/20 border-emerald-600/40'
-              }`}
-            >
-              <h2 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Bằng chứng giao hàng (POD)
-              </h2>
-
-              <div className="text-xs space-y-1 font-medium">
-                <p>
-                  <span className="text-slate-400">Người ký nhận:</span>{' '}
-                  <span className="font-extrabold text-white">{order.pod.receiverName}</span>
-                </p>
-                <p className="text-slate-400 font-mono text-[11px]">
-                  Thời gian: {formatDateTime(order.pod.capturedAt || order.deliveredAt)}
-                </p>
+            <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[14px] px-2 py-0.5 rounded-[6px] bg-[#dcfae5] text-[#04250e] font-normal">
+                  Đã giao
+                </span>
+                <span className="text-[14px] text-[#6b6b6b] tabular-nums">
+                  {formatDateTime(order.pod.capturedAt || order.deliveredAt)}
+                </span>
               </div>
-
-              {/* Photos Gallery */}
-              {order.pod.photos.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                  {order.pod.photos.map((p, idx) => (
-                    <div
-                      key={idx}
-                      className="aspect-square rounded-2xl overflow-hidden border border-slate-700 bg-slate-800 shadow-sm"
-                    >
-                      <img
-                        src={p.thumbnail}
-                        alt={`POD ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="text-[14px] text-[#0a0a0a]">
+                Người ký nhận:{' '}
+                <span className="font-semibold">{order.pod.receiverName}</span>
+              </p>
             </div>
           )}
 
-          {/* Incident Information if Cancelled */}
+          {/* Incident details (if cancelled) */}
           {order.status === 'CANCELLED' && order.incident && (
-            <div
-              className={`p-4 rounded-3xl border space-y-2 shadow-md ${
-                isHighContrast
-                  ? 'bg-rose-100 border-4 border-black text-black'
-                  : 'bg-rose-950/30 border-rose-600/40 text-rose-200'
-              }`}
-            >
-              <h2 className="text-xs font-black uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
-                <ShieldAlert className="w-4 h-4 text-rose-400" /> Báo cáo sự cố giao hàng
-              </h2>
-              <div className="text-xs space-y-1">
-                <p className="font-black text-white">
-                  Phân loại: {order.incident.category}
-                </p>
-                <p className="leading-relaxed">
-                  Chi tiết: {order.incident.detail}
-                </p>
-                <p className="text-[11px] opacity-80 font-mono">
-                  Báo lúc: {formatDateTime(order.incident.at)}
-                </p>
-              </div>
+            <div className="bg-white border border-[#ffedea] rounded-[8px] p-4 space-y-2">
+              <span className="text-[14px] px-2 py-0.5 rounded-[6px] bg-[#ffedea] text-[#831c1e] font-normal">
+                Sự cố: {order.incident.category}
+              </span>
+              <p className="text-[14px] text-[#6b6b6b] leading-[1.5]">
+                {order.incident.detail}
+              </p>
             </div>
           )}
 
-          {/* Status Timeline */}
-          <div
-            className={`p-4 rounded-3xl border space-y-3 shadow-md ${
-              isHighContrast
-                ? 'bg-white border-4 border-black text-black'
-                : 'bg-slate-900/60 border-slate-800'
-            }`}
-          >
-            <h2
-              className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                isHighContrast ? 'text-black' : 'text-slate-400'
-              }`}
-            >
-              <FileText className="w-4 h-4" /> Nhật ký trạng thái
-            </h2>
+          {/* 4. "Xác nhận giao hàng": Nút chính đen full-width + 2 nút phụ + Báo sự cố */}
+          <div className="space-y-2 pt-2">
+            {order.status === 'SHIPPING' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsPodModalOpen(true)}
+                  className="w-full min-h-[48px] rounded-[6px] bg-[#141414] text-white hover:bg-[#222222] text-[16px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+                >
+                  Đã giao — Chụp ảnh POD
+                </button>
 
-            <div className="space-y-3">
-              {order.statusHistory.map((h, idx) => (
-                <div key={idx} className="flex items-start gap-3 text-xs">
-                  <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 mt-1 shrink-0 ring-4 ring-cyan-900/40" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span
-                        className={`font-black ${
-                          isHighContrast ? 'text-black' : 'text-white'
-                        }`}
-                      >
-                        {h.status}
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-500">
-                        {formatDateTime(h.timestamp)}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 font-medium">{h.changedBy}</p>
-                    {h.note && (
-                      <p className="text-[11px] text-slate-300 mt-0.5 italic">
-                        &quot;{h.note}&quot;
-                      </p>
-                    )}
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {telUrl ? (
+                    <a
+                      href={telUrl}
+                      className="min-h-[48px] rounded-[6px] bg-white text-[#0a0a0a] border border-[#e6e6e6] hover:bg-[#f2f2f2] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+                    >
+                      <Phone className="w-[18px] h-[18px]" />
+                      <span>Gọi khách</span>
+                    </a>
+                  ) : (
+                    <button
+                      disabled
+                      className="min-h-[48px] rounded-[6px] bg-[#f8f8f8] text-[#6b6b6b] border border-[#e6e6e6] text-[14px] font-normal flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
+                    >
+                      <Phone className="w-[18px] h-[18px]" />
+                      <span>Không có SĐT</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => window.open(mapsUrl, '_blank')}
+                    className="min-h-[48px] rounded-[6px] bg-white text-[#0a0a0a] border border-[#e6e6e6] hover:bg-[#f2f2f2] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+                  >
+                    <Navigation className="w-[18px] h-[18px]" />
+                    <span>Mở bản đồ</span>
+                  </button>
                 </div>
-              ))}
-            </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsIncidentModalOpen(true)}
+                  className="w-full min-h-[48px] rounded-[6px] bg-white text-[#831c1e] border border-[#e6e6e6] hover:bg-[#ffedea] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+                >
+                  Báo sự cố
+                </button>
+              </>
+            )}
+
+            {order.status === 'PACKING' && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePickup}
+                  disabled={isPickingUp}
+                  className="w-full min-h-[48px] rounded-[6px] bg-[#141414] text-white hover:bg-[#222222] text-[16px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+                >
+                  {isPickingUp ? (
+                    <>
+                      <Loader2 className="w-[18px] h-[18px] animate-spin" />
+                      <span>Đang nhận hàng...</span>
+                    </>
+                  ) : (
+                    <span>Xác nhận lấy hàng tại kho</span>
+                  )}
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {telUrl ? (
+                    <a
+                      href={telUrl}
+                      className="min-h-[48px] rounded-[6px] bg-white text-[#0a0a0a] border border-[#e6e6e6] hover:bg-[#f2f2f2] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+                    >
+                      <Phone className="w-[18px] h-[18px]" />
+                      <span>Gọi khách</span>
+                    </a>
+                  ) : (
+                    <button
+                      disabled
+                      className="min-h-[48px] rounded-[6px] bg-[#f8f8f8] text-[#6b6b6b] border border-[#e6e6e6] text-[14px] font-normal flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
+                    >
+                      <Phone className="w-[18px] h-[18px]" />
+                      <span>Không có SĐT</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => window.open(mapsUrl, '_blank')}
+                    className="min-h-[48px] rounded-[6px] bg-white text-[#0a0a0a] border border-[#e6e6e6] hover:bg-[#f2f2f2] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+                  >
+                    <Navigation className="w-[18px] h-[18px]" />
+                    <span>Mở bản đồ</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Primary Action Button (Fixed Bottom on Mobile for 1-Tap Thumb Execution) */}
-        <div
-          className={`p-4 border-t sticky bottom-16 space-y-2.5 z-30 ${
-            isHighContrast
-              ? 'bg-white border-t-4 border-black'
-              : 'bg-slate-950/95 border-slate-800 backdrop-blur-xl shadow-2xl'
-          }`}
-        >
-          {order.status === 'PACKING' && (
-            <button
-              type="button"
-              onClick={handlePickup}
-              disabled={isPickingUp}
-              className={`w-full min-h-[54px] px-4 py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] border shadow-xl ${
-                isHighContrast
-                  ? 'bg-amber-300 text-black border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-                  : 'bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 text-slate-950 border-amber-400 shadow-amber-900/50'
-              }`}
-            >
-              {isPickingUp ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Đang nhận hàng...</span>
-                </>
-              ) : (
-                <>
-                  <Package className="w-5 h-5" />
-                  <span>XÁC NHẬN LẤY HÀNG TẠI KHO</span>
-                </>
-              )}
-            </button>
-          )}
-
-          {order.status === 'SHIPPING' && (
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setIsPodModalOpen(true)}
-                className={`w-full min-h-[54px] px-4 py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] border shadow-2xl ${
-                  isHighContrast
-                    ? 'bg-emerald-300 text-black border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-                    : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white border-emerald-400 shadow-emerald-900/60'
-                }`}
-              >
-                <Camera className="w-5 h-5" />
-                <span>GIAO HÀNG & CHỤP ẢNH (POD)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsIncidentModalOpen(true)}
-                className={`w-full min-h-[48px] px-3 py-2 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border active:scale-[0.98] ${
-                  isHighContrast
-                    ? 'bg-white text-rose-700 border-2 border-black hover:bg-rose-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-                    : 'bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border-rose-500/30'
-                }`}
-              >
-                <AlertTriangle className="w-4 h-4 text-rose-400" />
-                <span>Báo sự cố giao hàng</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Modals */}
+        {/* POD Modal */}
         <PodModal
           order={order}
           shipperId={currentShipperId}
@@ -734,6 +374,7 @@ export default function ShipperOrderDetailPage() {
           }}
         />
 
+        {/* Incident Modal */}
         <IncidentModal
           order={order}
           shipperId={currentShipperId}

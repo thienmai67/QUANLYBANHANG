@@ -1,72 +1,34 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import RouteGuard from '@/components/auth/RouteGuard';
 import ShipperShell from '@/components/shipper/ShipperShell';
 import ShipperWidgets from '@/components/shipper/ShipperWidgets';
-import ShipperFilterTabs from '@/components/shipper/ShipperFilterTabs';
+import ShipperFilterTabs, { ShipperFilterTabType } from '@/components/shipper/ShipperFilterTabs';
 import ShipperOrderCard from '@/components/shipper/ShipperOrderCard';
 import PodModal from '@/components/shipper/PodModal';
 import IncidentModal from '@/components/shipper/IncidentModal';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
-import { useShipperUIStore } from '@/store/useShipperUIStore';
 import { Order } from '@/types/manager';
-import { get2HDeadline } from '@/lib/orderRules';
-import {
-  PackageOpen,
-  CheckCircle2,
-  Inbox,
-  ArrowDown,
-  Loader2,
-  RotateCw,
-  Sparkles,
-  Truck,
-  Flame,
-  Zap,
-} from 'lucide-react';
-import { useToast } from '@/hooks/useToast';
+import { formatCurrencyVND } from '@/lib/formatters';
 
 export default function ShipperDispatchFeedPage() {
-  const toast = useToast();
   const { user } = useAuthStore();
   const { orders, shippers, fetchOrders, fetchShippers, setOrders } = useManagerStore();
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [filterTab, setFilterTab] = useState<ShipperFilterTabType>('ALL');
+  const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
+  const [selectedIncidentOrder, setSelectedIncidentOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     fetchOrders();
     fetchShippers();
   }, [fetchOrders, fetchShippers]);
 
-  const handleManualRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await Promise.all([fetchOrders(), fetchShippers()]);
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 500);
-    }
-  };
-
-  const { activeTab, setActiveTab, isHighContrast } = useShipperUIStore();
-
-  const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
-  const [selectedIncidentOrder, setSelectedIncidentOrder] = useState<Order | null>(null);
-  const [completedPageSize, setCompletedPageSize] = useState<number>(5);
-
-  // GĐ1 shipper: hướng dẫn một lần sau khi đổi mật khẩu lần đầu (?welcome=1).
-  const [showWelcome, setShowWelcome] = useState(false);
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.search.includes('welcome=1')) {
-      setShowWelcome(true);
-    }
-  }, []);
-  const dismissWelcome = () => {
-    setShowWelcome(false);
-    if (typeof window !== 'undefined') {
-      window.history.replaceState(null, '', '/shipper');
-    }
-  };
+  const handleManualRefresh = useCallback(async () => {
+    await Promise.all([fetchOrders(), fetchShippers()]);
+  }, [fetchOrders, fetchShippers]);
 
   const currentShipperId = user?.shipperId || user?.id || '';
   const currentShipperName =
@@ -75,15 +37,15 @@ export default function ShipperDispatchFeedPage() {
     user?.fullName ||
     'Nhân viên giao hàng';
 
-  // Demo order helper for field testing
-  const handleLoadDemoOrders = () => {
+  // Seed demo orders for field testing if driver has 0 assigned orders
+  const handleLoadDemoOrders = useCallback(() => {
     const demoOrders: Order[] = [
       {
         id: 'ord-demo-shipping',
         code: 'ORD-261101-86B876',
         orderNumber: 'ORD-261101-86B876',
         customerId: 'cust-demo-1',
-        customerName: 'Kỹ sư Tuấn (C/t Masterise Lumiere Riverside Q2)',
+        customerName: 'Kỹ sư Tuấn (Masterise Lumiere Riverside Q2)',
         customerPhone: '0918234567',
         shippingAddress: 'Tháp B2, Căn 18.04, Dự án Masterise Lumiere, 259 Xa Lộ Hà Nội, An Phú, TP. Thủ Đức',
         items: [
@@ -137,17 +99,8 @@ export default function ShipperDispatchFeedPage() {
             unit: 'Cái',
             total: 1650000,
           },
-          {
-            productId: 'prod-pan-01',
-            productName: 'Ổ cắm đôi có màng che Panasonic Wide',
-            brand: 'Panasonic',
-            unitPrice: 88000,
-            quantity: 20,
-            unit: 'Cái',
-            total: 1760000,
-          },
         ],
-        totalAmount: 3410000,
+        totalAmount: 1650000,
         status: 'PACKING',
         paymentMethod: 'VIETQR',
         paymentStatus: 'PAID',
@@ -193,334 +146,175 @@ export default function ShipperDispatchFeedPage() {
     ];
 
     setOrders([...orders.filter((o) => o.shipperId !== currentShipperId), ...demoOrders]);
-    toast.success('Đã nạp 3 đơn hàng thực tế vào ca làm việc!');
-    setActiveTab('SHIPPING');
-  };
+  }, [currentShipperId, currentShipperName, orders, setOrders]);
 
-  // STRICT DATA ISOLATION: Shipper only sees orders assigned to their shipperId
+  // Strict isolation: shipper only sees their assigned orders
   const myOrders = useMemo(() => {
     if (!currentShipperId) return [];
     return orders.filter((o) => o.shipperId === currentShipperId);
   }, [orders, currentShipperId]);
 
-  // Auto-seed if logged in with 0 orders assigned
+  // Auto-seed if 0 orders
   useEffect(() => {
     if (currentShipperId && myOrders.length === 0) {
       handleLoadDemoOrders();
     }
-  }, [currentShipperId, myOrders.length]);
+  }, [currentShipperId, myOrders.length, handleLoadDemoOrders]);
 
-  // Tab counts
+  // Active orders (not delivered, not cancelled)
+  const activeOrders = useMemo(() => {
+    return myOrders.filter(
+      (o) => o.status === 'SHIPPING' || o.status === 'PACKING'
+    );
+  }, [myOrders]);
+
+  // Next order:
+  // 1. Highest priority is an active SHIPPING order
+  // 2. Otherwise next PACKING order
+  const nextOrder = useMemo(() => {
+    const shipping = activeOrders.find((o) => o.status === 'SHIPPING');
+    if (shipping) return shipping;
+    return activeOrders[0] || null;
+  }, [activeOrders]);
+
+  // Dynamic calculations for finding text according to §3 and §5:
+  // - next order code
+  // - next order COD amount
+  // - remaining active orders count
+  // - total remaining COD of unfinished orders (next order + waiting orders)
+  const nextOrderCod = useMemo(() => {
+    if (!nextOrder) return 0;
+    return nextOrder.paymentMethod === 'COD'
+      ? (nextOrder.total ?? nextOrder.totalAmount ?? 0)
+      : 0;
+  }, [nextOrder]);
+
+  const totalRemainingCod = useMemo(() => {
+    return activeOrders.reduce((sum, o) => {
+      if (o.paymentMethod === 'COD') {
+        return sum + (o.total ?? o.totalAmount ?? 0);
+      }
+      return sum;
+    }, 0);
+  }, [activeOrders]);
+
+  const findingSentence = useMemo(() => {
+    if (!nextOrder) {
+      return 'Hôm nay đã hoàn thành tất cả đơn hàng. Còn 0 đơn cần giao, tổng thu hộ còn lại 0 ₫.';
+    }
+    const codText =
+      nextOrderCod > 0
+        ? `thu hộ ${formatCurrencyVND(nextOrderCod)}`
+        : 'đã thanh toán (0 ₫)';
+    return `Tiếp theo: ${nextOrder.code} (${codText}). Còn ${activeOrders.length} đơn nữa trong ngày, tổng thu hộ còn lại ${formatCurrencyVND(totalRemainingCod)}.`;
+  }, [nextOrder, nextOrderCod, activeOrders.length, totalRemainingCod]);
+
+  // Remaining list orders (excluding nextOrder so it doesn't duplicate)
+  const listOrdersPool = useMemo(() => {
+    if (!nextOrder) return myOrders;
+    return myOrders.filter((o) => o.id !== nextOrder.id);
+  }, [myOrders, nextOrder]);
+
   const tabCounts = useMemo(() => {
     return {
-      shipping: myOrders.filter((o) => o.status === 'SHIPPING').length,
-      packing: myOrders.filter((o) => o.status === 'PACKING').length,
-      twoHours: myOrders.filter(
-        (o) =>
-          (o.is2H || o.deliveryType === '2H') &&
-          (o.status === 'SHIPPING' || o.status === 'PACKING')
-      ).length,
-      completed: myOrders.filter(
-        (o) => o.status === 'DELIVERED' || o.status === 'CANCELLED'
-      ).length,
+      all: listOrdersPool.length,
+      packing: listOrdersPool.filter((o) => o.status === 'PACKING').length,
+      shipping: listOrdersPool.filter((o) => o.status === 'SHIPPING').length,
     };
-  }, [myOrders]);
+  }, [listOrdersPool]);
 
-  // Filtered orders according to active tab
-  const tabFilteredOrders = useMemo(() => {
-    switch (activeTab) {
-      case 'SHIPPING':
-        return myOrders.filter((o) => o.status === 'SHIPPING');
+  const displayedListOrders = useMemo(() => {
+    switch (filterTab) {
       case 'PACKING':
-        return myOrders.filter((o) => o.status === 'PACKING');
-      case '2H':
-        return myOrders.filter(
-          (o) =>
-            (o.is2H || o.deliveryType === '2H') &&
-            (o.status === 'SHIPPING' || o.status === 'PACKING')
-        );
-      case 'COMPLETED':
-        return myOrders.filter(
-          (o) => o.status === 'DELIVERED' || o.status === 'CANCELLED'
-        );
+        return listOrdersPool.filter((o) => o.status === 'PACKING');
+      case 'SHIPPING':
+        return listOrdersPool.filter((o) => o.status === 'SHIPPING');
+      case 'ALL':
       default:
-        return myOrders;
+        return listOrdersPool;
     }
-  }, [myOrders, activeTab]);
-
-  // Priority Sorting:
-  // - Active orders: nearing 2H deadline or overdue first, then earliest createdAt
-  // - Completed orders: newest delivered/cancelled first
-  const sortedOrders = useMemo(() => {
-    const list = [...tabFilteredOrders];
-
-    if (activeTab === 'COMPLETED') {
-      return list.sort((a, b) => {
-        const timeA = new Date(
-          a.deliveredAt || a.cancelledAt || a.createdAt
-        ).getTime();
-        const timeB = new Date(
-          b.deliveredAt || b.cancelledAt || b.createdAt
-        ).getTime();
-        return timeB - timeA;
-      });
-    }
-
-    return list.sort((a, b) => {
-      const is2HA = Boolean(a.is2H || a.deliveryType === '2H');
-      const is2HB = Boolean(b.is2H || b.deliveryType === '2H');
-
-      const deadlineA = is2HA
-        ? get2HDeadline({
-            is2H: true,
-            deadline2H: a.deadline2H,
-            createdAt: a.createdAt,
-          })?.getTime() || Infinity
-        : Infinity;
-
-      const deadlineB = is2HB
-        ? get2HDeadline({
-            is2H: true,
-            deadline2H: b.deadline2H,
-            createdAt: b.createdAt,
-          })?.getTime() || Infinity
-        : Infinity;
-
-      // 1. If both are 2H orders, sort by closest deadline (smallest timestamp)
-      if (is2HA && is2HB) {
-        return deadlineA - deadlineB;
-      }
-
-      // 2. 2H orders come before standard orders
-      if (is2HA && !is2HB) return -1;
-      if (!is2HA && is2HB) return 1;
-
-      // 3. Otherwise sort by earliest created (FIFO queue discipline)
-      return (
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-    });
-  }, [tabFilteredOrders, activeTab]);
-
-  // Pagination for completed orders
-  const displayedOrders = useMemo(() => {
-    if (activeTab === 'COMPLETED') {
-      return sortedOrders.slice(0, completedPageSize);
-    }
-    return sortedOrders;
-  }, [sortedOrders, activeTab, completedPageSize]);
-
-  const hasMoreCompleted =
-    activeTab === 'COMPLETED' && sortedOrders.length > completedPageSize;
-
-  // Active Focus Delivery: check if there's any order currently in SHIPPING
-  const activeShippingOrders = useMemo(() => {
-    return myOrders.filter((o) => o.status === 'SHIPPING');
-  }, [myOrders]);
+  }, [listOrdersPool, filterTab]);
 
   return (
-    <RouteGuard
-      allowedRoles={['SHIPPER']}
-      fallbackUrl="/login"
-      forbiddenUrl="/403"
-    >
+    <RouteGuard allowedRoles={['SHIPPER']} fallbackUrl="/login" forbiddenUrl="/403">
       <ShipperShell>
-        {/* Welcome Onboarding Card for First-Time Shippers (GĐ1) */}
-        {showWelcome && (
-          <div
-            className={`mx-4 mt-3 rounded-3xl p-4.5 space-y-2.5 border transition-all ${
-              isHighContrast
-                ? 'bg-amber-100 border-4 border-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-                : 'bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-transparent border-emerald-500/30 text-white shadow-lg'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-emerald-400 shrink-0" />
-              <p className="text-sm font-black tracking-tight">
-                Chào mừng bạn gia nhập đội xe TDT M&E Supplies!
-              </p>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed font-medium">
-              Tài khoản của bạn đã kích hoạt thành công. Đơn hàng điều phối từ kho sẽ
-              xuất hiện tự động bên dưới. Khi giao hàng, chụp ảnh ký nhận (POD)
-              và theo dõi sổ quỹ thu hộ COD ngay trong app nhé!
+        <div className="px-4 py-4 space-y-4">
+          {/* 2. Tiêu đề màn hình 24px + 1 câu finding 14px */}
+          <div>
+            <h1 className="text-[24px] font-bold leading-tight text-[#0a0a0a]">
+              Đơn giao hôm nay
+            </h1>
+            <p className="text-[14px] text-[#6b6b6b] mt-1 leading-[1.5]">
+              {findingSentence}
             </p>
-            <button
-              type="button"
-              onClick={dismissWelcome}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 border ${
-                isHighContrast
-                  ? 'bg-black text-white border-2 border-black'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-md'
-              }`}
-            >
-              Tôi đã hiểu, bắt đầu nhận đơn!
-            </button>
-          </div>
-        )}
-
-        {/* Top Summary Widgets */}
-        <ShipperWidgets shipperId={currentShipperId} />
-
-        {/* Filter Tabs with Live Badges */}
-        <div className="flex items-center justify-between px-4 pt-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
-              Danh sách đơn
-            </span>
-            <span className="text-[11px] font-mono font-bold text-slate-500">
-              ({tabFilteredOrders.length} đơn)
-            </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            className={`text-xs font-bold px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all active:scale-95 ${
-              isHighContrast
-                ? 'bg-white text-black border-2 border-black hover:bg-slate-100'
-                : 'bg-slate-900 text-slate-300 hover:text-white border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-400' : ''}`} />
-            <span>Làm mới</span>
-          </button>
-        </div>
+          {/* 3. "Lộ trình hôm nay" (signature element, bắt buộc có) */}
+          <ShipperWidgets
+            shipperId={currentShipperId}
+            orders={myOrders}
+            nextOrderId={nextOrder?.id}
+          />
 
-        <ShipperFilterTabs counts={tabCounts} />
+          {/* 4. "Đơn tiếp theo" */}
+          <div className="space-y-2">
+            <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
+              Đơn tiếp theo
+            </h2>
+            {nextOrder ? (
+              <ShipperOrderCard
+                order={nextOrder}
+                shipperId={currentShipperId}
+                shipperName={currentShipperName}
+                variant="featured"
+                onOpenPod={(ord) => setSelectedPodOrder(ord)}
+                onOpenIncident={(ord) => setSelectedIncidentOrder(ord)}
+                onPickupSuccess={handleManualRefresh}
+              />
+            ) : (
+              <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4 text-[14px] text-[#6b6b6b]">
+                Không có đơn tiếp theo cần giao.
+              </div>
+            )}
+          </div>
 
-        {/* Active Delivery Focus Banner (If on road with active SHIPPING orders and tab is not SHIPPING) */}
-        {activeShippingOrders.length > 0 && activeTab !== 'SHIPPING' && (
-          <div className="px-4 pt-2">
-            <div
-              onClick={() => setActiveTab('SHIPPING')}
-              className={`p-3 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-95 ${
-                isHighContrast
-                  ? 'bg-amber-300 border-4 border-black text-black font-black'
-                  : 'bg-blue-600/20 border-blue-500/40 text-blue-200 hover:bg-blue-600/30'
-              }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Truck className="w-5 h-5 text-blue-400 shrink-0 animate-bounce" />
-                <div className="truncate">
-                  <p className="text-xs font-extrabold truncate">
-                    Bạn đang có {activeShippingOrders.length} đơn đang giao trên đường!
-                  </p>
-                  <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                    Nhấn vào đây để xem và hoàn tất giao hàng (POD)
-                  </p>
+          {/* 5. "Đơn chờ nhận" + Tab lọc: Tất cả / Chờ nhận / Đang giao */}
+          <div className="space-y-3 pt-2">
+            <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
+              Đơn chờ nhận
+            </h2>
+
+            <ShipperFilterTabs
+              activeTab={filterTab}
+              onChange={setFilterTab}
+              counts={tabCounts}
+            />
+
+            {/* Danh sách 2 dòng mỗi đơn */}
+            <div className="space-y-2 pt-1">
+              {displayedListOrders.length === 0 ? (
+                <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4 text-center text-[14px] text-[#6b6b6b]">
+                  Không có đơn hàng nào trong danh sách này.
                 </div>
-              </div>
-              <span className="text-xs font-black px-2.5 py-1 rounded-xl bg-blue-600 text-white shrink-0">
-                Xem ngay
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Orders Feed */}
-        <div className="px-4 py-3 space-y-3.5">
-          {displayedOrders.length === 0 ? (
-            <div
-              className={`p-10 rounded-3xl text-center space-y-3 border transition-all ${
-                isHighContrast
-                  ? 'bg-white text-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-                  : 'bg-slate-900/60 border-slate-800/90 text-slate-400 backdrop-blur-md'
-              }`}
-            >
-              <div
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto border ${
-                  isHighContrast
-                    ? 'bg-slate-100 text-black border-2 border-black'
-                    : 'bg-slate-800/80 text-slate-400 border-slate-700'
-                }`}
-              >
-                <Inbox className="w-7 h-7" />
-              </div>
-              <div>
-                <p
-                  className={`text-sm font-black ${
-                    isHighContrast ? 'text-black' : 'text-white'
-                  }`}
-                >
-                  Không có đơn hàng nào
-                </p>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
-                  {activeTab === 'SHIPPING' &&
-                    'Hiện tại bạn không có đơn hàng nào đang trên đường giao. Hãy kiểm tra tab Chờ lấy kho!'}
-                  {activeTab === 'PACKING' &&
-                    'Tất cả đơn hàng đã được nhận xong hoặc kho đang chuẩn bị vật tư.'}
-                  {activeTab === '2H' &&
-                    'Hiện không có đơn hỏa tốc 2H nào cần giao gấp trong ca này.'}
-                  {activeTab === 'COMPLETED' &&
-                    'Chưa có đơn hàng nào hoàn tất trong ca làm việc hôm nay.'}
-                </p>
-              </div>
-
-              {activeTab !== 'PACKING' && tabCounts.packing > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('PACKING')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                    isHighContrast
-                      ? 'bg-black text-white border-2 border-black'
-                      : 'bg-amber-600 text-white border-amber-500 hover:bg-amber-500 shadow-sm'
-                  }`}
-                >
-                  Có {tabCounts.packing} đơn đang chờ lấy tại kho ➔
-                </button>
-              )}
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleLoadDemoOrders}
-                  className="w-full min-h-[50px] px-4 py-3 rounded-2xl text-xs font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 active:scale-95"
-                >
-                  <Zap className="w-4 h-4 fill-current" />
-                  <span>NẠP ĐƠN HÀNG MẪU (ĐANG GIAO + CHỜ LẤY) ĐỂ TRẢI NGHIỆM</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3.5">
-              {displayedOrders.map((order) => (
-                <ShipperOrderCard
-                  key={order.id}
-                  order={order}
-                  shipperId={currentShipperId}
-                  shipperName={currentShipperName}
-                  onOpenPod={(ord) => setSelectedPodOrder(ord)}
-                  onOpenIncident={(ord) => setSelectedIncidentOrder(ord)}
-                  onPickupSuccess={handleManualRefresh}
-                />
-              ))}
-
-              {/* Load More Button for Completed tab */}
-              {hasMoreCompleted && (
-                <div className="pt-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setCompletedPageSize((prev) => prev + 5)}
-                    className={`min-h-[48px] px-6 py-2.5 rounded-2xl text-xs font-black inline-flex items-center gap-2 transition-all active:scale-95 border ${
-                      isHighContrast
-                        ? 'bg-amber-300 text-black hover:bg-amber-400 border-2 border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 shadow-md'
-                    }`}
-                  >
-                    <ArrowDown className="w-4 h-4" />
-                    <span>
-                      Xem thêm đơn hoàn tất ({sortedOrders.length - completedPageSize} đơn còn lại)
-                    </span>
-                  </button>
-                </div>
+              ) : (
+                displayedListOrders.map((order) => (
+                  <ShipperOrderCard
+                    key={order.id}
+                    order={order}
+                    shipperId={currentShipperId}
+                    shipperName={currentShipperName}
+                    variant="list"
+                    onOpenPod={(ord) => setSelectedPodOrder(ord)}
+                    onOpenIncident={(ord) => setSelectedIncidentOrder(ord)}
+                    onPickupSuccess={handleManualRefresh}
+                  />
+                ))
               )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* POD Modal */}
+        {/* Existing POD and Incident modals */}
         <PodModal
           order={selectedPodOrder}
           shipperId={currentShipperId}
@@ -533,7 +327,6 @@ export default function ShipperDispatchFeedPage() {
           }}
         />
 
-        {/* Incident Reporting Modal */}
         <IncidentModal
           order={selectedIncidentOrder}
           shipperId={currentShipperId}

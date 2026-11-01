@@ -1,276 +1,170 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useManagerStore } from '@/store/useManagerStore';
-import { useShipperUIStore } from '@/store/useShipperUIStore';
-import { useToast } from '@/hooks/useToast';
-import { useNow } from '@/hooks/useNow';
-import {
-  calculateShipper2HOnTimeRate,
-  getShipperWorkload,
-  MAX_SHIPPER_ACTIVE_ORDERS,
-} from '@/lib/orderRules';
-import { formatCurrencyVND } from '@/lib/formatters';
-import {
-  Clock,
-  Wallet,
-  Zap,
-  CheckCircle2,
-  AlertTriangle,
-  Power,
-  ChevronRight,
-  TrendingUp,
-  Moon,
-  ShieldCheck,
-  Flame,
-  Gauge,
-  CircleDot,
-} from 'lucide-react';
+import { Order } from '@/types/manager';
 
 interface ShipperWidgetsProps {
-  shipperId: string;
+  shipperId?: string;
+  orders?: Order[];
+  nextOrderId?: string;
 }
 
-export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
-  const toast = useToast();
-  const now = useNow(60000);
-  const { isHighContrast } = useShipperUIStore();
-  const {
-    shippers,
-    orders,
-    updateShipperShift,
-    getShipperUnsettledCod,
-  } = useManagerStore();
+export default function ShipperWidgets({
+  shipperId = '',
+  orders: propOrders,
+  nextOrderId,
+}: ShipperWidgetsProps) {
+  const { orders: storeOrders } = useManagerStore();
 
-  const [rateFilter, setRateFilter] = useState<'today' | '7days'>('today');
+  const myOrders =
+    propOrders ??
+    (shipperId
+      ? storeOrders.filter((o) => o.shipperId === shipperId)
+      : storeOrders);
 
-  const shipper = shippers.find((s) => s.id === shipperId) || {
-    id: shipperId,
-    name: 'Nhân viên giao hàng',
-    shiftStatus: 'available',
-    status: 'available',
-    activeOrders: 0,
-  };
-
-  const currentShift =
-    shipper.shiftStatus ||
-    (shipper.status?.toLowerCase() === 'offline'
-      ? 'offline'
-      : shipper.status?.toLowerCase() === 'busy'
-      ? 'busy'
-      : 'available');
-
-  const workload = getShipperWorkload(orders, shipperId);
-  const unsettledCod = getShipperUnsettledCod(shipperId);
-  const onTimeStats = calculateShipper2HOnTimeRate(
-    orders,
-    shipperId,
-    rateFilter,
-    now
+  // Group into:
+  // 1. Delivered orders (chấm đen)
+  // 2. Next order (chấm xanh #1d5fbf)
+  // 3. Waiting / remaining orders (chấm xám)
+  const deliveredOrders = myOrders.filter((o) => o.status === 'DELIVERED');
+  const activeOrders = myOrders.filter(
+    (o) => o.status === 'SHIPPING' || o.status === 'PACKING'
   );
 
-  const handleShiftChange = (targetStatus: 'available' | 'busy' | 'offline') => {
-    if (targetStatus === currentShift) return;
+  const effectiveNextId =
+    nextOrderId ||
+    (activeOrders.find((o) => o.status === 'SHIPPING')?.id || activeOrders[0]?.id);
 
-    const res = updateShipperShift(shipperId, targetStatus);
-    if (res.success) {
-      toast.success(
-        targetStatus === 'available'
-          ? 'Đã bật ca: Sẵn sàng nhận đơn mới!'
-          : targetStatus === 'busy'
-          ? 'Đã chuyển trạng thái: Đang bận giao hàng!'
-          : 'Đã tắt ca: Nghỉ ngơi an toàn!'
-      );
-    } else {
-      toast.error(res.error || 'Không thể chuyển trạng thái ca');
+  const nextOrder = activeOrders.find((o) => o.id === effectiveNextId);
+  const waitingOrders = activeOrders.filter((o) => o.id !== effectiveNextId);
+
+  // Ordered list according to route spec
+  const routeList: Array<{
+    order: Order;
+    type: 'delivered' | 'next' | 'waiting';
+  }> = [];
+
+  deliveredOrders.forEach((o) => {
+    routeList.push({ order: o, type: 'delivered' });
+  });
+
+  if (nextOrder) {
+    routeList.push({ order: nextOrder, type: 'next' });
+  }
+
+  waitingOrders.forEach((o) => {
+    routeList.push({ order: o, type: 'waiting' });
+  });
+
+  const formatDeliveryTime = (order: Order): string => {
+    if (order.status === 'DELIVERED') {
+      const timeStr = order.deliveredAt || order.pod?.capturedAt;
+      if (timeStr) {
+        try {
+          const d = new Date(timeStr);
+          if (!isNaN(d.getTime())) {
+            return d.toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }
+        } catch {
+          return '-';
+        }
+      }
     }
+    return '-';
+  };
+
+  const getStatusBadge = (order: Order, type: 'delivered' | 'next' | 'waiting') => {
+    if (type === 'delivered') {
+      return (
+        <span className="text-[14px] px-2 py-0.5 rounded-[6px] bg-[#dcfae5] text-[#04250e] font-normal shrink-0">
+          Đã giao
+        </span>
+      );
+    }
+    if (order.status === 'SHIPPING') {
+      return (
+        <span className="text-[14px] px-2 py-0.5 rounded-[6px] bg-[#dcfae5] text-[#04250e] font-normal shrink-0">
+          Đang giao
+        </span>
+      );
+    }
+    return (
+      <span className="text-[14px] px-2 py-0.5 rounded-[6px] bg-[#fffbeb] text-[#92400e] font-normal shrink-0">
+        Chờ
+      </span>
+    );
   };
 
   return (
-    <div className="space-y-3 px-4 pt-3">
-      {/* 1. Tactical Shift Switch Bar (Hardware feel) */}
-      <div
-        className={`p-2.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
-          isHighContrast
-            ? 'bg-black text-white border-2 border-yellow-400'
-            : 'bg-slate-900/90 border-slate-800/90 backdrop-blur-md shadow-md'
-        }`}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="relative flex h-3 w-3 shrink-0">
-            {currentShift === 'available' ? (
-              <>
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </>
-            ) : currentShift === 'busy' ? (
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-            ) : (
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-500"></span>
-            )}
-          </span>
-          <span className="text-xs font-black tracking-tight truncate">
-            {currentShift === 'available'
-              ? 'TRỰC TUYẾN • SẴN SÀNG NHẬN ĐƠN'
-              : currentShift === 'busy'
-              ? 'ĐANG BẬN • TẠM DỪNG NHẬN ĐƠN'
-              : 'NGHỈ CA • KHÔNG NHẬN ĐƠN'}
-          </span>
-        </div>
-
-        {/* Switch Buttons */}
-        <div className="flex items-center gap-1 shrink-0 bg-slate-950 p-1 rounded-xl border border-slate-800">
-          <button
-            type="button"
-            onClick={() => handleShiftChange('available')}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all flex items-center gap-1 ${
-              currentShift === 'available'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Bật ca</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleShiftChange('busy')}
-            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
-              currentShift === 'busy'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Bận</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleShiftChange('offline')}
-            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
-              currentShift === 'offline'
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Moon className="w-3.5 h-3.5" />
-            <span>Nghỉ</span>
-          </button>
-        </div>
+    <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
+          Lộ trình hôm nay
+        </h2>
+        <span className="text-[14px] text-[#6b6b6b] tabular-nums">
+          {routeList.length} điểm dừng
+        </span>
       </div>
 
-      {/* 2. Cockpit Telemetry Ribbon (3 Dynamic Metric Cards) */}
-      <div className="grid grid-cols-3 gap-2.5">
-        {/* Metric 1: Tải đơn (Active Workload) */}
-        <div
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-all ${
-            isHighContrast
-              ? 'bg-black text-white border-2 border-yellow-400'
-              : 'bg-slate-900/80 border-slate-800/90'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-              Tải đơn
-            </span>
-            <Zap className={`w-3.5 h-3.5 ${workload >= 4 ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`} />
-          </div>
+      {routeList.length === 0 ? (
+        <p className="text-[14px] text-[#6b6b6b] py-3">
+          Chưa có đơn hàng trên lộ trình hôm nay.
+        </p>
+      ) : (
+        <div className="divide-y divide-[#e6e6e6]">
+          {routeList.map(({ order, type }) => {
+            const timeDisplay = formatDeliveryTime(order);
+            const customerName =
+              order.siteContact?.name || order.customerName || 'Khách hàng';
 
-          <div className="my-1.5">
-            <div className="flex items-baseline gap-1">
-              <span className={`text-xl font-black font-mono tracking-tight ${isHighContrast ? 'text-yellow-400' : 'text-white'}`}>
-                {workload}
-              </span>
-              <span className="text-xs font-mono font-bold text-slate-500">
-                /{MAX_SHIPPER_ACTIVE_ORDERS}
-              </span>
-            </div>
-
-            {/* 5-segment LED gauge */}
-            <div className="grid grid-cols-5 gap-1 mt-1.5">
-              {[1, 2, 3, 4, 5].map((idx) => {
-                const filled = idx <= workload;
-                return (
-                  <div
-                    key={idx}
-                    className={`h-1.5 rounded-full transition-all ${
-                      filled
-                        ? workload >= 5
-                          ? 'bg-rose-500 shadow-sm shadow-rose-500/50'
-                          : workload >= 4
-                          ? 'bg-amber-400 shadow-sm shadow-amber-400/50'
-                          : 'bg-emerald-400 shadow-sm shadow-emerald-400/50'
-                        : isHighContrast
-                        ? 'bg-slate-800'
-                        : 'bg-slate-800'
-                    }`}
+            return (
+              <Link
+                key={order.id}
+                href={`/shipper/orders/${order.id}`}
+                className="min-h-[48px] py-2 flex items-center gap-3 transition-colors hover:bg-[#f8f8f8] -mx-2 px-2 rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+              >
+                {/* Route dot indicator */}
+                {type === 'delivered' && (
+                  <span
+                    aria-label="Điểm đã giao"
+                    className="w-2.5 h-2.5 rounded-full bg-[#0a0a0a] shrink-0"
                   />
-                );
-              })}
-            </div>
-          </div>
+                )}
+                {type === 'next' && (
+                  <span
+                    aria-label="Điểm tiếp theo"
+                    className="w-2.5 h-2.5 rounded-full bg-[#1d5fbf] shrink-0"
+                  />
+                )}
+                {type === 'waiting' && (
+                  <span
+                    aria-label="Điểm chờ"
+                    className="w-2.5 h-2.5 rounded-full bg-[#e6e6e6] border border-[#6b6b6b] shrink-0"
+                  />
+                )}
 
-          <span className="text-[10px] text-slate-400 truncate">
-            {workload >= 5 ? 'Đầy tải (Max)' : `${5 - workload} chỗ trống`}
-          </span>
+                {/* Status pill */}
+                {getStatusBadge(order, type)}
+
+                {/* Customer name */}
+                <span className="text-[14px] text-[#0a0a0a] font-normal truncate flex-1">
+                  {customerName}
+                </span>
+
+                {/* Real time or dash */}
+                <span className="text-[14px] text-[#6b6b6b] tabular-nums shrink-0">
+                  {timeDisplay}
+                </span>
+              </Link>
+            );
+          })}
         </div>
-
-        {/* Metric 2: Ví COD (Driver Cash in Pocket) */}
-        <Link
-          href="/shipper/cod"
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-all active:scale-95 group ${
-            isHighContrast
-              ? 'bg-yellow-400 text-black border-2 border-white font-extrabold'
-              : 'bg-gradient-to-br from-amber-500/15 via-amber-600/10 to-transparent border-amber-500/40 hover:border-amber-400 text-white shadow-lg shadow-amber-500/5'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isHighContrast ? 'text-black' : 'text-amber-400'}`}>
-              Ví COD
-            </span>
-            <ChevronRight className={`w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 ${isHighContrast ? 'text-black' : 'text-amber-400'}`} />
-          </div>
-
-          <div className="my-1.5">
-            <p className={`text-base font-black font-mono tracking-tight truncate ${isHighContrast ? 'text-black' : 'text-amber-300'}`}>
-              {formatCurrencyVND(unsettledCod.totalAmount)}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between text-[10px] opacity-90 truncate">
-            <span>{unsettledCod.orders.length} đơn giữ tiền</span>
-            <span className="font-bold underline">Nộp quỹ</span>
-          </div>
-        </Link>
-
-        {/* Metric 3: Hiệu suất SLA 2H (Speedometer) */}
-        <div
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-all ${
-            isHighContrast
-              ? 'bg-black text-white border-2 border-yellow-400'
-              : 'bg-slate-900/80 border-slate-800/90'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-              2H SLA
-            </span>
-            <Flame className="w-3.5 h-3.5 text-cyan-400" />
-          </div>
-
-          <div className="my-1.5">
-            <p className={`text-xl font-black font-mono tracking-tight ${isHighContrast ? 'text-yellow-400' : 'text-cyan-400'}`}>
-              {onTimeStats.ratePercent !== null ? `${Math.round(onTimeStats.ratePercent)}%` : '100%'}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between text-[10px] text-slate-400">
-            <span>Hỏa tốc</span>
-            <span className="font-bold text-emerald-400">Đúng giờ</span>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
