@@ -79,6 +79,7 @@ func main() {
 
 	ssoHandler := handler.NewSSOHandler(userRepo, jwtService)
 	authHandler := handler.NewAuthHandler(userRepo, jwtService)
+	chatHandler := handler.NewChatHandler(productRepo)
 
 	r := chi.NewRouter()
 	r.Use(chi_middleware.Logger)
@@ -120,6 +121,7 @@ func main() {
 		r.Get("/units", productHandler.ListUnits)
 		r.Get("/brands", productHandler.ListBrands)
 		r.Get("/categories", productHandler.ListCategories)
+		r.Post("/chat", chatHandler.HandleChat)
 
 		// Authenticated Routes (Any Logged In User / Customer)
 		r.Group(func(r chi.Router) {
