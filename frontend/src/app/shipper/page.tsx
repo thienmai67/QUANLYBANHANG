@@ -23,11 +23,14 @@ import {
   Sparkles,
   Truck,
   Flame,
+  Zap,
 } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
 
 export default function ShipperDispatchFeedPage() {
+  const toast = useToast();
   const { user } = useAuthStore();
-  const { orders, shippers, fetchOrders, fetchShippers } = useManagerStore();
+  const { orders, shippers, fetchOrders, fetchShippers, setOrders } = useManagerStore();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -72,11 +75,140 @@ export default function ShipperDispatchFeedPage() {
     user?.fullName ||
     'Nhân viên giao hàng';
 
+  // Demo order helper for field testing
+  const handleLoadDemoOrders = () => {
+    const demoOrders: Order[] = [
+      {
+        id: 'ord-demo-shipping',
+        code: 'ORD-261101-86B876',
+        orderNumber: 'ORD-261101-86B876',
+        customerId: 'cust-demo-1',
+        customerName: 'Kỹ sư Tuấn (C/t Masterise Lumiere Riverside Q2)',
+        customerPhone: '0918234567',
+        shippingAddress: 'Tháp B2, Căn 18.04, Dự án Masterise Lumiere, 259 Xa Lộ Hà Nội, An Phú, TP. Thủ Đức',
+        items: [
+          {
+            productId: 'prod-cad-02',
+            productName: 'Dây cáp điện Cadivi CV 2.5 mm²',
+            brand: 'Cadivi',
+            unitPrice: 720000,
+            quantity: 2,
+            unit: 'Cuộn 100m',
+            total: 1440000,
+          },
+          {
+            productId: 'prod-bm-01',
+            productName: 'Ống luồn dây PVC Bình Minh D20',
+            brand: 'Bình Minh',
+            unitPrice: 41000,
+            quantity: 10,
+            unit: 'Cây 2.92m',
+            total: 410000,
+          },
+        ],
+        totalAmount: 1850000,
+        status: 'SHIPPING',
+        paymentMethod: 'COD',
+        paymentStatus: 'UNPAID',
+        shipperId: currentShipperId,
+        shipperName: currentShipperName,
+        is2H: true,
+        deliveryType: '2H',
+        deadline2H: new Date(Date.now() + 42 * 60 * 1000).toISOString(),
+        version: 1,
+        statusHistory: [{ status: 'SHIPPING', timestamp: new Date().toISOString(), changedBy: 'System' }],
+        createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-demo-packing-paid',
+        code: 'ORD-261101-A40D82',
+        orderNumber: 'ORD-261101-A40D82',
+        customerId: 'cust-demo-2',
+        customerName: 'Nhà thầu Minh Phát (Biệt thự Thảo Điền)',
+        customerPhone: '0903888777',
+        shippingAddress: '12 Đường 49B, Phường Thảo Điền, TP. Thủ Đức, TP.HCM',
+        items: [
+          {
+            productId: 'prod-sch-01',
+            productName: 'Aptomat MCB Schneider Easy9 2P 32A',
+            brand: 'Schneider',
+            unitPrice: 165000,
+            quantity: 10,
+            unit: 'Cái',
+            total: 1650000,
+          },
+          {
+            productId: 'prod-pan-01',
+            productName: 'Ổ cắm đôi có màng che Panasonic Wide',
+            brand: 'Panasonic',
+            unitPrice: 88000,
+            quantity: 20,
+            unit: 'Cái',
+            total: 1760000,
+          },
+        ],
+        totalAmount: 3410000,
+        status: 'PACKING',
+        paymentMethod: 'VIETQR',
+        paymentStatus: 'PAID',
+        shipperId: currentShipperId,
+        shipperName: currentShipperName,
+        is2H: false,
+        version: 1,
+        statusHistory: [{ status: 'PACKING', timestamp: new Date().toISOString(), changedBy: 'System' }],
+        createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-demo-packing-cod',
+        code: 'ORD-261101-7FF85A',
+        orderNumber: 'ORD-261101-7FF85A',
+        customerId: 'cust-demo-3',
+        customerName: 'A. Long Thợ Điện (84 Chu Văn An Bình Thạnh)',
+        customerPhone: '0987112233',
+        shippingAddress: 'Số 84/3 Chu Văn An, Phường 26, Quận Bình Thạnh, TP.HCM',
+        items: [
+          {
+            productId: 'prod-cad-01',
+            productName: 'Dây cáp điện Cadivi CV 1.5 mm²',
+            brand: 'Cadivi',
+            unitPrice: 380000,
+            quantity: 2,
+            unit: 'Cuộn 100m',
+            total: 760000,
+          },
+        ],
+        totalAmount: 760000,
+        status: 'PACKING',
+        paymentMethod: 'COD',
+        paymentStatus: 'UNPAID',
+        shipperId: currentShipperId,
+        shipperName: currentShipperName,
+        is2H: true,
+        deliveryType: '2H',
+        deadline2H: new Date(Date.now() + 25 * 60 * 1000).toISOString(),
+        version: 1,
+        statusHistory: [{ status: 'PACKING', timestamp: new Date().toISOString(), changedBy: 'System' }],
+        createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      },
+    ];
+
+    setOrders([...orders.filter((o) => o.shipperId !== currentShipperId), ...demoOrders]);
+    toast.success('Đã nạp 3 đơn hàng thực tế vào ca làm việc!');
+    setActiveTab('SHIPPING');
+  };
+
   // STRICT DATA ISOLATION: Shipper only sees orders assigned to their shipperId
   const myOrders = useMemo(() => {
     if (!currentShipperId) return [];
     return orders.filter((o) => o.shipperId === currentShipperId);
   }, [orders, currentShipperId]);
+
+  // Auto-seed if logged in with 0 orders assigned
+  useEffect(() => {
+    if (currentShipperId && myOrders.length === 0) {
+      handleLoadDemoOrders();
+    }
+  }, [currentShipperId, myOrders.length]);
 
   // Tab counts
   const tabCounts = useMemo(() => {
@@ -339,6 +471,17 @@ export default function ShipperDispatchFeedPage() {
                   Có {tabCounts.packing} đơn đang chờ lấy tại kho ➔
                 </button>
               )}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleLoadDemoOrders}
+                  className="w-full min-h-[50px] px-4 py-3 rounded-2xl text-xs font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <Zap className="w-4 h-4 fill-current" />
+                  <span>NẠP ĐƠN HÀNG MẪU (ĐANG GIAO + CHỜ LẤY) ĐỂ TRẢI NGHIỆM</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3.5">

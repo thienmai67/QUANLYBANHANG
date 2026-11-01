@@ -24,6 +24,8 @@ import {
   Moon,
   ShieldCheck,
   Flame,
+  Gauge,
+  CircleDot,
 } from 'lucide-react';
 
 interface ShipperWidgetsProps {
@@ -87,273 +89,185 @@ export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
 
   return (
     <div className="space-y-3 px-4 pt-3">
-      {/* 1. Quick Shift Status Selector (Tactile Segmented Controller) */}
+      {/* 1. Tactical Shift Switch Bar (Hardware feel) */}
       <div
-        className={`p-3.5 rounded-3xl border transition-all ${
+        className={`p-2.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
           isHighContrast
-            ? 'bg-white border-4 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-            : 'bg-slate-900/90 border-slate-800/90 backdrop-blur-md shadow-lg shadow-black/20'
+            ? 'bg-black text-white border-2 border-yellow-400'
+            : 'bg-slate-900/90 border-slate-800/90 backdrop-blur-md shadow-md'
         }`}
       >
-        <div className="flex items-center justify-between mb-2.5">
-          <span
-            className={`text-xs font-extrabold flex items-center gap-1.5 uppercase tracking-wider ${
-              isHighContrast ? 'text-black font-black' : 'text-slate-300'
-            }`}
-          >
-            <Power className="w-3.5 h-3.5 text-amber-500" />
-            Ca làm việc trực tuyến:
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="relative flex h-3 w-3 shrink-0">
+            {currentShift === 'available' ? (
+              <>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </>
+            ) : currentShift === 'busy' ? (
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+            ) : (
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-500"></span>
+            )}
           </span>
-          <span
-            className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${
-              isHighContrast
-                ? 'bg-black text-white font-black'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            Hôm nay
+          <span className="text-xs font-black tracking-tight truncate">
+            {currentShift === 'available'
+              ? 'TRỰC TUYẾN • SẴN SÀNG NHẬN ĐƠN'
+              : currentShift === 'busy'
+              ? 'ĐANG BẬN • TẠM DỪNG NHẬN ĐƠN'
+              : 'NGHỈ CA • KHÔNG NHẬN ĐƠN'}
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            {
-              id: 'available',
-              label: 'Sẵn sàng',
-              icon: CheckCircle2,
-              color: 'emerald',
-            },
-            {
-              id: 'busy',
-              label: 'Đang bận',
-              icon: Clock,
-              color: 'amber',
-            },
-            {
-              id: 'offline',
-              label: 'Nghỉ ca',
-              icon: Moon,
-              color: 'slate',
-            },
-          ].map((item) => {
-            const isActive = currentShift === item.id;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleShiftChange(item.id as any)}
-                className={`min-h-[50px] py-2 px-1 rounded-2xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 border active:scale-95 ${
-                  isActive
-                    ? isHighContrast
-                      ? 'bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-                      : item.id === 'available'
-                      ? 'bg-gradient-to-b from-emerald-600 to-emerald-700 text-white border-emerald-500 shadow-md shadow-emerald-900/40'
-                      : item.id === 'busy'
-                      ? 'bg-gradient-to-b from-amber-600 to-amber-700 text-white border-amber-500 shadow-md shadow-amber-900/40'
-                      : 'bg-gradient-to-b from-slate-700 to-slate-800 text-white border-slate-600 shadow-md shadow-slate-900/40'
-                    : isHighContrast
-                    ? 'bg-slate-100 text-black border-2 border-black hover:bg-slate-200'
-                    : 'bg-slate-800/60 text-slate-400 hover:text-white border-slate-700/60 hover:bg-slate-800'
-                }`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
-                  <span>{item.label}</span>
-                </div>
-                {isActive && (
-                  <span className="text-[9px] opacity-90 font-mono tracking-tight">
-                    • Đang kích hoạt •
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        {/* Switch Buttons */}
+        <div className="flex items-center gap-1 shrink-0 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <button
+            type="button"
+            onClick={() => handleShiftChange('available')}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all flex items-center gap-1 ${
+              currentShift === 'available'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Bật ca</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleShiftChange('busy')}
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
+              currentShift === 'busy'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Bận</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleShiftChange('offline')}
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
+              currentShift === 'offline'
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Moon className="w-3.5 h-3.5" />
+            <span>Nghỉ</span>
+          </button>
         </div>
       </div>
 
-      {/* 2. Field Metrics Grid (Tải đơn, Sổ quỹ COD, Tỷ lệ 2H) */}
+      {/* 2. Cockpit Telemetry Ribbon (3 Dynamic Metric Cards) */}
       <div className="grid grid-cols-3 gap-2.5">
-        {/* Metric 1: Workload */}
+        {/* Metric 1: Tải đơn (Active Workload) */}
         <div
-          className={`p-3.5 rounded-3xl border flex flex-col justify-between transition-all shadow-sm ${
+          className={`p-3 rounded-2xl border flex flex-col justify-between transition-all ${
             isHighContrast
-              ? 'bg-white border-4 border-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-              : 'bg-slate-900/90 border-slate-800/90 backdrop-blur-md'
+              ? 'bg-black text-white border-2 border-yellow-400'
+              : 'bg-slate-900/80 border-slate-800/90'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span
-              className={`text-[11px] font-extrabold uppercase tracking-tight ${
-                isHighContrast ? 'text-black font-black' : 'text-slate-400'
-              }`}
-            >
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
               Tải đơn
             </span>
-            <Zap
-              className={`w-4 h-4 ${
-                workload >= MAX_SHIPPER_ACTIVE_ORDERS
-                  ? 'text-rose-500 animate-bounce'
-                  : workload >= 4
-                  ? 'text-amber-500'
-                  : 'text-emerald-400'
-              }`}
-            />
+            <Zap className={`w-3.5 h-3.5 ${workload >= 4 ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`} />
           </div>
 
-          <div className="mt-2.5">
+          <div className="my-1.5">
             <div className="flex items-baseline gap-1">
-              <span
-                className={`text-2xl font-black font-mono leading-none tracking-tight ${
-                  isHighContrast
-                    ? 'text-black'
-                    : workload >= MAX_SHIPPER_ACTIVE_ORDERS
-                    ? 'text-rose-400'
-                    : workload >= 4
-                    ? 'text-amber-400'
-                    : 'text-emerald-400'
-                }`}
-              >
+              <span className={`text-xl font-black font-mono tracking-tight ${isHighContrast ? 'text-yellow-400' : 'text-white'}`}>
                 {workload}
               </span>
-              <span
-                className={`text-xs font-bold ${
-                  isHighContrast ? 'text-black' : 'text-slate-500'
-                }`}
-              >
+              <span className="text-xs font-mono font-bold text-slate-500">
                 /{MAX_SHIPPER_ACTIVE_ORDERS}
               </span>
             </div>
 
-            {/* Mini Progress Bar */}
-            <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2.5 overflow-hidden border border-slate-700/60">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  workload >= MAX_SHIPPER_ACTIVE_ORDERS
-                    ? 'bg-rose-500'
-                    : workload >= 4
-                    ? 'bg-amber-500'
-                    : 'bg-emerald-500'
-                }`}
-                style={{
-                  width: `${Math.min(100, (workload / MAX_SHIPPER_ACTIVE_ORDERS) * 100)}%`,
-                }}
-              />
+            {/* 5-segment LED gauge */}
+            <div className="grid grid-cols-5 gap-1 mt-1.5">
+              {[1, 2, 3, 4, 5].map((idx) => {
+                const filled = idx <= workload;
+                return (
+                  <div
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all ${
+                      filled
+                        ? workload >= 5
+                          ? 'bg-rose-500 shadow-sm shadow-rose-500/50'
+                          : workload >= 4
+                          ? 'bg-amber-400 shadow-sm shadow-amber-400/50'
+                          : 'bg-emerald-400 shadow-sm shadow-emerald-400/50'
+                        : isHighContrast
+                        ? 'bg-slate-800'
+                        : 'bg-slate-800'
+                    }`}
+                  />
+                );
+              })}
             </div>
           </div>
+
+          <span className="text-[10px] text-slate-400 truncate">
+            {workload >= 5 ? 'Đầy tải (Max)' : `${5 - workload} chỗ trống`}
+          </span>
         </div>
 
-        {/* Metric 2: COD Wallet */}
+        {/* Metric 2: Ví COD (Driver Cash in Pocket) */}
         <Link
           href="/shipper/cod"
-          className={`p-3.5 rounded-3xl border flex flex-col justify-between transition-all active:scale-95 shadow-sm ${
+          className={`p-3 rounded-2xl border flex flex-col justify-between transition-all active:scale-95 group ${
             isHighContrast
-              ? 'bg-white border-4 border-black text-black hover:bg-amber-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-              : 'bg-slate-900/90 border-slate-800/90 hover:border-amber-500/50 backdrop-blur-md group'
+              ? 'bg-yellow-400 text-black border-2 border-white font-extrabold'
+              : 'bg-gradient-to-br from-amber-500/15 via-amber-600/10 to-transparent border-amber-500/40 hover:border-amber-400 text-white shadow-lg shadow-amber-500/5'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span
-              className={`text-[11px] font-extrabold uppercase tracking-tight ${
-                isHighContrast ? 'text-black font-black' : 'text-slate-400'
-              }`}
-            >
+            <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isHighContrast ? 'text-black' : 'text-amber-400'}`}>
               Ví COD
             </span>
-            <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-0.5 group-hover:text-amber-400 transition-transform" />
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 ${isHighContrast ? 'text-black' : 'text-amber-400'}`} />
           </div>
 
-          <div className="mt-2.5">
-            <p
-              className={`text-xs font-black font-mono truncate leading-tight ${
-                isHighContrast
-                  ? 'text-black font-extrabold'
-                  : unsettledCod.totalAmount > 0
-                  ? 'text-amber-400 font-extrabold'
-                  : 'text-slate-300'
-              }`}
-            >
-              {unsettledCod.totalAmount > 0
-                ? formatCurrencyVND(unsettledCod.totalAmount)
-                : '0 đ'}
+          <div className="my-1.5">
+            <p className={`text-base font-black font-mono tracking-tight truncate ${isHighContrast ? 'text-black' : 'text-amber-300'}`}>
+              {formatCurrencyVND(unsettledCod.totalAmount)}
             </p>
-            <p
-              className={`text-[10px] font-medium truncate mt-1 flex items-center gap-1 ${
-                isHighContrast ? 'text-black font-bold' : 'text-slate-400'
-              }`}
-            >
-              <span>{unsettledCod.orders.length} đơn chờ nộp</span>
-            </p>
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] opacity-90 truncate">
+            <span>{unsettledCod.orders.length} đơn giữ tiền</span>
+            <span className="font-bold underline">Nộp quỹ</span>
           </div>
         </Link>
 
-        {/* Metric 3: 2H On-Time Rate */}
+        {/* Metric 3: Hiệu suất SLA 2H (Speedometer) */}
         <div
-          className={`p-3.5 rounded-3xl border flex flex-col justify-between transition-all shadow-sm ${
+          className={`p-3 rounded-2xl border flex flex-col justify-between transition-all ${
             isHighContrast
-              ? 'bg-white border-4 border-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]'
-              : 'bg-slate-900/90 border-slate-800/90 backdrop-blur-md'
+              ? 'bg-black text-white border-2 border-yellow-400'
+              : 'bg-slate-900/80 border-slate-800/90'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span
-              className={`text-[11px] font-extrabold uppercase tracking-tight flex items-center gap-1 ${
-                isHighContrast ? 'text-black font-black' : 'text-slate-400'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5 text-orange-400" />
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
               2H SLA
             </span>
-            <Clock className="w-4 h-4 text-cyan-400" />
+            <Flame className="w-3.5 h-3.5 text-cyan-400" />
           </div>
 
-          <div className="mt-2.5">
-            <div className="flex items-baseline justify-between">
-              <span
-                className={`text-xl font-black font-mono leading-none tracking-tight ${
-                  isHighContrast ? 'text-black font-black' : 'text-cyan-400'
-                }`}
-              >
-                {onTimeStats.rateFormatted}
-              </span>
-              <span
-                className={`text-[10px] font-bold ${
-                  isHighContrast ? 'text-black' : 'text-slate-500'
-                }`}
-              >
-                {onTimeStats.onTime2H}/{onTimeStats.total2H}
-              </span>
-            </div>
+          <div className="my-1.5">
+            <p className={`text-xl font-black font-mono tracking-tight ${isHighContrast ? 'text-yellow-400' : 'text-cyan-400'}`}>
+              {onTimeStats.ratePercent !== null ? `${Math.round(onTimeStats.ratePercent)}%` : '100%'}
+            </p>
+          </div>
 
-            {/* Filter Toggle Pill (Nay / 7N) */}
-            <div className="flex items-center gap-1 mt-2">
-              <button
-                type="button"
-                onClick={() => setRateFilter('today')}
-                className={`text-[9px] px-2 py-0.5 rounded-md font-extrabold transition-all ${
-                  rateFilter === 'today'
-                    ? isHighContrast
-                      ? 'bg-black text-white font-black'
-                      : 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                Nay
-              </button>
-              <button
-                type="button"
-                onClick={() => setRateFilter('7days')}
-                className={`text-[9px] px-2 py-0.5 rounded-md font-extrabold transition-all ${
-                  rateFilter === '7days'
-                    ? isHighContrast
-                      ? 'bg-black text-white font-black'
-                      : 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                7N
-              </button>
-            </div>
+          <div className="flex items-center justify-between text-[10px] text-slate-400">
+            <span>Hỏa tốc</span>
+            <span className="font-bold text-emerald-400">Đúng giờ</span>
           </div>
         </div>
       </div>

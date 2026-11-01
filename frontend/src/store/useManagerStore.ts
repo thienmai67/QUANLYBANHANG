@@ -296,10 +296,10 @@ export const useManagerStore = create<ManagerState>()(
       fetchOrders: async () => {
         set({ ordersLoading: true, ordersError: null });
         try {
-          const data = await api.get<any[]>('/orders');
-          const rawList = Array.isArray(data) ? data : [];
+          const data = await api.get<any>('/orders');
+          const rawList = Array.isArray(data) ? data : (data as any)?.data || [];
           const enriched = await Promise.all(
-            rawList.map(async (rawOrder) => {
+            rawList.map(async (rawOrder: any) => {
               if (Array.isArray(rawOrder.items) && rawOrder.items.length > 0) {
                 return mapOrderFromApi(rawOrder);
               }

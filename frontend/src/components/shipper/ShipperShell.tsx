@@ -63,9 +63,9 @@ export default function ShipperShell({ children }: ShipperShellProps) {
           : 'bg-slate-950 text-slate-100 font-sans'
       }`}
     >
-      {/* Centered Mobile Container (max-w-md on desktop for field smartphone feel) */}
+      {/* Responsive Container (Comfortable max-w-2xl on desktop/tablet, full-width on mobile) */}
       <div
-        className={`max-w-md mx-auto min-h-screen flex flex-col relative shadow-2xl transition-colors ${
+        className={`max-w-2xl mx-auto min-h-screen flex flex-col relative shadow-2xl transition-colors ${
           isHighContrast
             ? 'bg-white border-x-4 border-black'
             : 'bg-slate-950 border-x border-slate-800/80'
