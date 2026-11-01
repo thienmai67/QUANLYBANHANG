@@ -9,6 +9,19 @@ import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
 import { Phone, Navigation, Loader2 } from 'lucide-react';
 
+/**
+ * Shortens a shipping address to the most relevant local district/ward/city
+ * for quick recognition under sunlight (e.g. "An Phú, TP. Thủ Đức").
+ */
+export function formatShortAddress(address?: string | null): string {
+  if (!address || typeof address !== 'string') return '-';
+  const clean = address.trim();
+  if (!clean) return '-';
+  const segments = clean.split(',').map((s) => s.trim()).filter(Boolean);
+  if (segments.length <= 2) return clean;
+  return segments.slice(-2).join(', ');
+}
+
 interface ShipperOrderCardProps {
   order: Order;
   shipperId: string;
@@ -229,10 +242,10 @@ export default function ShipperOrderCard({
         </span>
       </div>
 
-      {/* Line 2: Truncated address + status */}
+      {/* Line 2: Shortened address + status */}
       <div className="mt-1 flex items-center justify-between gap-3">
         <p className="text-[14px] text-[#6b6b6b] truncate flex-1">
-          {order.shippingAddress}
+          {formatShortAddress(order.shippingAddress)}
         </p>
         <div className="shrink-0">{getStatusBadge()}</div>
       </div>

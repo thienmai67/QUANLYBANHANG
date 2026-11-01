@@ -12,6 +12,7 @@ import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
 import { formatCurrencyVND, formatDateTime } from '@/lib/formatters';
 import { getTelUrl, getGoogleMapsUrl } from '@/lib/shipperHelpers';
+import { formatShortAddress } from '@/components/shipper/ShipperOrderCard';
 import { api } from '@/lib/api';
 import { mapOrderFromApi } from '@/lib/orderMapper';
 import { Order } from '@/types/manager';
@@ -176,7 +177,7 @@ export default function ShipperOrderDetailPage() {
                 {customerName}
               </h1>
               <p className="text-[14px] text-[#6b6b6b] mt-1 leading-[1.5]">
-                {statusLabel} • {order.shippingAddress} • Thu hộ khi giao:{' '}
+                {statusLabel} • {formatShortAddress(order.shippingAddress)} • Thu hộ khi giao:{' '}
                 {isCod ? formatCurrencyVND(totalAmount) : '0 ₫'}
               </p>
             </div>

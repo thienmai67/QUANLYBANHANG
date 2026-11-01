@@ -71,14 +71,14 @@ export default function ShipperShell({ children }: ShipperShellProps) {
       >
         {/* 1. Top bar: exact 48px height, no emoji, no greeting banner */}
         <header
-          className={`sticky top-0 z-40 h-[48px] px-4 flex items-center justify-between border-b ${
+          className={`sticky top-0 z-40 h-[48px] px-3.5 flex items-center justify-between border-b ${
             isHighContrast
               ? 'bg-[#1c1c1c] border-[#2a2a2a] text-[#f5f5f5]'
               : 'bg-white border-[#e6e6e6] text-[#0a0a0a]'
           }`}
         >
           {/* Driver identity & shift */}
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-[16px] font-bold text-[#0a0a0a] shrink-0 dark:text-[#f5f5f5]">
               TDT Ship
             </span>
@@ -99,7 +99,7 @@ export default function ShipperShell({ children }: ShipperShellProps) {
               onClick={toggleHighContrast}
               title={isHighContrast ? 'Chuyển sang giao diện sáng' : 'Chuyển sang chế độ tối'}
               aria-label="Chuyển chế độ sáng tối"
-              className={`min-h-[48px] min-w-[48px] p-2 rounded-[6px] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf] ${
+              className={`min-h-[48px] w-[36px] p-2 rounded-[6px] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf] ${
                 isHighContrast
                   ? 'text-[#f5f5f5] hover:bg-[#2a2a2a]'
                   : 'text-[#0a0a0a] hover:bg-[#f2f2f2]'
@@ -117,7 +117,7 @@ export default function ShipperShell({ children }: ShipperShellProps) {
               onClick={handleLogout}
               title="Đăng xuất tài xế"
               aria-label="Đăng xuất tài xế"
-              className={`min-h-[48px] min-w-[48px] p-2 rounded-[6px] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf] ${
+              className={`min-h-[48px] w-[36px] p-2 rounded-[6px] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf] ${
                 isHighContrast
                   ? 'text-[#a0a0a0] hover:text-[#ffedea] hover:bg-[#2a2a2a]'
                   : 'text-[#6b6b6b] hover:text-[#831c1e] hover:bg-[#ffedea]'

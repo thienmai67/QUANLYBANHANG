@@ -144,7 +144,7 @@ export default function ShipperWidgets({
                 {type === 'waiting' && (
                   <span
                     aria-label="Điểm chờ"
-                    className="w-2.5 h-2.5 rounded-full bg-[#e6e6e6] border border-[#6b6b6b] shrink-0"
+                    className="w-2.5 h-2.5 rounded-full bg-[#6b6b6b] shrink-0"
                   />
                 )}
 

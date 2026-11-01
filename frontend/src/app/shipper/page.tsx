@@ -15,7 +15,7 @@ import { formatCurrencyVND } from '@/lib/formatters';
 
 export default function ShipperDispatchFeedPage() {
   const { user } = useAuthStore();
-  const { orders, shippers, fetchOrders, fetchShippers, setOrders } = useManagerStore();
+  const { orders, shippers, fetchOrders, fetchShippers } = useManagerStore();
 
   const [filterTab, setFilterTab] = useState<ShipperFilterTabType>('ALL');
   const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
@@ -37,129 +37,11 @@ export default function ShipperDispatchFeedPage() {
     user?.fullName ||
     'Nhân viên giao hàng';
 
-  // Seed demo orders for field testing if driver has 0 assigned orders
-  const handleLoadDemoOrders = useCallback(() => {
-    const demoOrders: Order[] = [
-      {
-        id: 'ord-demo-shipping',
-        code: 'ORD-261101-86B876',
-        orderNumber: 'ORD-261101-86B876',
-        customerId: 'cust-demo-1',
-        customerName: 'Kỹ sư Tuấn (Masterise Lumiere Riverside Q2)',
-        customerPhone: '0918234567',
-        shippingAddress: 'Tháp B2, Căn 18.04, Dự án Masterise Lumiere, 259 Xa Lộ Hà Nội, An Phú, TP. Thủ Đức',
-        items: [
-          {
-            productId: 'prod-cad-02',
-            productName: 'Dây cáp điện Cadivi CV 2.5 mm²',
-            brand: 'Cadivi',
-            unitPrice: 720000,
-            quantity: 2,
-            unit: 'Cuộn 100m',
-            total: 1440000,
-          },
-          {
-            productId: 'prod-bm-01',
-            productName: 'Ống luồn dây PVC Bình Minh D20',
-            brand: 'Bình Minh',
-            unitPrice: 41000,
-            quantity: 10,
-            unit: 'Cây 2.92m',
-            total: 410000,
-          },
-        ],
-        totalAmount: 1850000,
-        status: 'SHIPPING',
-        paymentMethod: 'COD',
-        paymentStatus: 'UNPAID',
-        shipperId: currentShipperId,
-        shipperName: currentShipperName,
-        is2H: true,
-        deliveryType: '2H',
-        deadline2H: new Date(Date.now() + 42 * 60 * 1000).toISOString(),
-        version: 1,
-        statusHistory: [{ status: 'SHIPPING', timestamp: new Date().toISOString(), changedBy: 'System' }],
-        createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'ord-demo-packing-paid',
-        code: 'ORD-261101-A40D82',
-        orderNumber: 'ORD-261101-A40D82',
-        customerId: 'cust-demo-2',
-        customerName: 'Nhà thầu Minh Phát (Biệt thự Thảo Điền)',
-        customerPhone: '0903888777',
-        shippingAddress: '12 Đường 49B, Phường Thảo Điền, TP. Thủ Đức, TP.HCM',
-        items: [
-          {
-            productId: 'prod-sch-01',
-            productName: 'Aptomat MCB Schneider Easy9 2P 32A',
-            brand: 'Schneider',
-            unitPrice: 165000,
-            quantity: 10,
-            unit: 'Cái',
-            total: 1650000,
-          },
-        ],
-        totalAmount: 1650000,
-        status: 'PACKING',
-        paymentMethod: 'VIETQR',
-        paymentStatus: 'PAID',
-        shipperId: currentShipperId,
-        shipperName: currentShipperName,
-        is2H: false,
-        version: 1,
-        statusHistory: [{ status: 'PACKING', timestamp: new Date().toISOString(), changedBy: 'System' }],
-        createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'ord-demo-packing-cod',
-        code: 'ORD-261101-7FF85A',
-        orderNumber: 'ORD-261101-7FF85A',
-        customerId: 'cust-demo-3',
-        customerName: 'A. Long Thợ Điện (84 Chu Văn An Bình Thạnh)',
-        customerPhone: '0987112233',
-        shippingAddress: 'Số 84/3 Chu Văn An, Phường 26, Quận Bình Thạnh, TP.HCM',
-        items: [
-          {
-            productId: 'prod-cad-01',
-            productName: 'Dây cáp điện Cadivi CV 1.5 mm²',
-            brand: 'Cadivi',
-            unitPrice: 380000,
-            quantity: 2,
-            unit: 'Cuộn 100m',
-            total: 760000,
-          },
-        ],
-        totalAmount: 760000,
-        status: 'PACKING',
-        paymentMethod: 'COD',
-        paymentStatus: 'UNPAID',
-        shipperId: currentShipperId,
-        shipperName: currentShipperName,
-        is2H: true,
-        deliveryType: '2H',
-        deadline2H: new Date(Date.now() + 25 * 60 * 1000).toISOString(),
-        version: 1,
-        statusHistory: [{ status: 'PACKING', timestamp: new Date().toISOString(), changedBy: 'System' }],
-        createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-      },
-    ];
-
-    setOrders([...orders.filter((o) => o.shipperId !== currentShipperId), ...demoOrders]);
-  }, [currentShipperId, currentShipperName, orders, setOrders]);
-
   // Strict isolation: shipper only sees their assigned orders
   const myOrders = useMemo(() => {
     if (!currentShipperId) return [];
     return orders.filter((o) => o.shipperId === currentShipperId);
   }, [orders, currentShipperId]);
-
-  // Auto-seed if 0 orders
-  useEffect(() => {
-    if (currentShipperId && myOrders.length === 0) {
-      handleLoadDemoOrders();
-    }
-  }, [currentShipperId, myOrders.length, handleLoadDemoOrders]);
 
   // Active orders (not delivered, not cancelled)
   const activeOrders = useMemo(() => {
@@ -206,14 +88,19 @@ export default function ShipperDispatchFeedPage() {
       nextOrderCod > 0
         ? `thu hộ ${formatCurrencyVND(nextOrderCod)}`
         : 'đã thanh toán (0 ₫)';
-    return `Tiếp theo: ${nextOrder.code} (${codText}). Còn ${activeOrders.length} đơn nữa trong ngày, tổng thu hộ còn lại ${formatCurrencyVND(totalRemainingCod)}.`;
+    const remainingCount = activeOrders.length - 1;
+    const remainingCountText =
+      remainingCount > 0
+        ? `còn ${remainingCount} đơn nữa trong ngày`
+        : 'đơn cuối cùng trong ngày';
+    return `Tiếp theo: ${nextOrder.code} (${codText}), ${remainingCountText}, tổng thu hộ còn lại ${formatCurrencyVND(totalRemainingCod)}.`;
   }, [nextOrder, nextOrderCod, activeOrders.length, totalRemainingCod]);
 
-  // Remaining list orders (excluding nextOrder so it doesn't duplicate)
+  // Remaining queued orders (excluding nextOrder so it doesn't duplicate)
   const listOrdersPool = useMemo(() => {
-    if (!nextOrder) return myOrders;
-    return myOrders.filter((o) => o.id !== nextOrder.id);
-  }, [myOrders, nextOrder]);
+    if (!nextOrder) return activeOrders;
+    return activeOrders.filter((o) => o.id !== nextOrder.id);
+  }, [activeOrders, nextOrder]);
 
   const tabCounts = useMemo(() => {
     return {
@@ -238,7 +125,7 @@ export default function ShipperDispatchFeedPage() {
   return (
     <RouteGuard allowedRoles={['SHIPPER']} fallbackUrl="/login" forbiddenUrl="/403">
       <ShipperShell>
-        <div className="px-4 py-4 space-y-4">
+        <div className="px-4 py-3 space-y-3">
           {/* 2. Tiêu đề màn hình 24px + 1 câu finding 14px */}
           <div>
             <h1 className="text-[24px] font-bold leading-tight text-[#0a0a0a]">
