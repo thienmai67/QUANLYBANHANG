@@ -239,7 +239,14 @@ func TestUpdateOrderStatus_LifecycleTransitions(t *testing.T) {
 	}
 
 	// 5. Valid transition: SHIPPING -> DELIVERED by assigned Shipper (version 3 -> 4)
-	updated, err = repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusDelivered, 3, domain.RoleShipper, shipperID)
+	podPhoto := "https://minio.local/pod/photo-test.jpg"
+	recipientName := "Nguyen Van A"
+	updated, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:           string(domain.OrderStatusDelivered),
+		Version:          3,
+		PodPhotoURL:      &podPhoto,
+		PodRecipientName: &recipientName,
+	}, domain.RoleShipper, shipperID)
 	if err != nil {
 		t.Fatalf("expected successful transition to DELIVERED: %v", err)
 	}
@@ -251,7 +258,12 @@ func TestUpdateOrderStatus_LifecycleTransitions(t *testing.T) {
 	}
 
 	// 6. Terminal state: DELIVERED -> CANCELLED or any other status must fail
-	_, err = repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusCancelled, 4, domain.RoleManager, uuid.Nil)
+	cancelReason := "Huy don hang theo yeu cau"
+	_, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:             string(domain.OrderStatusCancelled),
+		Version:            4,
+		CancellationReason: &cancelReason,
+	}, domain.RoleManager, uuid.Nil)
 	if !errors.Is(err, domain.ErrInvalidTransition) {
 		t.Fatalf("expected ErrInvalidTransition from terminal DELIVERED status, got %v", err)
 	}

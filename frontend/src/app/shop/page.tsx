@@ -55,19 +55,19 @@ export default function ShopPage() {
           id: p.id,
           sku: p.sku || 'SKU-STD',
           name: p.name,
-          brand: p.brand || 'Cadivi',
+          brand: p.brand || '—',
           category: (p.category as any) || 'cable_cadivi',
-          categoryName: p.category || 'Vật tư M&E',
+          categoryName: p.category || '—',
           origin: 'Việt Nam',
           price: priceStr,
           rawPrice: rawPrice,
-          unit: p.unit || 'Bộ',
-          conversion: `1 ${p.unit || 'bộ'}`,
+          unit: p.unit || '—',
+          conversion: p.unit ? `1 ${p.unit}` : '—',
           description: p.description || p.name,
-          image: p.image || '/images/products/day-cap-don-1.jpg',
+          image: p.image || '',
           badge: (p.badge as any) || 'NEW',
           specs: specsArr,
-          discount: p.discountRate ?? p.discount ?? 15,
+          discount: p.discountRate ?? p.discount ?? 0,
         };
       });
     }
@@ -236,9 +236,11 @@ export default function ShopPage() {
                     </p>
                   </div>
 
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-900">
-                    Sẵn kho
-                  </span>
+                  {((prod as any).stockQuantity ?? (prod as any).stock) ? (
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-900">
+                      Sẵn kho
+                    </span>
+                  ) : null}
                 </div>
 
                 <button

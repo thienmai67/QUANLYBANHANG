@@ -71,7 +71,7 @@ export function validateRegisterForm(data: RegisterFormData): ValidationError[] 
   if (!data.password || data.password.length < 6) {
     errors.push({
       field: "password",
-      message: "Mật khẩu phải có độ dài ít nhất 6 ký tự.",
+      message: "Mật khẩu phải chứa ít nhất 6 ký tự.",
     });
     return errors;
   }

@@ -5,6 +5,7 @@ import { Order } from '@/types/manager';
 import { useManagerStore } from '@/store/useManagerStore';
 import { validateCancellation } from '@/lib/orderRules';
 import { useToast } from '@/hooks/useToast';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   X,
   AlertTriangle,
@@ -67,7 +68,8 @@ export function CancelOrderModal({
 
     setSubmitting(true);
     try {
-      const res = await cancelOrder(order.id, reason, 'Manager Hải Đăng');
+      const actorName = useAuthStore.getState().user?.name || useAuthStore.getState().user?.fullName || 'Quản lý';
+      const res = await cancelOrder(order.id, reason, actorName);
       if (res.success) {
         toast.success(
           `Đã hủy đơn hàng #${order.code}${

@@ -5,6 +5,7 @@ import { Order, Shipper } from '@/types/manager';
 import { useManagerStore } from '@/store/useManagerStore';
 import { checkShipperAssignability } from '@/lib/orderRules';
 import { useToast } from '@/hooks/useToast';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   X,
   Truck,
@@ -82,7 +83,8 @@ export function ShipperAssignModal({
 
     setSubmitting(true);
     try {
-      const res = await assignShipper(order.id, selectedShipperId, 'Manager Hải Đăng');
+      const actorName = useAuthStore.getState().user?.name || useAuthStore.getState().user?.fullName || 'Quản lý';
+      const res = await assignShipper(order.id, selectedShipperId, actorName);
       if (res.success) {
         toast.success(
           `Đã phân công ${shipper.name} và chuyển đơn #${order.code} sang Đang giao`

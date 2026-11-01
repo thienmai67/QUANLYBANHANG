@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Product } from '@/types/manager';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
+import { useAuthStore } from '@/store/useAuthStore';
 import { formatNumberVND } from '@/lib/formatters';
 import {
   X,
@@ -82,7 +83,7 @@ export function StockAdjustModal({
         product.id,
         Math.floor(newQuantity),
         reason.trim(),
-        'Manager Hải Đăng'
+        useAuthStore.getState().user?.name || useAuthStore.getState().user?.fullName || 'Quản lý'
       );
 
       if (res.success) {

@@ -612,11 +612,7 @@ export default function CartDrawer() {
                   </div>
                 </div>
 
-                {/* Hotline guidance */}
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 text-center flex items-center justify-center gap-1.5 pt-1">
-                  <PhoneCall className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Hỗ trợ gấp: Hotline <strong>1900 1234</strong> (0901 234 567)</span>
-                </div>
+                
               </div>
             )}
 

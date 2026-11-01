@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/store/useAuthStore';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
@@ -148,6 +149,11 @@ export interface ManagerState {
     productData: Omit<Product, 'id'> | Product
   ) => Promise<{ success: boolean; product?: Product; error?: string }>;
 
+  updateProduct: (
+    id: string,
+    productData: Partial<Product>
+  ) => Promise<{ success: boolean; product?: Product; error?: string }>;
+
   resetToSeedData: () => void;
 
   // Pure Selectors
@@ -275,6 +281,11 @@ function deriveCustomersFromOrders(orders: Order[]): Customer[] {
   });
   return Array.from(map.values());
 }
+
+const getManagerActorName = (name?: string) => {
+  if (name) return name;
+  return useAuthStore.getState().user?.name || useAuthStore.getState().user?.fullName || 'Quản lý';
+};
 
 export const useManagerStore = create<ManagerState>()(
   persist(
@@ -791,10 +802,11 @@ export const useManagerStore = create<ManagerState>()(
        * blocks if insufficient, deducts stock via deductStockForOrder,
        * transitions to PACKING, adds statusHistory and stock logs atomically.
        */
-      approveOrder: (orderId: string, managerName: string = 'Manager Hải Đăng') => {
+      approveOrder: (orderId: string, managerName?: string) => {
+        const resolvedManagerName = getManagerActorName(managerName);
         return get().updateOrderStatusWithActor(orderId, 'PACKING', {
           role: 'MANAGER',
-          name: managerName,
+          name: resolvedManagerName,
         });
       },
 
@@ -1050,6 +1062,31 @@ export const useManagerStore = create<ManagerState>()(
           await get().fetchProducts();
           const newProd: Product = mapApiProductToManagerProduct(created || payload);
           return { success: true, product: newProd };
+        } catch (err: any) {
+          return { success: false, error: getFriendlyErrorMessage(err) };
+        }
+      },
+
+      updateProduct: async (id: string, productData: Partial<Product>) => {
+        if (!id) {
+          return { success: false, error: 'Thiếu ID sản phẩm' };
+        }
+        try {
+          const payload: any = {
+            sku: productData.code,
+            name: productData.name,
+            brand: productData.brand,
+            category: productData.category,
+            basePrice: productData.basePrice,
+            unit: productData.unit,
+            image: productData.imageUrl,
+            description: productData.description,
+            discountRate: productData.discountPercent,
+          };
+          const updated = await api.put<any>(`/products/${id}`, payload);
+          await get().fetchProducts();
+          const mapped = mapApiProductToManagerProduct(updated || payload);
+          return { success: true, product: mapped };
         } catch (err: any) {
           return { success: false, error: getFriendlyErrorMessage(err) };
         }

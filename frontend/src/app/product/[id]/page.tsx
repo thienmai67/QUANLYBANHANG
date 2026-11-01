@@ -49,25 +49,25 @@ function normalizeProductDetail(raw: any): ProductDetailData {
 
   const brandName =
     typeof raw.brand === 'object' && raw.brand !== null
-      ? raw.brand.name || raw.brand.code || 'Chính hãng'
-      : raw.brand || 'Chính hãng';
+      ? raw.brand.name || raw.brand.code || '—'
+      : raw.brand || '—';
 
   const categoryName =
     typeof raw.category === 'object' && raw.category !== null
-      ? raw.category.name || raw.category.code || 'Vật tư M&E'
-      : raw.category || 'Vật tư M&E';
+      ? raw.category.name || raw.category.code || '—'
+      : raw.category || '—';
 
   const basePrice = Number(raw.basePrice ?? raw.base_price ?? raw.price ?? 0);
-  const unit = String(specs.unit || raw.unit || 'Cái');
-  const stock = Number(specs.stock ?? raw.stock ?? 150);
-  const image = String(specs.image || raw.image || '/images/products/day-cap-don-1.jpg');
+  const unit = String(specs.unit || raw.unit || '—');
+  const stock = Number(specs.stock ?? raw.stock ?? raw.stock_quantity ?? 0);
+  const image = String(specs.image || raw.image || '');
   const description = String(
     specs.description ||
       raw.description ||
-      `${raw.name} chính hãng ${brandName}, đạt tiêu chuẩn kỹ thuật công trình M&E.`
+      `${raw.name}`
   );
   const discountRate = Number(
-    specs.discountRate ?? raw.brand?.discountRate ?? raw.discountRate ?? 15
+    specs.discountRate ?? raw.brand?.discountRate ?? raw.discountRate ?? 0
   );
 
   return {

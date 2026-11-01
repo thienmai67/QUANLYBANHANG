@@ -83,7 +83,7 @@ describe("validateRegisterForm", () => {
     expect(errors).toEqual([
       {
         field: "password",
-        message: "Mật khẩu phải có độ dài ít nhất 6 ký tự.",
+        message: "Mật khẩu phải chứa ít nhất 6 ký tự.",
       },
     ]);
   });
