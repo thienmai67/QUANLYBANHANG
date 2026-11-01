@@ -40,6 +40,7 @@ func getTestDB(t *testing.T) *sqlx.DB {
 	}
 
 	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")
+	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.products ADD COLUMN IF NOT EXISTS stock_quantity INT NOT NULL DEFAULT 0")
 	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")
 	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE")
 	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.shippers ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")

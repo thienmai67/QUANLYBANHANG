@@ -474,6 +474,10 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := h.productRepo.CreateOrder(req.Context(), &order); err != nil {
+		if errors.Is(err, domain.ErrInsufficientStock) {
+			writeAPIError(w, http.StatusBadRequest, "INSUFFICIENT_STOCK", "Số lượng tồn kho không đủ để đáp ứng đơn hàng")
+			return
+		}
 		if errors.Is(err, domain.ErrQuantityExceedsLimit) {
 			writeAPIError(w, http.StatusBadRequest, "INVALID_QUANTITY", "Số lượng vượt quá giới hạn đặt hàng trực tuyến (tối đa 10.000 đơn vị / sản phẩm). Vui lòng liên hệ phòng dự án để đặt số lượng lớn.")
 			return
@@ -533,6 +537,8 @@ func (h *Handler) UpdateOrderStatus(w http.ResponseWriter, req *http.Request) {
 	)
 	if err != nil {
 		switch {
+		case errors.Is(err, domain.ErrInsufficientStock):
+			writeAPIError(w, http.StatusBadRequest, "INSUFFICIENT_STOCK", "Số lượng tồn kho không đủ để đáp ứng đơn hàng khi duyệt đóng gói")
 		case errors.Is(err, domain.ErrPaymentNotConfirmed):
 			writeAPIError(w, http.StatusBadRequest, "PAYMENT_NOT_CONFIRMED", "Đơn hàng chuyển khoản chưa được thanh toán")
 		case errors.Is(err, domain.ErrVersionConflict):

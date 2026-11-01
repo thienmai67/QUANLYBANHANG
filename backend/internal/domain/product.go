@@ -96,6 +96,7 @@ type Product struct {
 	Category        Category       `json:"category,omitempty" db:"-"`
 	CategoryID      uuid.UUID      `json:"categoryId" db:"category_id"`
 	BasePrice       float64        `json:"basePrice" db:"base_price"`
+	StockQuantity   int            `json:"stockQuantity" db:"stock_quantity"`
 	DiameterMM      *float64       `json:"diameterMm,omitempty" db:"diameter_mm"`
 	PressureClass   *string        `json:"pressureClass,omitempty" db:"pressure_class"`
 	CrossSectionMM2 *float64       `json:"crossSectionMm2,omitempty" db:"cross_section_mm2"`
@@ -116,6 +117,7 @@ type UpsertProductInput struct {
 	Unit            string         `json:"unit,omitempty"`
 	Image           string         `json:"image,omitempty"`
 	Description     string         `json:"description,omitempty"`
+	StockQuantity   *int           `json:"stockQuantity,omitempty"`
 	DiameterMM      *float64       `json:"diameterMm,omitempty"`
 	PressureClass   *string        `json:"pressureClass,omitempty"`
 	CrossSectionMM2 *float64       `json:"crossSectionMm2,omitempty"`
