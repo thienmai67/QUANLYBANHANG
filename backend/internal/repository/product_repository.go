@@ -1473,7 +1473,7 @@ func (r *productRepository) ListShippers(ctx context.Context, limit, offset int)
 	}
 
 	var total int
-	countQuery := `SELECT COUNT(*) FROM me_supplies.users WHERE role = 'SHIPPER'`
+	countQuery := `SELECT COUNT(*) FROM me_supplies.users WHERE role = 'SHIPPER' AND is_active = TRUE`
 	if err := r.db.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count shippers: %w", err)
 	}
@@ -1488,7 +1488,7 @@ func (r *productRepository) ListShippers(ctx context.Context, limit, offset int)
         LEFT JOIN me_supplies.orders o 
             ON o.shipper_id = u.id 
             AND o.status IN ('PACKING', 'SHIPPING')
-        WHERE u.role = 'SHIPPER'
+        WHERE u.role = 'SHIPPER' AND u.is_active = TRUE
         GROUP BY u.id, u.full_name, u.phone
         ORDER BY u.full_name ASC
         LIMIT $1 OFFSET $2

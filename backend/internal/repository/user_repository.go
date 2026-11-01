@@ -27,7 +27,7 @@ func (r *userRepository) UpsertGoogleUser(ctx context.Context, info *domain.Goog
 		        avatar_url    = EXCLUDED.avatar_url,
 		        auth_provider = 'GOOGLE',
 		        updated_at    = NOW()
-		RETURNING id, email, full_name, phone, avatar_url, google_id, role, auth_provider, created_at, updated_at`
+		RETURNING id, email, full_name, phone, avatar_url, google_id, role, auth_provider, must_change_password, is_active, created_at, updated_at`
 
 	var user domain.User
 	if err := r.db.GetContext(ctx, &user, query, info.Email, info.Name, info.Picture, info.Sub); err != nil {
@@ -38,7 +38,7 @@ func (r *userRepository) UpsertGoogleUser(ctx context.Context, info *domain.Goog
 
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const query = `
-		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, created_at, updated_at
+		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, must_change_password, is_active, created_at, updated_at
 		FROM me_supplies.users
 		WHERE email = $1`
 
@@ -54,7 +54,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	const query = `
-		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, created_at, updated_at
+		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, must_change_password, is_active, created_at, updated_at
 		FROM me_supplies.users
 		WHERE id = $1`
 
@@ -99,7 +99,7 @@ func (r *userRepository) UpdateProfile(ctx context.Context, id uuid.UUID, fullNa
 func (r *userRepository) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {
 	const query = `
 		UPDATE me_supplies.users
-		SET password_hash = $1, updated_at = NOW()
+		SET password_hash = $1, must_change_password = FALSE, updated_at = NOW()
 		WHERE id = $2`
 
 	res, err := r.db.ExecContext(ctx, query, passwordHash, id)

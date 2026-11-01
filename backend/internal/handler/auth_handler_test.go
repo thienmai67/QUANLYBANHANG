@@ -52,6 +52,7 @@ func (m *mockUserRepo) UpsertGoogleUser(ctx context.Context, info *domain.Google
 			GoogleID:     &info.Sub,
 			Role:         domain.RoleCustomer,
 			AuthProvider: domain.AuthProviderGoogle,
+		IsActive:     true,
 			CreatedAt:    time.Now().UTC(),
 			UpdatedAt:    time.Now().UTC(),
 		}
@@ -100,6 +101,7 @@ func (m *mockUserRepo) CreateUser(ctx context.Context, user *domain.User) error 
 		return errors.New("duplicate key violation")
 	}
 	now := time.Now().UTC()
+	if !user.IsActive { user.IsActive = true }
 	user.CreatedAt = now
 	user.UpdatedAt = now
 	m.users[email] = user
@@ -396,6 +398,7 @@ func TestHandleLogin_Success(t *testing.T) {
 		PasswordHash: &hashStr,
 		Role:         domain.RoleCustomer,
 		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
 	})
 
 	payload := LoginRequest{Email: email, Password: plainPassword}
@@ -509,6 +512,7 @@ func TestHandleLogin_GoogleUserNoPassword(t *testing.T) {
 		PasswordHash: nil, // Social account has no password
 		Role:         domain.RoleCustomer,
 		AuthProvider: domain.AuthProviderGoogle,
+		IsActive:     true,
 	})
 
 	payload := LoginRequest{Email: email, Password: "AnyPassword123"}
@@ -640,6 +644,7 @@ func TestHandleGetMe_Success(t *testing.T) {
 		FullName:     "Nguyễn Văn Sáu",
 		Role:         domain.RoleCustomer,
 		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
 	}
 	_ = repo.CreateUser(context.Background(), testUser)
 
@@ -678,6 +683,7 @@ func TestHandleUpdateProfile_Success(t *testing.T) {
 		FullName:     "Tên Cũ",
 		Role:         domain.RoleCustomer,
 		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
 	}
 	_ = repo.CreateUser(context.Background(), testUser)
 
@@ -726,6 +732,7 @@ func TestHandleChangePassword_Success(t *testing.T) {
 		PasswordHash: &hashStr,
 		Role:         domain.RoleCustomer,
 		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
 	}
 	_ = repo.CreateUser(context.Background(), testUser)
 
@@ -771,6 +778,7 @@ func TestHandleChangePassword_WrongOld(t *testing.T) {
 		PasswordHash: &hashStr,
 		Role:         domain.RoleCustomer,
 		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
 	}
 	_ = repo.CreateUser(context.Background(), testUser)
 
@@ -807,6 +815,7 @@ func TestHandleChangePassword_GoogleUser(t *testing.T) {
 		PasswordHash: nil,
 		Role:         domain.RoleCustomer,
 		AuthProvider: domain.AuthProviderGoogle,
+		IsActive:     true,
 	}
 	_ = repo.CreateUser(context.Background(), testUser)
 
@@ -846,6 +855,7 @@ func TestHandleVerifyPassword_Success(t *testing.T) {
 		Email:        "verify@tdt.vn",
 		PasswordHash: &hStr,
 		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
 		Role:         domain.RoleCustomer,
 	}
 	_ = repo.CreateUser(context.Background(), testUser)
@@ -892,6 +902,7 @@ func TestHandleVerifyPassword_Wrong(t *testing.T) {
 		Email:        "verify2@tdt.vn",
 		PasswordHash: &hStr,
 		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
 		Role:         domain.RoleCustomer,
 	}
 	_ = repo.CreateUser(context.Background(), testUser)

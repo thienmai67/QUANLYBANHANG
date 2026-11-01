@@ -35,6 +35,20 @@ export default function ShipperDispatchFeedPage() {
   const [selectedIncidentOrder, setSelectedIncidentOrder] = useState<Order | null>(null);
   const [completedPageSize, setCompletedPageSize] = useState<number>(5);
 
+  // GĐ1 shipper: hướng dẫn một lần sau khi đổi mật khẩu lần đầu (?welcome=1).
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("welcome=1")) {
+      setShowWelcome(true);
+    }
+  }, []);
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", "/shipper");
+    }
+  };
+
   const currentShipperId = user?.shipperId || user?.id || '';
   const currentShipperName =
     shippers.find((s) => s.id === currentShipperId)?.name ||
@@ -159,6 +173,27 @@ export default function ShipperDispatchFeedPage() {
       forbiddenUrl="/403"
     >
       <ShipperShell>
+        {/* Hướng dẫn lần đầu sau khi đổi mật khẩu (GĐ1) */}
+        {showWelcome && (
+          <div className="mx-4 mt-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-4 space-y-2">
+            <p className="text-sm font-bold text-emerald-300">
+              Chào mừng bạn đến với TDT Platform!
+            </p>
+            <p className="text-xs text-slate-300">
+              Tài khoản của bạn đã sẵn sàng. Đơn được quản lý gán sẽ hiện trong tab
+              Đơn giao — nhận đơn, giao tới khách rồi xác nhận bàn giao (POD) ngay trên
+              app. Cuối ca, đối soát tiền COD trong tab Sổ quỹ COD.
+            </p>
+            <button
+              type="button"
+              onClick={dismissWelcome}
+              className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition-colors"
+            >
+              Đã hiểu
+            </button>
+          </div>
+        )}
+
         {/* Top Summary Widgets */}
         <ShipperWidgets shipperId={currentShipperId} />
 

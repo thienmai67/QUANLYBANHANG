@@ -76,7 +76,8 @@ export default function LoginPage() {
   const performLoginSuccess = (
     accessToken: string,
     refreshToken: string,
-    userName?: string
+    userName?: string,
+    mustChangePassword?: boolean
   ) => {
     saveTokens(accessToken, refreshToken);
     const user = decodeToken(accessToken);
@@ -94,10 +95,17 @@ export default function LoginPage() {
         email: user.email,
         name: userName || user.email.split('@')[0],
         role: role,
+        mustChangePassword: mustChangePassword || false,
         ...(role === 'SHIPPER' ? { shipperId: user.userId } : {}),
       },
       refreshToken
     );
+
+    // Tài khoản mới được cấp sau duyệt shipper phải đổi mật khẩu ngay lần đầu.
+    if (mustChangePassword) {
+      window.location.href = '/change-password?force=1';
+      return;
+    }
 
     const redirectParam =
       typeof window !== 'undefined'
@@ -159,7 +167,12 @@ export default function LoginPage() {
         const accessToken = data.accessToken || data.access_token;
         const refreshToken = data.refreshToken || data.refresh_token || "";
         if (accessToken) {
-          performLoginSuccess(accessToken, refreshToken, mockMatch?.name);
+          performLoginSuccess(
+            accessToken,
+            refreshToken,
+            mockMatch?.name,
+            data.user?.mustChangePassword === true
+          );
           return;
         }
       }
@@ -212,16 +225,6 @@ export default function LoginPage() {
 
   return (
     <AuthLayout variant="login">
-      {errorMsg && (
-        <div
-          role="alert"
-          className="flex items-start gap-2.5 p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 text-xs mb-3 animate-fadeIn"
-        >
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span className="font-medium">{errorMsg}</span>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Email Field */}
         <AuthField
@@ -275,6 +278,17 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Lỗi hiện ngay trên nút Đăng nhập, không dồn lên đầu trang */}
+        {errorMsg && (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 text-xs animate-fadeIn"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="font-medium">{errorMsg}</span>
+          </div>
+        )}
+
         {/* Action Buttons: Google OAuth & Submit */}
         <AuthActionRow submitText="Đăng nhập" isLoading={isLoading} />
 
@@ -308,6 +322,17 @@ export default function LoginPage() {
           </div>
         </div>
       </form>
+
+      {/* Lối vào đăng ký shipper (GĐ1): form hồ sơ, chờ quản lý duyệt */}
+      <p className="text-center text-[13px] text-[#64748B] pt-1">
+        Bạn muốn làm shipper?{" "}
+        <Link
+          href="/register?role=shipper"
+          className="text-[#1E6BFF] font-semibold hover:underline"
+        >
+          Đăng ký làm shipper
+        </Link>
+      </p>
 
       {/* Forgot Password Modal */}
       {showForgotModal && (
