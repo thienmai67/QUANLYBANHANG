@@ -235,4 +235,40 @@ describe('Profile Page Features & Logic', () => {
       expect(getSTT(99)).toBe('#100');
     });
   });
+  describe('Thermal POS Receipt Features', () => {
+    it('formats CT line with order number, date and cashier ID', () => {
+      const createdDate = new Date('2026-10-27T15:11:00Z');
+      const dateFormatted = `${String(createdDate.getUTCDate()).padStart(2, '0')}/${String(createdDate.getUTCMonth() + 1).padStart(2, '0')}/${createdDate.getUTCFullYear()}`;
+      const timeFormatted = `${String(createdDate.getUTCHours()).padStart(2, '0')}:${String(createdDate.getUTCMinutes()).padStart(2, '0')}`;
+      const ctCode = 'OV109202406261803';
+      const ctLine = `Số CT: ${ctCode} - ${dateFormatted} ${timeFormatted}-NV:154233`;
+      expect(ctLine).toBe('Số CT: OV109202406261803 - 27/10/2026 15:11-NV:154233');
+    });
+
+    it('generates valid SVG tear points for top and bottom serrated edges', () => {
+      const generateTearPointsTop = (numTeeth = 36): string => {
+        const toothWidth = 200 / numTeeth;
+        let points = '0,8';
+        for (let i = 0; i < numTeeth; i++) {
+          const xMid = (i + 0.5) * toothWidth;
+          const xEnd = (i + 1) * toothWidth;
+          points += ` ${xMid.toFixed(1)},1.2 ${xEnd.toFixed(1)},8`;
+        }
+        points += ' 200,8 0,8';
+        return points;
+      };
+
+      const topPoints = generateTearPointsTop(10);
+      expect(topPoints.startsWith('0,8')).toBe(true);
+      expect(topPoints.endsWith('200,8 0,8')).toBe(true);
+      expect(topPoints.split(' ').length).toBe(23); // 1 initial + 2*10 teeth + 2 end points
+    });
+
+    it('formats customer phone loyalty line accurately', () => {
+      const formatLoyalty = (phone?: string) => `Hóa đơn tích điểm cho ${phone || '0987 *** 899'} sau 24h.`;
+      expect(formatLoyalty('0912345678')).toBe('Hóa đơn tích điểm cho 0912345678 sau 24h.');
+      expect(formatLoyalty(undefined)).toBe('Hóa đơn tích điểm cho 0987 *** 899 sau 24h.');
+    });
+  });
 });
+

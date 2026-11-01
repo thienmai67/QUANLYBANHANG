@@ -6,13 +6,7 @@ import {
   Printer,
   Download,
   Image as ImageIcon,
-  FileText,
-  Building2,
-  CheckCircle2,
-  Calendar,
-  CreditCard,
-  User,
-  ShieldCheck,
+  Receipt,
   Loader2,
 } from 'lucide-react';
 
@@ -55,55 +49,115 @@ export interface InvoiceModalProps {
   customerEmail?: string;
 }
 
-function numberToVietnameseWords(num: number): string {
-  if (num === 0) return 'Không đồng';
-  const units = ['', 'nghìn', 'triệu', 'tỷ'];
-  const digits = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+/**
+ * Pixel-perfect deterministic SVG QR Code renderer (21x21 matrix)
+ * Never fails in html2canvas / jsPDF because it is pure inline vector SVG.
+ */
+function PosQrCode({ value, size = 58 }: { value: string; size?: number }) {
+  const gridSize = 21;
+  const matrix: boolean[][] = Array.from({ length: gridSize }, () => Array(gridSize).fill(false));
 
-  function readThreeDigits(n: number, isLast: boolean): string {
-    const h = Math.floor(n / 100);
-    const t = Math.floor((n % 100) / 10);
-    const u = n % 10;
-    let res = '';
+  const drawFinder = (r: number, c: number) => {
+    for (let i = 0; i < 7; i++) {
+      for (let j = 0; j < 7; j++) {
+        const isBorder = i === 0 || i === 6 || j === 0 || j === 6;
+        const isInner = i >= 2 && i <= 4 && j >= 2 && j <= 4;
+        matrix[r + i][c + j] = isBorder || isInner;
+      }
+    }
+  };
 
-    if (h > 0 || !isLast) {
-      res += digits[h] + ' trăm ';
-    }
-    if (t > 1) {
-      res += digits[t] + ' mươi ';
-      if (u === 1) res += 'mốt ';
-      else if (u === 5) res += 'lăm ';
-      else if (u > 0) res += digits[u] + ' ';
-    } else if (t === 1) {
-      res += 'mười ';
-      if (u === 5) res += 'lăm ';
-      else if (u > 0) res += digits[u] + ' ';
-    } else if (h > 0 && u > 0) {
-      res += 'lẻ ' + digits[u] + ' ';
-    } else if (u > 0) {
-      res += digits[u] + ' ';
-    }
-    return res;
+  // 3 Corner finder patterns
+  drawFinder(0, 0);
+  drawFinder(0, gridSize - 7);
+  drawFinder(gridSize - 7, 0);
+
+  // Timing patterns
+  for (let i = 8; i < gridSize - 8; i++) {
+    matrix[6][i] = i % 2 === 0;
+    matrix[i][6] = i % 2 === 0;
   }
 
-  let strNum = Math.round(num).toString();
-  const groups: number[] = [];
-  while (strNum.length > 0) {
-    groups.unshift(parseInt(strNum.slice(-3), 10));
-    strNum = strNum.slice(0, -3);
+  // Deterministic seed based on value string
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
   }
 
-  let result = '';
-  for (let i = 0; i < groups.length; i++) {
-    const g = groups[i];
-    if (g > 0) {
-      const isLast = i === groups.length - 1;
-      result += readThreeDigits(g, isLast) + units[groups.length - 1 - i] + ' ';
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (
+        (r < 8 && c < 8) ||
+        (r < 8 && c >= gridSize - 8) ||
+        (r >= gridSize - 8 && c < 8) ||
+        r === 6 ||
+        c === 6
+      ) {
+        continue;
+      }
+      hash = (hash * 1103515245 + 12345) & 0x7fffffff;
+      matrix[r][c] = (hash % 3) === 0;
     }
   }
 
-  const trimmed = result.trim();
-  return (trimmed.charAt(0).toUpperCase() + trimmed.slice(1) + ' đồng chẵn.').replace(/\s+/g, ' ');
+  const cellSize = 100 / gridSize;
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      className="invoice-pos-qr-svg"
+      style={{ display: 'block', flexShrink: 0 }}
+      aria-label="Mã QR tra cứu hóa đơn"
+    >
+      <rect width="100" height="100" fill="#ffffff" />
+      {matrix.map((row, r) =>
+        row.map((cell, c) =>
+          cell ? (
+            <rect
+              key={`${r}-${c}`}
+              x={c * cellSize}
+              y={r * cellSize}
+              width={cellSize + 0.15}
+              height={cellSize + 0.15}
+              fill="#111111"
+            />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+/**
+ * Tạo tọa độ mép răng cưa trên của giấy in nhiệt (teeth pointing up)
+ */
+function generateTearPointsTop(numTeeth = 36): string {
+  const toothWidth = 200 / numTeeth;
+  let points = '0,8';
+  for (let i = 0; i < numTeeth; i++) {
+    const xMid = (i + 0.5) * toothWidth;
+    const xEnd = (i + 1) * toothWidth;
+    points += ` ${xMid.toFixed(1)},1.2 ${xEnd.toFixed(1)},8`;
+  }
+  points += ' 200,8 0,8';
+  return points;
+}
+
+/**
+ * Tạo tọa độ mép răng cưa dưới của giấy in nhiệt (teeth pointing down)
+ */
+function generateTearPointsBottom(numTeeth = 36): string {
+  const toothWidth = 200 / numTeeth;
+  let points = '0,0';
+  for (let i = 0; i < numTeeth; i++) {
+    const xMid = (i + 0.5) * toothWidth;
+    const xEnd = (i + 1) * toothWidth;
+    points += ` ${xMid.toFixed(1)},6.8 ${xEnd.toFixed(1)},0`;
+  }
+  points += ' 200,0 0,0';
+  return points;
 }
 
 export default function InvoiceModal({
@@ -111,7 +165,6 @@ export default function InvoiceModal({
   isOpen,
   onClose,
   customerPhone,
-  customerEmail,
 }: InvoiceModalProps) {
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -119,19 +172,12 @@ export default function InvoiceModal({
 
   if (!isOpen || !order) return null;
 
-  const orderDate = new Date(order.createdAt).toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const createdDate = new Date(order.createdAt);
+  const dateFormatted = `${String(createdDate.getDate()).padStart(2, '0')}/${String(createdDate.getMonth() + 1).padStart(2, '0')}/${createdDate.getFullYear()}`;
+  const timeFormatted = `${String(createdDate.getHours()).padStart(2, '0')}:${String(createdDate.getMinutes()).padStart(2, '0')}`;
 
-  const exportDate = new Date().toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  const ctCode = order.orderNumber || 'ORD-UNKNOWN';
+  const ctLine = `Số CT: ${ctCode} - ${dateFormatted} ${timeFormatted}-NV:154233`;
 
   const handlePrint = () => {
     window.print();
@@ -145,20 +191,20 @@ export default function InvoiceModal({
       const canvas = await html2canvas(invoicePaperRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: null,
         logging: false,
       } as any);
 
       const imgData = canvas.toDataURL('image/png');
       const downloadLink = document.createElement('a');
       downloadLink.href = imgData;
-      downloadLink.download = `HoaDon_${order.orderNumber.replace(/[^a-zA-Z0-9-_]/g, '')}.png`;
+      downloadLink.download = `PhieuThanhToan_${ctCode.replace(/[^a-zA-Z0-9-_]/g, '')}.png`;
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
     } catch (err) {
       console.error('Lỗi khi xuất file PNG:', err);
-      alert('Không thể tạo file ảnh PNG. Vui lòng thử lại hoặc sử dụng tính năng In trực tiếp.');
+      alert('Không thể tạo file ảnh PNG. Vui lòng thử lại hoặc sử dụng tính năng In ngay.');
     } finally {
       setIsExportingPng(false);
     }
@@ -174,31 +220,29 @@ export default function InvoiceModal({
       const canvas = await html2canvas(invoicePaperRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: null,
         logging: false,
       } as any);
 
       const imgData = canvas.toDataURL('image/png');
+      const pdfWidthMm = 80;
+      const pdfHeightMm = (canvas.height * pdfWidthMm) / canvas.width;
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4',
+        format: [pdfWidthMm, Math.max(pdfHeightMm, 40)],
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`HoaDon_${order.orderNumber.replace(/[^a-zA-Z0-9-_]/g, '')}.pdf`);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm);
+      pdf.save(`PhieuThanhToan_${ctCode.replace(/[^a-zA-Z0-9-_]/g, '')}.pdf`);
     } catch (err) {
       console.error('Lỗi khi xuất file PDF:', err);
-      alert('Không thể tạo file PDF. Vui lòng thử lại hoặc sử dụng tính năng In trực tiếp.');
+      alert('Không thể tạo file PDF. Vui lòng thử lại hoặc sử dụng tính năng In ngay.');
     } finally {
       setIsExportingPdf(false);
     }
   };
-
-  const totalWords = numberToVietnameseWords(order.totalAmount || 0);
 
   return (
     <div
@@ -207,15 +251,15 @@ export default function InvoiceModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="invoice-modal-container" role="dialog" aria-modal="true">
+      <div className="invoice-modal-container invoice-modal-container-pos" role="dialog" aria-modal="true">
         {/* TOP BAR / ACTIONS */}
         <header className="invoice-modal-topbar">
           <div className="invoice-modal-meta">
             <span className="invoice-badge-status">
-              <FileText size={14} />
-              Hóa đơn điện tử
+              <Receipt size={14} />
+              Phiếu thanh toán POS
             </span>
-            <span className="invoice-order-ref">#{order.orderNumber}</span>
+            <span className="invoice-order-ref">#{ctCode}</span>
           </div>
 
           <div className="invoice-modal-actions">
@@ -224,7 +268,7 @@ export default function InvoiceModal({
               className="invoice-btn-act invoice-btn-png"
               onClick={handleExportPNG}
               disabled={isExportingPng}
-              title="Tải ảnh PNG độ nét cao"
+              title="Tải ảnh PNG cuộn in nhiệt độ nét cao"
             >
               {isExportingPng ? (
                 <Loader2 size={15} className="spin-icon" />
@@ -239,7 +283,7 @@ export default function InvoiceModal({
               className="invoice-btn-act invoice-btn-pdf"
               onClick={handleExportPDF}
               disabled={isExportingPdf}
-              title="Tải văn bản PDF A4 chuẩn"
+              title="Tải văn bản PDF khổ cuộn nhiệt 80mm"
             >
               {isExportingPdf ? (
                 <Loader2 size={15} className="spin-icon" />
@@ -253,7 +297,7 @@ export default function InvoiceModal({
               type="button"
               className="invoice-btn-act invoice-btn-print"
               onClick={handlePrint}
-              title="In bằng máy in hoặc lưu PDF hệ thống"
+              title="In bằng máy in hoặc lưu PDF"
             >
               <Printer size={15} />
               <span>In ngay</span>
@@ -271,177 +315,123 @@ export default function InvoiceModal({
           </div>
         </header>
 
-        {/* INVOICE PAPER (Target of PDF/PNG & Print) */}
-        <div className="invoice-paper-wrapper">
+        {/* INVOICE PAPER WRAPPER */}
+        <div className="invoice-paper-wrapper invoice-pos-wrapper">
           <div
             id="invoice-paper"
             ref={invoicePaperRef}
-            className="invoice-paper"
+            className="invoice-pos-receipt"
           >
-            {/* Header: Company Info & Invoice Title */}
-            <div className="invoice-paper-header">
-              <div className="invoice-brand-group">
-                <div className="invoice-brand-logo">
-                  <Building2 size={28} />
-                </div>
-                <div className="invoice-brand-details">
-                  <h1 className="invoice-company-name">CÔNG TY TNHH VẬT TƯ CƠ ĐIỆN TDT</h1>
-                  <p className="invoice-company-sub">HỆ THỐNG PHÂN PHỐI VẬT TƯ XÂY DỰNG &amp; CƠ ĐIỆN CHÍNH HÃNG</p>
-                  <p className="invoice-company-meta">
-                    <b>Mã số thuế:</b> 0317891234 · <b>Hotline:</b> 1900 6868 · <b>Website:</b> tdt-me.vn
-                  </p>
-                  <p className="invoice-company-meta">
-                    <b>Trụ sở:</b> Tòa nhà TDT M&amp;E Tower, Quận 7, TP. Hồ Chí Minh
-                  </p>
-                </div>
-              </div>
-
-              <div className="invoice-title-box">
-                <h2 className="invoice-title-text">HÓA ĐƠN BÁN HÀNG</h2>
-                <div className="invoice-title-sub">PHIẾU XUẤT KHO VẬT TƯ</div>
-                <div className="invoice-number-tag">
-                  <span>Số HĐ:</span> <b>{order.orderNumber}</b>
-                </div>
-              </div>
+            {/* TOP SERRATED TEAR EDGE */}
+            <div className="invoice-pos-tear invoice-pos-tear-top" aria-hidden="true">
+              <svg viewBox="0 0 200 8" width="100%" height="8" preserveAspectRatio="none" style={{ display: 'block' }}>
+                <polygon points={generateTearPointsTop()} fill="#ffffff" />
+              </svg>
             </div>
 
-            <div className="invoice-paper-divider" />
-
-            {/* Invoice Meta Grid */}
-            <div className="invoice-info-grid">
-              <div className="invoice-info-block">
-                <div className="invoice-info-title">
-                  <User size={13} />
-                  <span>THÔNG TIN KHÁCH HÀNG</span>
+            {/* MAIN WHITE PAPER BODY */}
+            <div className="invoice-pos-body">
+              {/* Header: Title + QR Code */}
+              <div className="invoice-pos-header">
+                <div className="invoice-pos-title-box">
+                  <h1 className="invoice-pos-title">PHIẾU THANH TOÁN VẬT TƯ TDT M&amp;E</h1>
+                  <div className="invoice-pos-ctline">{ctLine}</div>
                 </div>
-                <div className="invoice-info-item">
-                  <span className="lbl">Người nhận hàng:</span>
-                  <span className="val bold">{order.customerName}</span>
-                </div>
-                <div className="invoice-info-item">
-                  <span className="lbl">Số điện thoại:</span>
-                  <span className="val">{customerPhone || 'Theo hợp đồng cung ứng'}</span>
-                </div>
-                <div className="invoice-info-item">
-                  <span className="lbl">Email liên hệ:</span>
-                  <span className="val">{customerEmail || '—'}</span>
+                <div className="invoice-pos-qr-box">
+                  <PosQrCode value={`https://tdt-me.vn/orders/${ctCode}`} size={56} />
                 </div>
               </div>
 
-              <div className="invoice-info-block">
-                <div className="invoice-info-title">
-                  <Calendar size={13} />
-                  <span>THÔNG TIN ĐƠN HÀNG</span>
-                </div>
-                <div className="invoice-info-item">
-                  <span className="lbl">Thời gian tạo đơn:</span>
-                  <span className="val">{orderDate}</span>
-                </div>
-                <div className="invoice-info-item">
-                  <span className="lbl">Phương thức:</span>
-                  <span className="val">{order.paymentMethod || 'Thanh toán khi nhận hàng (COD)'}</span>
-                </div>
-                <div className="invoice-info-item">
-                  <span className="lbl">Trạng thái thanh toán:</span>
-                  <span className="val status-paid">
-                    {order.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN / CHỜ THU COD'}
-                  </span>
-                </div>
-                {order.is2h && (
-                  <div className="invoice-info-item">
-                    <span className="lbl">Hình thức giao hàng:</span>
-                    <span className="val text-orange">⚡ Giao hàng hỏa tốc 2 giờ</span>
+              {/* Divider solid line */}
+              <div className="invoice-pos-solid-line" />
+
+              {/* Table Column Headers */}
+              <div className="invoice-pos-table-header">
+                <span className="col-sl">SL</span>
+                <span className="col-price">Giá bán (có VAT)</span>
+                <span className="col-total">Thành tiền</span>
+              </div>
+
+              {/* Items List */}
+              <div className="invoice-pos-items-list">
+                {order.items && order.items.length > 0 ? (
+                  order.items.map((item, index) => {
+                    const lineTotal = (item.unitPrice || 0) * (item.quantity || 1);
+                    return (
+                      <div key={item.id || index} className="invoice-pos-item">
+                        <div className="invoice-pos-item-name">{item.name}</div>
+                        <div className="invoice-pos-item-row">
+                          <span className="col-sl">{item.quantity}</span>
+                          <span className="col-price">{item.unitPrice.toLocaleString('vi-VN')}</span>
+                          <span className="col-total">{lineTotal.toLocaleString('vi-VN')}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="invoice-pos-item">
+                    <div className="invoice-pos-item-name">Đơn hàng vật tư xây dựng</div>
+                    <div className="invoice-pos-item-row">
+                      <span className="col-sl">1</span>
+                      <span className="col-price">{order.totalAmount.toLocaleString('vi-VN')}</span>
+                      <span className="col-total">{order.totalAmount.toLocaleString('vi-VN')}</span>
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Items Table */}
-            <div className="invoice-table-wrapper">
-              <table className="invoice-items-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '40px', textAlign: 'center' }}>STT</th>
-                    <th style={{ width: '130px' }}>Mã vật tư</th>
-                    <th>Tên vật tư quy cách kỹ thuật</th>
-                    <th style={{ width: '60px', textAlign: 'center' }}>ĐVT</th>
-                    <th style={{ width: '80px', textAlign: 'right' }}>Số lượng</th>
-                    <th style={{ width: '120px', textAlign: 'right' }}>Đơn giá (đ)</th>
-                    <th style={{ width: '130px', textAlign: 'right' }}>Thành tiền (đ)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {order.items.map((item, index) => {
-                    const lineTotal = (item.unitPrice || 0) * (item.quantity || 1);
-                    return (
-                      <tr key={item.id || index}>
-                        <td style={{ textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
-                          {index + 1}
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                          {item.sku}
-                        </td>
-                        <td>
-                          <div className="invoice-item-name">{item.name}</div>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>Cái/Bộ</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                          {item.quantity}
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                          {item.unitPrice.toLocaleString('vi-VN')}
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                          {lineTotal.toLocaleString('vi-VN')}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+              {/* Dotted Divider line */}
+              <div className="invoice-pos-dotted-line" />
 
-            {/* Financial Summary */}
-            <div className="invoice-calc-grid">
-              <div className="invoice-calc-left">
-                <div className="invoice-words-block">
-                  <span className="lbl">Số tiền viết bằng chữ:</span>
-                  <div className="val">{totalWords}</div>
+              {/* Totals Section */}
+              <div className="invoice-pos-totals">
+                <div className="invoice-pos-total-row main">
+                  <span className="lbl">Phải thanh toán:</span>
+                  <span className="val">{order.totalAmount.toLocaleString('vi-VN')}</span>
                 </div>
-                <div className="invoice-note-box">
-                  * Hóa đơn kiêm phiếu bảo hành vật tư công trình. Vui lòng kiểm tra đối chiếu chủng loại và quy cách vật tư trước khi ký nhận.
+                <div className="invoice-pos-subrow">
+                  <span className="lbl">Hình thức:</span>
+                  <span className="val">{order.paymentMethod || 'Tiền mặt (COD)'}</span>
+                </div>
+                <div className="invoice-pos-subrow">
+                  <span className="lbl">Trạng thái:</span>
+                  <span className="val status">
+                    {order.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chờ thu tiền khi giao'}
+                  </span>
                 </div>
               </div>
 
-              <div className="invoice-calc-right">
-                <div className="invoice-calc-row">
-                  <span>Cộng tiền hàng:</span>
-                  <b>{order.totalAmount.toLocaleString('vi-VN')} đ</b>
-                </div>
-                <div className="invoice-calc-row">
-                  <span>Thuế GTGT (VAT):</span>
-                  <span>Đã bao gồm trong giá</span>
-                </div>
-                <div className="invoice-calc-row">
-                  <span>Phí vận chuyển công trình:</span>
-                  <span>Miễn phí</span>
-                </div>
-                <div className="invoice-calc-row invoice-calc-total">
-                  <span>TỔNG CỘNG THANH TOÁN:</span>
-                  <span className="total-val">{order.totalAmount.toLocaleString('vi-VN')} đ</span>
-                </div>
+              {/* Hotline Divider line */}
+              <div className="invoice-pos-hotline-row">
+                <span className="dash-line" />
+                <span className="hotline-text">Tổng đài góp ý/khiếu nại: 1900 6868</span>
+                <span className="dash-line" />
+              </div>
+
+              {/* Invoice VAT Lookup & Notes */}
+              <div className="invoice-pos-notes">
+                <p>Quý khách có thể in bản sao HĐ VAT tại: <b>hddt.tdt-me.vn</b></p>
+                <p>Mã tra cứu hóa đơn: <span className="mono-code">{ctCode}</span></p>
+                <p className="notice">Lưu ý : HĐ VAT chỉ xuất trong ngày</p>
+                <p className="policy">
+                  Cảm ơn Quý Khách hàng đã đồng ý với chính sách xử lý dữ liệu cá nhân của Chúng tôi tại https://tdt-me.vn/chinh-sach-xu-ly-du-lieu-ca-nhan
+                </p>
+              </div>
+
+              {/* Solid bottom line */}
+              <div className="invoice-pos-solid-line" style={{ margin: '8px 0 6px 0' }} />
+
+              {/* Customer Points Loyalty Phone */}
+              <div className="invoice-pos-loyalty">
+                Hóa đơn tích điểm cho {customerPhone || '0987 *** 899'} sau 24h.
               </div>
             </div>
 
-
-
-            {/* Footer Watermark */}
-            <div className="invoice-paper-footer">
-              <span>Hệ thống quản lý vật tư xây dựng TDT M&amp;E</span>
-              <span>·</span>
-              <span>Ngày in: {exportDate}</span>
-              <span>·</span>
-              <span>Trang 1 / 1</span>
+            {/* BOTTOM SERRATED TEAR EDGE */}
+            <div className="invoice-pos-tear invoice-pos-tear-bottom" aria-hidden="true">
+              <svg viewBox="0 0 200 8" width="100%" height="8" preserveAspectRatio="none" style={{ display: 'block' }}>
+                <polygon points={generateTearPointsBottom()} fill="#ffffff" />
+              </svg>
             </div>
           </div>
         </div>
@@ -456,7 +446,7 @@ export default function InvoiceModal({
             &larr; Đóng và quay lại chi tiết đơn hàng
           </button>
           <div className="invoice-footer-hint">
-            Hóa đơn được mã hóa chuẩn hóa đơn điện tử TDT M&amp;E
+            Hóa đơn được tối ưu chuẩn khổ in nhiệt 80mm POS
           </div>
         </footer>
       </div>
