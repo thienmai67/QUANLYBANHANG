@@ -141,23 +141,8 @@ export default function ShipperCodLedgerPage() {
         );
         setShowConfirmModal(false);
       } else {
-        // Fallback local if offline/mock
-        const localRes = settleCod(currentShipperId, idsToSettle);
-        if (localRes.success && localRes.settlement) {
-          setCreatedReceipt({
-            id: localRes.settlement.id,
-            shipperId: localRes.settlement.shipperId,
-            totalAmount: localRes.settlement.totalAmount,
-            orderCount: localRes.settlement.orderIds?.length || idsToSettle.length,
-            createdAt: localRes.settlement.settledAt,
-          });
-          toast.success(
-            `Đã ghi nhận nộp COD cục bộ ${formatCurrencyVND(localRes.settlement.totalAmount)}!`
-          );
-          setShowConfirmModal(false);
-        } else {
-          toast.error(res.error || localRes.error || 'Quyết toán thất bại. Vui lòng thử lại.');
-        }
+        // D2.2: Không fallback local, không tự sinh SETTLE-, báo lỗi trung thực
+        toast.error(res.error || 'Quyết toán COD thất bại từ máy chủ. Vui lòng thử lại sau.');
       }
     } finally {
       setIsSettling(false);

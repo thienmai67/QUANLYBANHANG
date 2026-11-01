@@ -117,7 +117,7 @@ export default function RegisterPage() {
     }
   };
 
-  const handleStartRegister = (e: React.FormEvent) => {
+  const handleStartRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -143,25 +143,8 @@ export default function RegisterPage() {
       return;
     }
 
-    // Generate simulated 6-digit OTP code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
-    setUserOtp("");
-    setOtpError("");
-    setShowOtpModal(true);
-  };
-
-  const handleVerifyOtpAndCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setOtpError("");
-
-    if (userOtp.trim() !== generatedOtp) {
-      setOtpError("Mã OTP không chính xác. Vui lòng kiểm tra lại.");
-      return;
-    }
-
+    // D2.4: Bỏ OTP giả lập ở client, gửi đăng ký trực tiếp đến API backend
     setIsLoading(true);
-    const fullName = combineFullName(lastName, firstName);
 
     try {
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -404,55 +387,7 @@ export default function RegisterPage() {
         <AuthActionRow submitText="Tạo tài khoản" isLoading={isLoading} />
       </form>
 
-      {/* OTP Verification Modal */}
-      {showOtpModal && (
-        <AuthModal
-          isOpen={showOtpModal}
-          onClose={() => setShowOtpModal(false)}
-          title="Xác thực đăng ký tài khoản"
-        >
-          <form onSubmit={handleVerifyOtpAndCreate} className="space-y-4 py-2">
-            <p className="text-[13px] text-slate-600">
-              Hệ thống đã tạo mã xác thực mô phỏng cho email <strong>{email}</strong>:
-            </p>
 
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-center">
-              <span className="text-[12px] text-blue-700 block mb-1">Mã OTP thử nghiệm của bạn:</span>
-              <span className="font-mono text-2xl font-bold tracking-widest text-[#1E6BFF]">
-                {generatedOtp}
-              </span>
-            </div>
-
-            <AuthField
-              id="otp-input"
-              type="text"
-              label="Nhập mã 6 chữ số"
-              placeholder="123456"
-              required
-              value={userOtp}
-              onChange={(e) => setUserOtp(e.target.value)}
-              errorMessage={otpError}
-            />
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowOtpModal(false)}
-                className="flex-1 py-2.5 rounded-full bg-slate-100 text-slate-600 font-medium text-[13px]"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex-1 py-2.5 rounded-full bg-[#1E6BFF] text-white font-semibold text-[13px] flex items-center justify-center gap-2"
-              >
-                {isLoading ? "Đang tạo..." : "Xác nhận & Tạo tài khoản"}
-              </button>
-            </div>
-          </form>
-        </AuthModal>
-      )}
       </>
       ) : shipperSubmitted ? (
       <div className="space-y-4 py-2">

@@ -243,16 +243,17 @@ export default function CartDrawer() {
         shippingAddress: customerAddress || undefined,
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
         is2h: false,
-        items: items.map((i, idx) => {
+        items: items.map((i) => {
           let resolvedId = i.id;
           if (!uuidRegex.test(resolvedId)) {
             const matched = catalogProducts.find(
               (p) => p.sku && i.sku && p.sku.toLowerCase() === i.sku.toLowerCase()
             );
-            resolvedId =
-              matched?.id ||
-              catalogProducts[idx % Math.max(1, catalogProducts.length)]?.id ||
-              i.id;
+            if (matched && uuidRegex.test(matched.id)) {
+              resolvedId = matched.id;
+            } else {
+              throw new Error(`Sản phẩm "${i.name}" (mã: ${i.sku || i.id}) không còn đúng mã trong danh mục. Vui lòng chọn lại.`);
+            }
           }
           return {
             productId: resolvedId,

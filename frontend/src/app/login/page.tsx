@@ -46,19 +46,7 @@ const MOCK_ACCOUNTS: Record<
   },
 };
 
-function createMockJwtToken(userId: string, email: string, role: string) {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(
-    JSON.stringify({
-      userId,
-      email,
-      role,
-      exp: Math.floor(Date.now() / 1000) + 86400 * 7,
-      iat: Math.floor(Date.now() / 1000),
-    })
-  );
-  return `${header}.${payload}.mock-signature`;
-}
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -148,64 +136,41 @@ export default function LoginPage() {
 
     const cleanEmail = email.trim().toLowerCase();
     const mockMatch = MOCK_ACCOUNTS[cleanEmail];
-    const isMockMatch = !!(mockMatch && password === mockMatch.pass);
 
     try {
-      let res: Response | null = null;
-      try {
-        res = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, password }),
-        });
-      } catch {
-        // Backend offline or network error
-      }
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, password }),
+      });
 
-      if (res && res.ok) {
-        const data = await res.json();
-        const accessToken = data.accessToken || data.access_token;
-        const refreshToken = data.refreshToken || data.refresh_token || "";
-        if (accessToken) {
-          performLoginSuccess(
-            accessToken,
-            refreshToken,
-            mockMatch?.name,
-            data.user?.mustChangePassword === true
-          );
-          return;
-        }
-      }
-
-      // If backend failed/offline but credentials match mock accounts:
-      if (isMockMatch && mockMatch) {
-        const mockToken = createMockJwtToken(mockMatch.userId, cleanEmail, mockMatch.role);
-        performLoginSuccess(mockToken, 'mock-refresh-token', mockMatch.name);
-        return;
-      }
-
-      if (res && !res.ok) {
+      if (!res.ok) {
         const errorData = await res.json().catch(() => null);
         throw new Error(
           errorData?.message ||
-            "Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản hoặc đăng nhập với Google."
+            "Đăng nhập không thành công. Vui lòng kiểm tra lại email/mật khẩu hoặc kết nối máy chủ."
         );
       }
 
-      throw new Error(
-        "Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản hoặc đăng nhập với Google."
-      );
-    } catch (err: unknown) {
-      if (isMockMatch && mockMatch) {
-        const mockToken = createMockJwtToken(mockMatch.userId, cleanEmail, mockMatch.role);
-        performLoginSuccess(mockToken, 'mock-refresh-token', mockMatch.name);
-        return;
+      const data = await res.json();
+      const accessToken = data.accessToken || data.access_token;
+      const refreshToken = data.refreshToken || data.refresh_token || "";
+
+      if (!accessToken) {
+        throw new Error("Máy chủ không trả về token xác thực hợp lệ.");
       }
 
+      performLoginSuccess(
+        accessToken,
+        refreshToken,
+        mockMatch?.name || data.user?.name,
+        data.user?.mustChangePassword === true
+      );
+    } catch (err: unknown) {
       if (err instanceof Error) {
         setErrorMsg(err.message);
       } else {
-        setErrorMsg("Đã xảy ra lỗi kết nối. Vui lòng thử lại sau.");
+        setErrorMsg("Không thể kết nối đến máy chủ xác thực.");
       }
     } finally {
       setIsLoading(false);
@@ -214,13 +179,12 @@ export default function LoginPage() {
 
   const handleSendResetLink = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail.trim() || !forgotEmail.includes("@")) return;
-
+    if (!forgotEmail.trim() || !forgotEmail.includes('@')) return;
     setForgotLoading(true);
     setTimeout(() => {
       setForgotLoading(false);
       setForgotSent(true);
-    }, 1000);
+    }, 400);
   };
 
   return (
@@ -346,9 +310,9 @@ export default function LoginPage() {
               <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl font-bold">
                 ✓
               </div>
-              <h3 className="font-bold text-[16px] text-slate-800">Đã gửi liên kết khôi phục</h3>
+              <h3 className="font-bold text-[16px] text-slate-800">Yêu cầu hỗ trợ mật khẩu</h3>
               <p className="text-[13px] text-slate-500">
-                Vui lòng kiểm tra hộp thư đến của <strong>{forgotEmail}</strong> để đặt lại mật khẩu.
+                Hệ thống gửi thư tự động đang cấu hình. Vui lòng liên hệ Quản trị viên qua email admin@tdt.vn kèm thông tin tài khoản <strong>{forgotEmail}</strong> để được cấp lại mật khẩu.
               </p>
               <button
                 type="button"

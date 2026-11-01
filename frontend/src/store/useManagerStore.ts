@@ -384,15 +384,23 @@ export const useManagerStore = create<ManagerState>()(
           const url = shipperId ? `/cod-settlements?shipper_id=${shipperId}` : '/cod-settlements';
           const res = await api.get<{ data: any[]; total: number }>(url);
           const rawList = res?.data || (Array.isArray(res) ? res : []);
-          const mapped = rawList.map(mapCODSettlement).map((s) => ({
-            id: s.id,
-            shipperId: s.shipperId,
-            orderIds: [],
-            totalAmount: s.totalAmount,
-            settledAt: s.createdAt,
-            createdAt: s.createdAt,
-            orderCount: s.orderCount,
-          }));
+          const mapped = rawList.map((raw: any) => {
+            const s = mapCODSettlement(raw);
+            const orderIds = Array.isArray(raw.order_ids)
+              ? raw.order_ids
+              : Array.isArray(raw.orderIds)
+              ? raw.orderIds
+              : [];
+            return {
+              id: s.id,
+              shipperId: s.shipperId,
+              orderIds,
+              totalAmount: s.totalAmount,
+              settledAt: s.createdAt,
+              createdAt: s.createdAt,
+              orderCount: s.orderCount || orderIds.length,
+            };
+          });
           set({ codSettlements: mapped });
         } catch (err) {
           if (process.env.NODE_ENV !== 'test') {
@@ -806,7 +814,7 @@ export const useManagerStore = create<ManagerState>()(
           return { success: false, error: `Đơn hàng ${orderId} không tồn tại` };
         }
 
-        if (order.status !== 'PACKING' && order.status !== 'SHIPPING') {
+        if (order.status !== 'PACKING' && (order.status as string) !== 'SHIPPING') {
           return {
             success: false,
             error: `Chỉ đơn hàng đang đóng gói hoặc đang giao mới có thể phân công shipper (hiện tại: ${order.status})`,
@@ -854,7 +862,7 @@ export const useManagerStore = create<ManagerState>()(
           now
         );
 
-        const previousShipperId = order.status === 'SHIPPING' ? order.shipperId : undefined;
+        const previousShipperId = (order.status as string) === 'SHIPPING' ? order.shipperId : undefined;
 
         set((prev) => ({
           orders: prev.orders.map((o) =>
