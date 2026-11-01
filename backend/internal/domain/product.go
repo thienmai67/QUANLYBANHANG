@@ -144,6 +144,7 @@ type Order struct {
 	CustomerID         *uuid.UUID  `json:"customerId,omitempty" db:"customer_id"`
 	CustomerName       string      `json:"customerName" db:"customer_name"`
 	ShipperID          *uuid.UUID  `json:"shipperId,omitempty" db:"shipper_id"`
+	SaleID             *uuid.UUID  `json:"saleId,omitempty" db:"sale_id"`
 	PaymentMethod      *string     `json:"paymentMethod,omitempty" db:"payment_method"`
 	Is2H               bool        `json:"is2h" db:"is_2h"`
 	Deadline2H         *time.Time  `json:"deadline2h,omitempty" db:"deadline_2h"`

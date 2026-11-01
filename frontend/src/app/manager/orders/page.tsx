@@ -14,6 +14,8 @@ import { OrderDetailModal } from '@/components/manager/OrderDetailModal';
 import { ShipperAssignModal } from '@/components/manager/ShipperAssignModal';
 import { CancelOrderModal } from '@/components/manager/CancelOrderModal';
 import { CodSettlementListModal } from '@/components/manager/CodSettlementListModal';
+import { QuoteApprovalModal } from '@/components/manager/QuoteApprovalModal';
+import { useSaleStore } from '@/store/useSaleStore';
 import {
   Search,
   Zap,
@@ -32,6 +34,7 @@ import {
   Phone,
   MapPin,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 
 type StatusFilter = OrderStatus | 'ALL';
@@ -50,14 +53,16 @@ function OrdersManagementContent() {
   const { user } = useAuthStore();
   const toast = useToast();
   const { orders, ordersLoading, ordersError, fetchOrders, fetchProducts, fetchShippers, approveOrder, markOrderPaid } = useManagerStore();
+  const { quotes, fetchQuotes } = useSaleStore();
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
 
-  // Fetch orders, products, and shippers from API on mount
+  // Fetch orders, products, shippers, and pending quotes from API on mount
   useEffect(() => {
     fetchOrders();
     fetchProducts();
     fetchShippers();
-  }, [fetchOrders, fetchProducts, fetchShippers]);
+    fetchQuotes();
+  }, [fetchOrders, fetchProducts, fetchShippers, fetchQuotes]);
 
   // Filter states
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('ALL');
@@ -74,8 +79,14 @@ function OrdersManagementContent() {
   const [cancelTargetOrder, setCancelTargetOrder] = useState<Order | null>(null);
   const [isCancelOpen, setIsCancelOpen] = useState<boolean>(false);
   const [isCodListOpen, setIsCodListOpen] = useState<boolean>(false);
+  const [isQuoteApprovalOpen, setIsQuoteApprovalOpen] = useState<boolean>(false);
 
   const [exporting, setExporting] = useState<boolean>(false);
+
+  const pendingQuotesCount = useMemo(
+    () => quotes.filter((q) => q.status === 'PENDING_APPROVAL').length,
+    [quotes]
+  );
 
   // Sync status tab with URL query parameter (e.g. ?status=PENDING from Bell notification)
   useEffect(() => {
@@ -244,6 +255,21 @@ function OrdersManagementContent() {
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsQuoteApprovalOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition-all"
+            title="Duyệt các báo giá có chiết khấu Sale > 10%"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Duyệt Báo Giá</span>
+            {pendingQuotesCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black animate-pulse">
+                {pendingQuotesCount}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => setIsCodListOpen(true)}
@@ -727,6 +753,14 @@ function OrdersManagementContent() {
       <CodSettlementListModal
         isOpen={isCodListOpen}
         onClose={() => setIsCodListOpen(false)}
+      />
+
+      <QuoteApprovalModal
+        isOpen={isQuoteApprovalOpen}
+        onClose={() => {
+          setIsQuoteApprovalOpen(false);
+          fetchQuotes();
+        }}
       />
     </div>
   );

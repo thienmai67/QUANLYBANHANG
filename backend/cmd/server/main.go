@@ -54,6 +54,7 @@ func main() {
 	}
 
 	productRepo := repository.NewProductRepository(db)
+	saleRepo := repository.NewSaleRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	jwtService := auth.NewJWTService(jwtSecret)
 
@@ -61,6 +62,8 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
 	productHandler := handler.New(productRepo)
+	productHandler.SetSaleRepo(saleRepo)
+	saleHandler := handler.NewSaleHandler(saleRepo, productRepo)
 
 	payosClientID := os.Getenv("PAYOS_CLIENT_ID")
 	payosAPIKey := os.Getenv("PAYOS_API_KEY")
@@ -180,6 +183,8 @@ func main() {
 			r.Post("/products", productHandler.CreateProduct)
 			r.Put("/products/{id}", productHandler.UpdateProduct)
 			r.Delete("/products/{id}", productHandler.DeleteProduct)
+			r.Patch("/quotes/{id}/approve", saleHandler.ApproveQuote)
+			r.Patch("/quotes/{id}/reject", saleHandler.RejectQuote)
 		})
 
 		// COD Settlement APIs (MANAGER, SHIPPER)
@@ -189,6 +194,48 @@ func main() {
 
 			r.Post("/cod-settlements", productHandler.CreateCODSettlement)
 			r.Get("/cod-settlements", productHandler.ListCODSettlements)
+		})
+
+		// Sale Workspace Endpoints (SALE, MANAGER)
+		r.Route("/sale", func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth)
+
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireRole(domain.RoleSale, domain.RoleManager))
+
+				r.Get("/staff", saleHandler.ListSalesStaff)
+				r.Get("/dashboard", saleHandler.GetDashboardStats)
+				r.Get("/customers", saleHandler.ListCustomers)
+				r.Get("/customers/{id}", saleHandler.GetCustomer)
+				r.Post("/customers", saleHandler.CreateCustomer)
+				r.Put("/customers/{id}", saleHandler.UpdateCustomer)
+
+				r.Get("/quotes", saleHandler.ListQuotes)
+				r.Get("/quotes/{id}", saleHandler.GetQuote)
+				r.Post("/quotes", saleHandler.CreateQuote)
+				r.Put("/quotes/{id}", saleHandler.UpdateQuote)
+				r.Post("/quotes/{id}/send", saleHandler.SendQuote)
+				r.Post("/quotes/{id}/convert", saleHandler.ConvertQuote)
+
+				r.Get("/activities", saleHandler.ListActivities)
+				r.Post("/activities", saleHandler.CreateActivity)
+				r.Put("/activities/{id}", saleHandler.UpdateActivity)
+
+				r.Get("/payments", saleHandler.ListPayments)
+				r.Post("/payments/{orderId}/notes", saleHandler.AddPaymentNote)
+
+				r.Get("/reports/summary", saleHandler.GetReportSummary)
+			})
+
+			// Manager Only Sale Operations (assignment, quote approvals)
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireRole(domain.RoleManager))
+
+				r.Post("/customers/{id}/assign", saleHandler.AssignCustomer)
+				r.Post("/orders/{id}/assign", saleHandler.AssignOrder)
+				r.Patch("/quotes/{id}/approve", saleHandler.ApproveQuote)
+				r.Patch("/quotes/{id}/reject", saleHandler.RejectQuote)
+			})
 		})
 	})
 
@@ -436,6 +483,93 @@ ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NUL
 ALTER TABLE me_supplies.shipper_applications ADD COLUMN IF NOT EXISTS lookup_code_hash TEXT;
 ALTER TABLE me_supplies.shipper_applications ADD COLUMN IF NOT EXISTS password_set_at TIMESTAMPTZ;
 
+
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS sale_id UUID REFERENCES users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_sale_id ON orders(sale_id);
+
+CREATE TABLE IF NOT EXISTS customer_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sale_id UUID NOT NULL REFERENCES users(id),
+    customer_id UUID NOT NULL REFERENCES users(id),
+    assigned_by UUID REFERENCES users(id),
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_assignments_active ON customer_assignments(customer_id) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_customer_assignments_sale ON customer_assignments(sale_id, is_active);
+
+CREATE TABLE IF NOT EXISTS customer_profiles (
+    customer_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    company_name VARCHAR(255),
+    site_address TEXT,
+    tier VARCHAR(50) NOT NULL DEFAULT 'Retail' CHECK (tier IN ('Retail', 'Bronze', 'Silver', 'Gold')),
+    credit_limit DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS quotes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    quote_number VARCHAR(50) NOT NULL UNIQUE,
+    sale_id UUID NOT NULL REFERENCES users(id),
+    customer_id UUID NOT NULL REFERENCES users(id),
+    status VARCHAR(30) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'CONVERTED', 'PENDING_APPROVAL')),
+    valid_until TIMESTAMPTZ NOT NULL,
+    subtotal DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+    discount_total DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+    total_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+    notes TEXT,
+    rejection_reason TEXT,
+    converted_order_id UUID UNIQUE REFERENCES orders(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_quotes_sale ON quotes(sale_id, status);
+CREATE INDEX IF NOT EXISTS idx_quotes_customer ON quotes(customer_id);
+
+CREATE TABLE IF NOT EXISTS quote_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    quote_id UUID NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES products(id),
+    quantity DECIMAL(12,4) NOT NULL,
+    unit VARCHAR(20) NOT NULL,
+    unit_price DECIMAL(12,2) NOT NULL,
+    discount_rate DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    line_total DECIMAL(14,2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_quote_items_quote_id ON quote_items(quote_id);
+
+CREATE TABLE IF NOT EXISTS customer_activities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sale_id UUID NOT NULL REFERENCES users(id),
+    customer_id UUID NOT NULL REFERENCES users(id),
+    type VARCHAR(30) NOT NULL CHECK (type IN ('CALL', 'ZALO', 'VISIT', 'NOTE', 'FOLLOWUP')),
+    content TEXT NOT NULL,
+    contacted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    next_followup_at TIMESTAMPTZ,
+    is_done BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_activities_sale_followup ON customer_activities(sale_id, next_followup_at, is_done);
+
+CREATE TABLE IF NOT EXISTS payment_notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    sale_id UUID NOT NULL REFERENCES users(id),
+    amount DECIMAL(14,2) NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    note TEXT,
+    collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
 INSERT INTO brands (code, name, discount_rate) VALUES
     ('BINHMINH', 'Bình Minh', 18.00),
     ('CADIVI',   'Cadivi', 22.00),
@@ -493,6 +627,7 @@ ON CONFLICT (code) DO NOTHING;
 	}
 	demoUsers := []seedUser{
 		{email: "manager@tdt.vn", fullName: "Quản Lý Hải Đăng", role: "MANAGER", password: "Manager@123", phone: "0909000111"},
+		{email: "sale@tdt.vn", fullName: "Nguyễn Văn Kinh Doanh", role: "SALE", password: "Sale@123", phone: "0908112233"},
 		{email: "shipper@tdt.vn", fullName: "Trần Quốc Toản", role: "SHIPPER", password: "Shipper@123", phone: "0902345678"},
 		{email: "shipper1@tdt.vn", fullName: "Nguyễn Văn Hùng", role: "SHIPPER", password: "Shipper@123", phone: "0901234567"},
 		{email: "customer@tdt.vn", fullName: "Khách Hàng Bán Lẻ", role: "CUSTOMER", password: "Customer@123", phone: "0903456789"},
@@ -517,6 +652,20 @@ ON CONFLICT (code) DO NOTHING;
 			return fmt.Errorf("upsert demo user %s: %w", u.email, err)
 		}
 	}
+
+	// Seed sample customer profile and assign customer@tdt.vn to sale@tdt.vn
+	_, _ = db.Exec(`
+		INSERT INTO me_supplies.customer_profiles (customer_id, company_name, site_address, tier, credit_limit, notes)
+		SELECT id, 'Công Ty Xây Dựng & Cơ Điện Nam Sài Gòn', '120 Nguyễn Thị Thập, Q.7, TP.HCM', 'Gold', 50000000.00, 'Khách hàng dự án thường xuyên'
+		FROM me_supplies.users WHERE email = 'customer@tdt.vn'
+		ON CONFLICT (customer_id) DO NOTHING;
+
+		INSERT INTO me_supplies.customer_assignments (id, sale_id, customer_id, assigned_by, assigned_at, is_active)
+		SELECT gen_random_uuid(), s.id, c.id, m.id, NOW(), TRUE
+		FROM me_supplies.users s, me_supplies.users c, me_supplies.users m
+		WHERE s.email = 'sale@tdt.vn' AND c.email = 'customer@tdt.vn' AND m.email = 'manager@tdt.vn'
+		ON CONFLICT DO NOTHING;
+	`)
 
 	return nil
 }

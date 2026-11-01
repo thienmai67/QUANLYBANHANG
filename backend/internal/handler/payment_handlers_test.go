@@ -209,6 +209,7 @@ func TestPaymentHandlers_AllScenarios(t *testing.T) {
 			ID:            orderUnpaidID,
 			OrderNumber:   "ORD-261018-000002",
 			CustomerID:    &customerID,
+			SaleID:        &saleID,
 			CustomerName:  "Khách Unpaid",
 			PaymentMethod: &bankMethod,
 			TotalAmount:   300000,

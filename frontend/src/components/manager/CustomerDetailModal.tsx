@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from 'lucide-react';
+import { useSaleStore } from '@/store/useSaleStore';
 
 interface CustomerDetailModalProps {
   customer: Customer | null;
@@ -45,6 +46,33 @@ export function CustomerDetailModal({
   onSelectOrder,
 }: CustomerDetailModalProps) {
   const { orders, getCustomerMetrics } = useManagerStore();
+  const { salesStaff, fetchSalesStaff, assignCustomer } = useSaleStore();
+  const [selectedSaleId, setSelectedSaleId] = React.useState<string>('');
+  const [isAssigning, setIsAssigning] = React.useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchSalesStaff();
+    }
+  }, [isOpen, fetchSalesStaff]);
+
+  useEffect(() => {
+    if ((customer as any)?.saleId) {
+      setSelectedSaleId((customer as any).saleId);
+    } else {
+      setSelectedSaleId('');
+    }
+  }, [customer]);
+
+  const handleAssignCustomer = async (newSaleId: string) => {
+    if (!customer?.id || !newSaleId) return;
+    setIsAssigning(true);
+    const ok = await assignCustomer(customer.id, newSaleId);
+    if (ok) {
+      setSelectedSaleId(newSaleId);
+    }
+    setIsAssigning(false);
+  };
 
   // Close on Escape key
   useEffect(() => {
@@ -182,6 +210,28 @@ export function CustomerDetailModal({
               <div className="sm:col-span-2 flex items-start gap-2 text-slate-600 dark:text-slate-300">
                 <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
                 <span>Địa chỉ công trình/giao hàng: <strong className="text-slate-900 dark:text-white">{customer.address}</strong></span>
+              </div>
+              <div className="sm:col-span-2 pt-2 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-slate-600 dark:text-slate-300">
+                <span className="text-slate-500">Nhân viên Sale phụ trách:</span>
+                {salesStaff.length > 0 ? (
+                  <select
+                    value={selectedSaleId}
+                    disabled={isAssigning}
+                    onChange={(e) => handleAssignCustomer(e.target.value)}
+                    className="text-xs font-semibold px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[200px]"
+                  >
+                    <option value="">-- Chọn Sale phụ trách --</option>
+                    {salesStaff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.fullName} ({s.email})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    {(customer as any)?.saleName || 'Nguyễn Văn Kinh Doanh (sale@tdt.vn)'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
