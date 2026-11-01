@@ -27,6 +27,8 @@ import {
   decodeToken,
 } from '@/lib/auth';
 import { api, API_BASE_URL, getFriendlyErrorMessage } from '@/lib/api';
+import CancelOrderModal from '@/components/CancelOrderModal';
+import PayOSModal from '@/components/PayOSModal';
 
 interface AccountOrderItem {
   id?: string;
@@ -49,6 +51,7 @@ interface AccountOrder {
   customerId?: string;
   customerName: string;
   paymentMethod?: string;
+  paymentStatus?: string;
   totalAmount: number;
   status: 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED' | string;
   items?: AccountOrderItem[];
@@ -168,6 +171,24 @@ export default function AccountPage() {
   const [orders, setOrders] = useState<AccountOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState<boolean>(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState<AccountOrder | null>(null);
+  const [repayingOrder, setRepayingOrder] = useState<AccountOrder | null>(null);
+
+  const handleCancelSuccess = (orderId: string, reason: string) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, status: 'CANCELLED', cancellationReason: reason }
+          : o
+      )
+    );
+  };
+
+  const handleRepaySuccess = (orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: 'PAID' } : o))
+    );
+  };
 
   const fetchMyOrders = useCallback(async () => {
     const token = getAccessToken();
@@ -695,13 +716,34 @@ export default function AccountPage() {
                           )}
                         </div>
 
-                        <div className="text-left sm:text-right shrink-0">
+                        <div className="text-left sm:text-right shrink-0 flex flex-col items-start sm:items-end gap-2">
                           <p className="font-mono font-bold text-slate-900 dark:text-white text-base">
                             {Number(order.totalAmount || 0).toLocaleString('vi-VN')} VND
                           </p>
                           <span className="text-[11px] text-slate-500">
                             Hình thức: {formatPaymentMethod(order.paymentMethod)}
                           </span>
+
+                          {order.status === 'PENDING' && (
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              {(order.paymentMethod === 'BANK_TRANSFER' || order.paymentMethod === 'BANK') && order.paymentStatus !== 'PAID' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRepayingOrder(order)}
+                                  className="px-3 py-1.5 text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-100 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors"
+                                >
+                                  Quét QR thanh toán
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setCancellingOrder(order)}
+                                className="px-3 py-1.5 text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 rounded-lg border border-rose-200 dark:border-rose-800 transition-colors"
+                              >
+                                Hủy đơn
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -711,7 +753,24 @@ export default function AccountPage() {
             </div>
           </div>
         )}
-      </main>
+            {/* POPUP HỦY ĐƠN HÀNG */}
+      <CancelOrderModal
+        isOpen={Boolean(cancellingOrder)}
+        order={cancellingOrder}
+        onClose={() => setCancellingOrder(null)}
+        onCancelSuccess={(id, reason) => handleCancelSuccess(id, reason)}
+      />
+
+      {/* POPUP THANH TOÁN QR PAYOS */}
+      <PayOSModal
+        isOpen={Boolean(repayingOrder)}
+        order={repayingOrder}
+        onClose={() => setRepayingOrder(null)}
+        onPaymentSuccess={() => {
+          if (repayingOrder) handleRepaySuccess(repayingOrder.id);
+        }}
+      />
+    </main>
 
       <MaterialFooter />
     </div>

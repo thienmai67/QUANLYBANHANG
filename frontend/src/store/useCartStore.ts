@@ -37,9 +37,6 @@ export const useCartStore = create<CartState>()(
       setOpenToCheckout: (openToCheckout) => set({ openToCheckout }),
 
       addItem: (newItem, openDrawer = true) => {
-        if (typeof window !== 'undefined' && !getAccessToken()) {
-          return;
-        }
         const addQty = newItem.quantity && newItem.quantity > 0 ? newItem.quantity : 1;
         const currentItems = get().items;
         const existingIndex = currentItems.findIndex((i) => i.id === newItem.id);

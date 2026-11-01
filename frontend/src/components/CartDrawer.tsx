@@ -72,9 +72,6 @@ export default function CartDrawer() {
 
   React.useEffect(() => {
     const token = getAccessToken();
-    if (!token && !isAuthenticated && items.length > 0) {
-      clearCart();
-    }
     if (isOpen && openToCheckout) {
       setOpenToCheckout(false);
       if (!token && !isAuthenticated) {
@@ -601,6 +598,17 @@ export default function CartDrawer() {
                         <span>{isRegeneratingQR ? 'Đang tạo mới...' : 'Tạo lại mã QR mới'}</span>
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast.info(`Đơn hàng #${paymentInfo.orderNumber} đã được ghi nhận. Bạn có thể mở mục Tài khoản / Đơn hàng để thanh toán lại bất kỳ lúc nào.`);
+                        handleClose();
+                      }}
+                      className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-colors"
+                    >
+                      <span>Thanh toán sau (Lưu đơn vào tài khoản)</span>
+                    </button>
                   </div>
                 </div>
 
