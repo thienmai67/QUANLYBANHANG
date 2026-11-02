@@ -1,0 +1,37 @@
+{
+  "name": "TDT Ship",
+  "short_name": "TDT Ship",
+  "description": "Ứng dụng giao hàng TDT Ship dành cho nhân viên giao vận",
+  "start_url": "/shipper",
+  "scope": "/shipper",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8f8f8",
+  "theme_color": "#f8f8f8",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
