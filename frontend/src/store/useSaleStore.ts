@@ -395,13 +395,13 @@ export const useSaleStore = create<SaleStoreState>((set, get) => ({
       const products: Product[] = (res || []).map((p) => {
         const brandName =
           typeof p.brand === 'object' && p.brand !== null
-            ? String(p.brand.name || p.brand.code || 'Bình Minh')
-            : String(p.brand_name || p.brand || 'Bình Minh');
+            ? String(p.brand.name || p.brand.code || 'Chưa cập nhật')
+            : String(p.brand_name || p.brand || 'Chưa cập nhật');
 
         const categoryName =
           typeof p.category === 'object' && p.category !== null
-            ? String(p.category.name || p.category.code || 'Ống')
-            : String(p.category_name || p.category || 'Ống');
+            ? String(p.category.name || p.category.code || 'Chưa cập nhật')
+            : String(p.category_name || p.category || 'Chưa cập nhật');
 
         const brandDiscount =
           typeof p.brand === 'object' && typeof p.brand?.discountRate === 'number'
@@ -425,7 +425,7 @@ export const useSaleStore = create<SaleStoreState>((set, get) => ({
           (typeof p.unit === 'object' && p.unit !== null ? p.unit.name : null) ||
           p.unit ||
           specs.unit ||
-          'Mét'
+          'Chưa cập nhật'
         );
 
         return {
@@ -439,9 +439,9 @@ export const useSaleStore = create<SaleStoreState>((set, get) => ({
           basePrice: Number(p.basePrice ?? p.base_price ?? p.price ?? 0),
           discountPercent: brandDiscount,
           discountRate: brandDiscount,
-          stockQuantity: Number(p.stock_quantity ?? p.stockQuantity ?? specs.stock ?? 100),
-          minStockLevel: Number(p.min_stock_level ?? p.minStockLevel ?? specs.minStockLevel ?? 10),
-          stock: Number(p.stock_quantity ?? p.stockQuantity ?? specs.stock ?? 100),
+          stockQuantity: Number(p.stock_quantity ?? p.stockQuantity ?? specs.stock ?? 0),
+          minStockLevel: Number(p.min_stock_level ?? p.minStockLevel ?? specs.minStockLevel ?? 0),
+          stock: Number(p.stock_quantity ?? p.stockQuantity ?? specs.stock ?? 0),
           specifications: specs,
           diameterMm: p.diameterMm ?? p.diameter_mm ?? specs.diameter_mm,
           pressureClass: p.pressureClass ?? p.pressure_class ?? specs.pressure_class,

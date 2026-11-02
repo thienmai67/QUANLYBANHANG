@@ -32,18 +32,68 @@ func getActorSaleID(r *http.Request) (uuid.UUID, error) {
 	if !ok || claims == nil {
 		return uuid.Nil, errors.New("unauthorized")
 	}
+	if claims.Role == domain.RoleManager {
+		saleParam := r.URL.Query().Get("sale_id")
+		if saleParam != "" {
+			if parsed, err := uuid.Parse(saleParam); err == nil {
+				return parsed, nil
+			}
+		}
+	}
+	return uuid.Parse(claims.UserID)
+}
+
+func getActorSaleScope(r *http.Request) (*uuid.UUID, error) {
+	claims, ok := middleware.GetClaimsFromContext(r.Context())
+	if !ok || claims == nil {
+		return nil, errors.New("unauthorized")
+	}
+	if claims.Role == domain.RoleManager {
+		saleParam := r.URL.Query().Get("sale_id")
+		if saleParam != "" {
+			if parsed, err := uuid.Parse(saleParam); err == nil {
+				return &parsed, nil
+			}
+		}
+		// Manager with no sale_id query gets supervisory view of all sales
+		return nil, nil
+	}
+	parsed, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
+}
+
+func getActorSaleIDForWrite(r *http.Request, explicitSaleID *uuid.UUID) (uuid.UUID, error) {
+	claims, ok := middleware.GetClaimsFromContext(r.Context())
+	if !ok || claims == nil {
+		return uuid.Nil, errors.New("unauthorized")
+	}
+	if claims.Role == domain.RoleManager {
+		if explicitSaleID != nil && *explicitSaleID != uuid.Nil {
+			return *explicitSaleID, nil
+		}
+		saleParam := r.URL.Query().Get("sale_id")
+		if saleParam != "" {
+			if parsed, err := uuid.Parse(saleParam); err == nil {
+				return parsed, nil
+			}
+		}
+		return uuid.Nil, errors.New("quản lý cần chọn nhân viên bán hàng phụ trách")
+	}
 	return uuid.Parse(claims.UserID)
 }
 
 // GET /api/v1/sale/dashboard
 func (h *SaleHandler) GetDashboardStats(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
+	saleScope, err := getActorSaleScope(req)
 	if err != nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
 	}
 
-	stats, err := h.saleRepo.GetDashboardStats(req.Context(), saleID)
+	stats, err := h.saleRepo.GetDashboardStats(req.Context(), saleScope)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi tải thống kê dashboard sale")
 		return
@@ -55,7 +105,7 @@ func (h *SaleHandler) GetDashboardStats(w http.ResponseWriter, req *http.Request
 
 // GET /api/v1/sale/customers
 func (h *SaleHandler) ListCustomers(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
+	saleScope, err := getActorSaleScope(req)
 	if err != nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
@@ -68,7 +118,7 @@ func (h *SaleHandler) ListCustomers(w http.ResponseWriter, req *http.Request) {
 	offset, _ := strconv.Atoi(req.URL.Query().Get("offset"))
 	query := req.URL.Query().Get("q")
 
-	customers, total, err := h.saleRepo.ListCustomersForSale(req.Context(), saleID, query, limit, offset)
+	customers, total, err := h.saleRepo.ListCustomersForSale(req.Context(), saleScope, query, limit, offset)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn danh sách khách hàng")
 		return
@@ -83,8 +133,8 @@ func (h *SaleHandler) ListCustomers(w http.ResponseWriter, req *http.Request) {
 
 // GET /api/v1/sale/customers/{id}
 func (h *SaleHandler) GetCustomer(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
-	if err != nil {
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
 	}
@@ -94,6 +144,19 @@ func (h *SaleHandler) GetCustomer(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID khách hàng không hợp lệ")
 		return
+	}
+
+	var saleID uuid.UUID
+	if claims.Role == domain.RoleSale {
+		parsed, err := uuid.Parse(claims.UserID)
+		if err != nil {
+			writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID người dùng không hợp lệ")
+			return
+		}
+		saleID = parsed
+	} else {
+		// Manager can access customer details directly
+		saleID = uuid.Nil
 	}
 
 	customer, err := h.saleRepo.GetCustomerForSale(req.Context(), customerID, saleID)
@@ -112,15 +175,15 @@ func (h *SaleHandler) GetCustomer(w http.ResponseWriter, req *http.Request) {
 
 // POST /api/v1/sale/customers
 func (h *SaleHandler) CreateCustomer(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
-	if err != nil {
-		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
-		return
-	}
-
 	var reqBody domain.CreateSaleCustomerRequest
 	if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Dữ liệu khách hàng không hợp lệ")
+		return
+	}
+
+	saleID, err := getActorSaleIDForWrite(req, reqBody.SaleID)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_SALE", err.Error())
 		return
 	}
 
@@ -130,6 +193,20 @@ func (h *SaleHandler) CreateCustomer(w http.ResponseWriter, req *http.Request) {
 	}
 	if strings.TrimSpace(reqBody.Email) == "" {
 		writeAPIError(w, http.StatusBadRequest, "INVALID_EMAIL", "Email khách hàng là bắt buộc")
+		return
+	}
+
+	// P1-7: Validate tier and credit limit
+	if reqBody.Tier != "" {
+		switch reqBody.Tier {
+		case "Retail", "Bronze", "Silver", "Gold":
+		default:
+			writeAPIError(w, http.StatusBadRequest, "INVALID_TIER", "Hạng khách hàng không hợp lệ (chỉ chấp nhận Retail, Bronze, Silver, Gold)")
+			return
+		}
+	}
+	if reqBody.CreditLimit < 0 {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_CREDIT_LIMIT", "Hạn mức tín dụng phải lớn hơn hoặc bằng 0")
 		return
 	}
 
@@ -146,7 +223,7 @@ func (h *SaleHandler) CreateCustomer(w http.ResponseWriter, req *http.Request) {
 
 // PUT /api/v1/sale/customers/{id}
 func (h *SaleHandler) UpdateCustomer(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
+	saleScope, err := getActorSaleScope(req)
 	if err != nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
@@ -170,7 +247,26 @@ func (h *SaleHandler) UpdateCustomer(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = h.saleRepo.UpdateCustomerProfile(req.Context(), customerID, saleID, reqBody)
+	// P1-7: Validate tier and credit limit
+	if reqBody.Tier != "" {
+		switch reqBody.Tier {
+		case "Retail", "Bronze", "Silver", "Gold":
+		default:
+			writeAPIError(w, http.StatusBadRequest, "INVALID_TIER", "Hạng khách hàng không hợp lệ (chỉ chấp nhận Retail, Bronze, Silver, Gold)")
+			return
+		}
+	}
+	if reqBody.CreditLimit < 0 {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_CREDIT_LIMIT", "Hạn mức tín dụng phải lớn hơn hoặc bằng 0")
+		return
+	}
+
+	var targetSaleID uuid.UUID
+	if saleScope != nil {
+		targetSaleID = *saleScope
+	}
+
+	err = h.saleRepo.UpdateCustomerProfile(req.Context(), customerID, targetSaleID, reqBody)
 	if err != nil {
 		if errors.Is(err, domain.ErrCustomerNotFound) {
 			writeAPIError(w, http.StatusNotFound, "CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng trong phạm vi phụ trách")
@@ -180,7 +276,7 @@ func (h *SaleHandler) UpdateCustomer(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	updated, err := h.saleRepo.GetCustomerForSale(req.Context(), customerID, saleID)
+	updated, err := h.saleRepo.GetCustomerForSale(req.Context(), customerID, targetSaleID)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi lấy thông tin khách hàng cập nhật")
 		return
@@ -235,22 +331,73 @@ func (h *SaleHandler) AssignCustomer(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
-// GET /api/v1/sale/quotes
-func (h *SaleHandler) ListQuotes(w http.ResponseWriter, req *http.Request) {
+// POST /api/v1/sale/orders/{id}/assign (Manager only)
+func (h *SaleHandler) AssignOrder(w http.ResponseWriter, req *http.Request) {
 	claims, ok := middleware.GetClaimsFromContext(req.Context())
 	if !ok || claims == nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
 	}
+	if claims.Role != domain.RoleManager {
+		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Chỉ quản lý (Manager) mới có quyền phân công đơn hàng")
+		return
+	}
 
-	var saleIDPtr *uuid.UUID
-	if claims.Role == domain.RoleSale {
-		parsed, err := uuid.Parse(claims.UserID)
-		if err != nil {
-			writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID người dùng không hợp lệ")
-			return
-		}
-		saleIDPtr = &parsed
+	idStr := chi.URLParam(req, "id")
+	orderID, err := uuid.Parse(idStr)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID đơn hàng không hợp lệ")
+		return
+	}
+
+	var reqBody domain.AssignOrderRequest
+	if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil || reqBody.SaleID == uuid.Nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Cần chỉ định ID của nhân viên bán hàng (saleId)")
+		return
+	}
+
+	err = h.saleRepo.AssignOrder(req.Context(), orderID, reqBody.SaleID)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "ASSIGN_FAILED", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"message": "Phân công đơn hàng thành công",
+		"orderId": orderID,
+		"saleId":  reqBody.SaleID,
+	})
+}
+
+// GET /api/v1/sale/staff (Manager only)
+func (h *SaleHandler) ListSalesStaff(w http.ResponseWriter, req *http.Request) {
+	claims, ok := middleware.GetClaimsFromContext(req.Context())
+	if !ok || claims == nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
+	}
+	if claims.Role != domain.RoleManager {
+		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Chỉ quản lý (Manager) mới có quyền xem danh sách nhân viên")
+		return
+	}
+
+	staff, err := h.saleRepo.ListSalesStaff(req.Context())
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi tải danh sách nhân viên bán hàng")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(staff)
+}
+
+// GET /api/v1/sale/quotes
+func (h *SaleHandler) ListQuotes(w http.ResponseWriter, req *http.Request) {
+	saleScope, err := getActorSaleScope(req)
+	if err != nil {
+		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
+		return
 	}
 
 	limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
@@ -281,7 +428,7 @@ func (h *SaleHandler) ListQuotes(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	quotes, total, err := h.saleRepo.ListQuotes(req.Context(), saleIDPtr, domain.SaleQuoteFilters{
+	quotes, total, err := h.saleRepo.ListQuotes(req.Context(), saleScope, domain.SaleQuoteFilters{
 		Status:     statusPtr,
 		CustomerID: custPtr,
 		From:       fromPtr,
@@ -304,20 +451,10 @@ func (h *SaleHandler) ListQuotes(w http.ResponseWriter, req *http.Request) {
 
 // GET /api/v1/sale/quotes/{id}
 func (h *SaleHandler) GetQuote(w http.ResponseWriter, req *http.Request) {
-	claims, ok := middleware.GetClaimsFromContext(req.Context())
-	if !ok || claims == nil {
+	saleScope, err := getActorSaleScope(req)
+	if err != nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
-	}
-
-	var saleIDPtr *uuid.UUID
-	if claims.Role == domain.RoleSale {
-		parsed, err := uuid.Parse(claims.UserID)
-		if err != nil {
-			writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID người dùng không hợp lệ")
-			return
-		}
-		saleIDPtr = &parsed
 	}
 
 	idStr := chi.URLParam(req, "id")
@@ -327,7 +464,7 @@ func (h *SaleHandler) GetQuote(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	quote, err := h.saleRepo.GetQuoteByID(req.Context(), quoteID, saleIDPtr)
+	quote, err := h.saleRepo.GetQuoteByID(req.Context(), quoteID, saleScope)
 	if err != nil {
 		if errors.Is(err, domain.ErrQuoteNotFound) {
 			writeAPIError(w, http.StatusNotFound, "QUOTE_NOT_FOUND", "Không tìm thấy báo giá")
@@ -343,15 +480,15 @@ func (h *SaleHandler) GetQuote(w http.ResponseWriter, req *http.Request) {
 
 // POST /api/v1/sale/quotes
 func (h *SaleHandler) CreateQuote(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
-	if err != nil {
-		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
-		return
-	}
-
 	var reqBody domain.CreateQuoteRequest
 	if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Dữ liệu báo giá không hợp lệ")
+		return
+	}
+
+	saleID, err := getActorSaleIDForWrite(req, reqBody.SaleID)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_SALE", err.Error())
 		return
 	}
 
@@ -366,11 +503,18 @@ func (h *SaleHandler) CreateQuote(w http.ResponseWriter, req *http.Request) {
 
 	quote, err := h.saleRepo.CreateQuote(req.Context(), saleID, reqBody)
 	if err != nil {
-		if errors.Is(err, domain.ErrCustomerNotFound) {
+		switch {
+		case errors.Is(err, domain.ErrCustomerNotFound):
 			writeAPIError(w, http.StatusNotFound, "CUSTOMER_NOT_FOUND", "Khách hàng không thuộc phạm vi phụ trách của bạn")
-			return
+		case errors.Is(err, domain.ErrPriceBelowFloor):
+			writeAPIError(w, http.StatusBadRequest, "PRICE_BELOW_FLOOR", "Đơn giá sản phẩm không được thấp hơn giá sàn tối thiểu của sản phẩm")
+		case errors.Is(err, domain.ErrDiscountRateOutOfBounds):
+			writeAPIError(w, http.StatusBadRequest, "INVALID_DISCOUNT_RATE", "Tỷ lệ chiết khấu phải từ 0% đến 100%")
+		case errors.Is(err, domain.ErrValidUntilInPast):
+			writeAPIError(w, http.StatusBadRequest, "INVALID_VALID_UNTIL", "Thời hạn hiệu lực của báo giá không được ở quá khứ")
+		default:
+			writeAPIError(w, http.StatusBadRequest, "CREATE_FAILED", err.Error())
 		}
-		writeAPIError(w, http.StatusBadRequest, "CREATE_FAILED", err.Error())
 		return
 	}
 
@@ -407,6 +551,12 @@ func (h *SaleHandler) UpdateQuote(w http.ResponseWriter, req *http.Request) {
 			writeAPIError(w, http.StatusNotFound, "QUOTE_NOT_FOUND", "Không tìm thấy báo giá")
 		case errors.Is(err, domain.ErrQuoteNotEditable):
 			writeAPIError(w, http.StatusBadRequest, "QUOTE_NOT_EDITABLE", "Báo giá đã gửi (SENT) hoặc đã chuyển đổi không thể chỉnh sửa trực tiếp. Vui lòng sử dụng tính năng Nhân bản để tạo báo giá mới.")
+		case errors.Is(err, domain.ErrPriceBelowFloor):
+			writeAPIError(w, http.StatusBadRequest, "PRICE_BELOW_FLOOR", "Đơn giá sản phẩm không được thấp hơn giá sàn tối thiểu của sản phẩm")
+		case errors.Is(err, domain.ErrDiscountRateOutOfBounds):
+			writeAPIError(w, http.StatusBadRequest, "INVALID_DISCOUNT_RATE", "Tỷ lệ chiết khấu phải từ 0% đến 100%")
+		case errors.Is(err, domain.ErrValidUntilInPast):
+			writeAPIError(w, http.StatusBadRequest, "INVALID_VALID_UNTIL", "Thời hạn hiệu lực của báo giá không được ở quá khứ")
 		default:
 			writeAPIError(w, http.StatusBadRequest, "UPDATE_FAILED", err.Error())
 		}
@@ -441,6 +591,8 @@ func (h *SaleHandler) SendQuote(w http.ResponseWriter, req *http.Request) {
 			writeAPIError(w, http.StatusBadRequest, "DISCOUNT_EXCEEDED", "Chiết khấu vượt hạn mức tối đa (10%). Cần sự phê duyệt của Manager trước khi gửi.")
 		case errors.Is(err, domain.ErrQuoteExpired):
 			writeAPIError(w, http.StatusBadRequest, "QUOTE_EXPIRED", "Báo giá đã quá thời hạn hiệu lực, không thể gửi.")
+		case errors.Is(err, domain.ErrQuoteInvalidStatusForSend):
+			writeAPIError(w, http.StatusBadRequest, "INVALID_STATUS", "Chỉ có thể gửi báo giá đang ở trạng thái Nháp (DRAFT).")
 		default:
 			writeAPIError(w, http.StatusBadRequest, "SEND_FAILED", err.Error())
 		}
@@ -471,6 +623,8 @@ func (h *SaleHandler) ConvertQuote(w http.ResponseWriter, req *http.Request) {
 		switch {
 		case errors.Is(err, domain.ErrQuoteNotFound):
 			writeAPIError(w, http.StatusNotFound, "QUOTE_NOT_FOUND", "Không tìm thấy báo giá")
+		case errors.Is(err, domain.ErrCustomerNotFound):
+			writeAPIError(w, http.StatusNotFound, "CUSTOMER_NOT_FOUND", "Khách hàng không còn thuộc phạm vi phụ trách của bạn.")
 		case errors.Is(err, domain.ErrQuoteAlreadyConverted):
 			writeAPIError(w, http.StatusConflict, "ALREADY_CONVERTED", "Báo giá này đã được chuyển thành đơn hàng trước đó.")
 		case errors.Is(err, domain.ErrQuoteDiscountExceeded):
@@ -479,6 +633,8 @@ func (h *SaleHandler) ConvertQuote(w http.ResponseWriter, req *http.Request) {
 			writeAPIError(w, http.StatusBadRequest, "INVALID_STATUS", "Chỉ có thể chuyển đổi đơn từ báo giá ở trạng thái ĐÃ GỬI (SENT) hoặc ĐÃ DUYỆT (ACCEPTED).")
 		case errors.Is(err, domain.ErrQuoteExpired):
 			writeAPIError(w, http.StatusBadRequest, "QUOTE_EXPIRED", "Báo giá đã hết hạn hiệu lực.")
+		case errors.Is(err, domain.ErrPriceBelowFloor):
+			writeAPIError(w, http.StatusBadRequest, "PRICE_BELOW_FLOOR", "Đơn giá sản phẩm không được thấp hơn giá sàn tối thiểu của sản phẩm.")
 		default:
 			writeAPIError(w, http.StatusBadRequest, "CONVERT_FAILED", err.Error())
 		}
@@ -569,7 +725,7 @@ func (h *SaleHandler) RejectQuote(w http.ResponseWriter, req *http.Request) {
 
 // GET /api/v1/sale/activities
 func (h *SaleHandler) ListActivities(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
+	saleScope, err := getActorSaleScope(req)
 	if err != nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
@@ -594,7 +750,7 @@ func (h *SaleHandler) ListActivities(w http.ResponseWriter, req *http.Request) {
 	dueToday := req.URL.Query().Get("due_today") == "true"
 	overdue := req.URL.Query().Get("overdue") == "true"
 
-	activities, total, err := h.saleRepo.ListActivities(req.Context(), saleID, domain.ActivityFilters{
+	activities, total, err := h.saleRepo.ListActivities(req.Context(), saleScope, domain.ActivityFilters{
 		CustomerID: custPtr,
 		IsDone:     isDonePtr,
 		DueToday:   dueToday,
@@ -616,15 +772,15 @@ func (h *SaleHandler) ListActivities(w http.ResponseWriter, req *http.Request) {
 
 // POST /api/v1/sale/activities
 func (h *SaleHandler) CreateActivity(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
-	if err != nil {
-		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
-		return
-	}
-
 	var reqBody domain.CreateActivityRequest
 	if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Dữ liệu hoạt động chăm sóc không hợp lệ")
+		return
+	}
+
+	saleID, err := getActorSaleIDForWrite(req, reqBody.SaleID)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_SALE", err.Error())
 		return
 	}
 
@@ -689,7 +845,7 @@ func (h *SaleHandler) UpdateActivity(w http.ResponseWriter, req *http.Request) {
 
 // GET /api/v1/sale/payments
 func (h *SaleHandler) ListPayments(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
+	saleScope, err := getActorSaleScope(req)
 	if err != nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
@@ -708,7 +864,7 @@ func (h *SaleHandler) ListPayments(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	items, total, err := h.saleRepo.GetPaymentList(req.Context(), saleID, domain.SalePaymentFilters{
+	items, total, err := h.saleRepo.GetPaymentList(req.Context(), saleScope, domain.SalePaymentFilters{
 		UnpaidOnly:  unpaidOnly,
 		OverdueOnly: overdueOnly,
 		CustomerID:  custPtr,
@@ -758,11 +914,14 @@ func (h *SaleHandler) AddPaymentNote(w http.ResponseWriter, req *http.Request) {
 
 	note, err := h.saleRepo.AddPaymentNote(req.Context(), orderID, saleID, reqBody)
 	if err != nil {
-		if errors.Is(err, domain.ErrOrderNotFound) {
+		switch {
+		case errors.Is(err, domain.ErrOrderNotFound):
 			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng trong phạm vi của bạn")
-			return
+		case errors.Is(err, domain.ErrPaymentNoteExceedsRemaining):
+			writeAPIError(w, http.StatusBadRequest, "AMOUNT_EXCEEDS_REMAINING", "Số tiền ghi chú thu tiền vượt quá số tiền còn lại của đơn hàng")
+		default:
+			writeAPIError(w, http.StatusBadRequest, "ADD_FAILED", err.Error())
 		}
-		writeAPIError(w, http.StatusBadRequest, "ADD_FAILED", err.Error())
 		return
 	}
 
@@ -773,7 +932,7 @@ func (h *SaleHandler) AddPaymentNote(w http.ResponseWriter, req *http.Request) {
 
 // GET /api/v1/sale/reports/summary
 func (h *SaleHandler) GetReportSummary(w http.ResponseWriter, req *http.Request) {
-	saleID, err := getActorSaleID(req)
+	saleScope, err := getActorSaleScope(req)
 	if err != nil {
 		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 		return
@@ -791,7 +950,7 @@ func (h *SaleHandler) GetReportSummary(w http.ResponseWriter, req *http.Request)
 		}
 	}
 
-	report, err := h.saleRepo.GetReportSummary(req.Context(), saleID, fromPtr, toPtr)
+	report, err := h.saleRepo.GetReportSummary(req.Context(), saleScope, fromPtr, toPtr)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi tổng hợp báo cáo hiệu suất sale")
 		return
@@ -800,61 +959,3 @@ func (h *SaleHandler) GetReportSummary(w http.ResponseWriter, req *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(report)
 }
-
-// POST /api/v1/sale/orders/{id}/assign (Manager only)
-func (h *SaleHandler) AssignOrder(w http.ResponseWriter, req *http.Request) {
-	claims, ok := middleware.GetClaimsFromContext(req.Context())
-	if !ok || claims == nil {
-		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
-		return
-	}
-	if claims.Role != domain.RoleManager {
-		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Chỉ quản lý (Manager) mới có quyền phân công đơn hàng")
-		return
-	}
-
-	idStr := chi.URLParam(req, "id")
-	orderID, err := uuid.Parse(idStr)
-	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, "INVALID_ID", "ID đơn hàng không hợp lệ")
-		return
-	}
-
-	var reqBody domain.AssignOrderRequest
-	if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil || reqBody.SaleID == uuid.Nil {
-		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Cần chỉ định ID của nhân viên bán hàng (saleId)")
-		return
-	}
-
-	err = h.saleRepo.AssignOrder(req.Context(), orderID, reqBody.SaleID)
-	if err != nil {
-		if errors.Is(err, domain.ErrOrderNotFound) {
-			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
-			return
-		}
-		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi phân công đơn hàng")
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"message": "Phân công đơn hàng thành công",
-		"orderId": orderID,
-		"saleId":  reqBody.SaleID,
-	})
-}
-
-// GET /api/v1/sale/staff (Manager and Sale)
-func (h *SaleHandler) ListSalesStaff(w http.ResponseWriter, req *http.Request) {
-	staff, err := h.saleRepo.ListSalesStaff(req.Context())
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn danh sách nhân viên bán hàng")
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"data": staff,
-	})
-}
-
