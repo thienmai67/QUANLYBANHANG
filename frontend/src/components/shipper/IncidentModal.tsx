@@ -69,9 +69,14 @@ export default function IncidentModal({
             </p>
           </div>
 
-          <p className="text-[#0a0a0a]">
-            Khi phát sinh sự cố giao nhận (khách không liên lạc được, địa chỉ sai, hàng cồng kềnh quá tải hoặc khách từ chối nhận), vui lòng liên hệ ngay với <strong>Quản lý kho</strong> để được hỗ trợ điều phối hoặc xử lý đơn hàng theo đúng quy trình.
-          </p>
+          <div className="p-3 rounded-[6px] bg-[#f8f8f8] border border-[#e6e6e6] text-[#0a0a0a] space-y-1">
+            <p className="font-medium text-[#831c1e]">
+              Hotline điều phối: Chưa thiết lập
+            </p>
+            <p className="text-[13px] text-[#6b6b6b] leading-relaxed">
+              Hiện tại hệ thống chưa có số điện thoại điều phối trực tiếp. Khi phát sinh sự cố (khách không nghe máy, sai địa chỉ, giao thất bại, hàng cồng kềnh), vui lòng báo cáo trực tiếp cho <strong>Quản lý kho</strong> tại trạm giao dịch để được hỗ trợ xử lý theo đúng quy trình.
+            </p>
+          </div>
 
           <div className="bg-[#f8f8f8] border border-[#e6e6e6] rounded-[6px] p-3 space-y-1 text-[#6b6b6b]">
             <p className="text-[14px]">Khách hàng: <span className="font-medium text-[#0a0a0a]">{order.customerName || '-'}</span></p>

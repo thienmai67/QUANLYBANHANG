@@ -282,7 +282,7 @@ func TestHandleRegister_PasswordLength(t *testing.T) {
 
 	payload := RegisterRequest{
 		Email:    "short_pwd@tdt.vn",
-		Password: "12345", // 5 characters
+		Password:	"1234567", // 7 characters
 		FullName: "Nguyễn Văn B",
 	}
 	body, _ := json.Marshal(payload)
@@ -294,7 +294,7 @@ func TestHandleRegister_PasswordLength(t *testing.T) {
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", rr.Code)
 	}
-	if !strings.Contains(rr.Body.String(), "Mật khẩu phải chứa ít nhất 6 ký tự.") {
+	if !strings.Contains(rr.Body.String(), "Mật khẩu phải chứa ít nhất 8 ký tự.") {
 		t.Errorf("expected password length error, got %s", rr.Body.String())
 	}
 }

@@ -124,9 +124,9 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate Password min length (6 chars)
-	if len(req.Password) < 6 {
-		writeJSONError(w, http.StatusBadRequest, "Mật khẩu phải chứa ít nhất 6 ký tự.")
+	// Validate Password min length (8 chars)
+	if len(req.Password) < 8 {
+		writeJSONError(w, http.StatusBadRequest, "Mật khẩu phải chứa ít nhất 8 ký tự.")
 		return
 	}
 

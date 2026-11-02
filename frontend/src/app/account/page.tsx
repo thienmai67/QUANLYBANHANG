@@ -107,54 +107,6 @@ function formatPaymentMethod(method?: string): string {
   return 'Thanh toán COD khi nhận';
 }
 
-const MOCK_ACCOUNTS: Record<
-  string,
-  {
-    role: 'MANAGER' | 'SHIPPER' | 'CUSTOMER';
-    pass: string;
-    name: string;
-    userId: string;
-  }
-> = {
-  'customer@tdt.vn': {
-    role: 'CUSTOMER',
-    pass: 'Customer@123',
-    name: 'Khách Hàng Bán Lẻ',
-    userId: 'mock-customer-001',
-  },
-  'manager@tdt.vn': {
-    role: 'MANAGER',
-    pass: 'Manager@123',
-    name: 'Quản Lý Hải Đăng',
-    userId: 'mock-manager-001',
-  },
-  'shipper@tdt.vn': {
-    role: 'SHIPPER',
-    pass: 'Shipper@123',
-    name: 'Trần Quốc Toản',
-    userId: 'mock-shipper-001',
-  },
-  'admin@tdt.vn': {
-    role: 'MANAGER',
-    pass: 'Admin@123',
-    name: 'Quản Trị Hệ Thống',
-    userId: 'mock-admin-001',
-  },
-};
-
-function createMockJwtToken(userId: string, email: string, role: string) {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(
-    JSON.stringify({
-      userId,
-      email,
-      role,
-      exp: Math.floor(Date.now() / 1000) + 86400 * 7,
-      iat: Math.floor(Date.now() / 1000),
-    })
-  );
-  return `${header}.${payload}.mock-signature`;
-}
 
 export default function AccountPage() {
   const router = useRouter();
@@ -287,9 +239,7 @@ export default function AccountPage() {
     setAuthError(null);
     setAuthSubmitting(true);
     const cleanEmail = email.trim().toLowerCase();
-    const mockMatch = MOCK_ACCOUNTS[cleanEmail];
-    const isMockMatch = !!(mockMatch && password === mockMatch.pass);
-
+    
     const performAuthSuccess = (accessToken: string, refreshToken: string, userName?: string) => {
       saveTokens(accessToken, refreshToken);
       const decoded = decodeToken(accessToken);
@@ -336,7 +286,7 @@ export default function AccountPage() {
               password,
             };
 
-      let res: Response | null = null;
+      let res: Response;
       try {
         res = await fetch(`${API_BASE_URL}${endpoint}`, {
           method: 'POST',
@@ -344,56 +294,42 @@ export default function AccountPage() {
           body: JSON.stringify(bodyPayload),
         });
       } catch {
-        // Backend offline or network error
+        throw new Error('Không thể kết nối đến máy chủ xác thực.');
       }
 
-      if (res && res.ok) {
-        const data = await res.json();
-        let accessToken = data.accessToken || data.access_token;
-        let refreshToken = data.refreshToken || data.refresh_token || '';
-
-        if (!accessToken && activeTab === 'register') {
-          try {
-            const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: cleanEmail, password }),
-            });
-            if (loginRes.ok) {
-              const loginData = await loginRes.json();
-              accessToken = loginData.accessToken || loginData.access_token;
-              refreshToken = loginData.refreshToken || loginData.refresh_token || '';
-            }
-          } catch {
-            // ignore
-          }
-        }
-
-        if (accessToken) {
-          performAuthSuccess(accessToken, refreshToken, mockMatch?.name);
-          return;
-        }
-      }
-
-      // If backend failed/offline but credentials match mock accounts:
-      if (activeTab === 'login' && isMockMatch && mockMatch) {
-        const mockToken = createMockJwtToken(mockMatch.userId, cleanEmail, mockMatch.role);
-        performAuthSuccess(mockToken, 'mock-refresh-token', mockMatch.name);
-        return;
-      }
-
-      if (res && !res.ok) {
+      if (!res.ok) {
         const errData = await res.json().catch(() => null);
         throw new Error(errData?.message || 'Xác thực không thành công. Vui lòng kiểm tra lại.');
       }
 
-      throw new Error('Xác thực không thành công. Vui lòng kiểm tra lại.');
-    } catch (err: any) {
-      if (activeTab === 'login' && isMockMatch && mockMatch) {
-        const mockToken = createMockJwtToken(mockMatch.userId, cleanEmail, mockMatch.role);
-        performAuthSuccess(mockToken, 'mock-refresh-token', mockMatch.name);
+      const data = await res.json();
+      let accessToken = data.accessToken || data.access_token;
+      let refreshToken = data.refreshToken || data.refresh_token || '';
+
+      if (!accessToken && activeTab === 'register') {
+        try {
+          const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: cleanEmail, password }),
+          });
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            accessToken = loginData.accessToken || loginData.access_token;
+            refreshToken = loginData.refreshToken || loginData.refresh_token || '';
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (accessToken) {
+        performAuthSuccess(accessToken, refreshToken, data.user?.name);
         return;
       }
+
+      throw new Error('Máy chủ không trả về phiên đăng nhập hợp lệ.');
+    } catch (err: any) {
       setAuthError(err?.message || 'Đã xảy ra lỗi khi xác thực.');
     } finally {
       setAuthSubmitting(false);

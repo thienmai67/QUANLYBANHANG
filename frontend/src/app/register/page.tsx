@@ -328,7 +328,7 @@ export default function RegisterPage() {
         <AuthField
           id="register-password"
           type={showPassword ? "text" : "password"}
-          label="Mật khẩu (tối thiểu 6 ký tự)"
+          label="Mật khẩu (tối thiểu 8 ký tự)"
           placeholder="••••••••"
           required
           autoComplete="new-password"
