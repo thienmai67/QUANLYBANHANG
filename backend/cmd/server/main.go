@@ -164,8 +164,6 @@ func main() {
 			r.Post("/products", productHandler.CreateProduct)
 			r.Put("/products/{id}", productHandler.UpdateProduct)
 			r.Delete("/products/{id}", productHandler.DeleteProduct)
-			r.Patch("/quotes/{id}/approve", saleHandler.ApproveQuote)
-			r.Patch("/quotes/{id}/reject", saleHandler.RejectQuote)
 		})
 
 		// COD Settlement APIs (MANAGER, SHIPPER)
@@ -184,7 +182,6 @@ func main() {
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequireRole(domain.RoleSale, domain.RoleManager))
 
-				r.Get("/staff", saleHandler.ListSalesStaff)
 				r.Get("/dashboard", saleHandler.GetDashboardStats)
 				r.Get("/customers", saleHandler.ListCustomers)
 				r.Get("/customers/{id}", saleHandler.GetCustomer)
@@ -212,6 +209,7 @@ func main() {
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequireRole(domain.RoleManager))
 
+				r.Get("/staff", saleHandler.ListSalesStaff)
 				r.Post("/customers/{id}/assign", saleHandler.AssignCustomer)
 				r.Post("/orders/{id}/assign", saleHandler.AssignOrder)
 				r.Patch("/quotes/{id}/approve", saleHandler.ApproveQuote)
@@ -492,6 +490,17 @@ CREATE TABLE IF NOT EXISTS payment_notes (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id);
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS brand_discount_rate DECIMAL(5,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS additional_discount_rate DECIMAL(5,2) NOT NULL DEFAULT 0.00;
+
+CREATE INDEX IF NOT EXISTS idx_payment_notes_order ON payment_notes(order_id);
+CREATE INDEX IF NOT EXISTS idx_payment_notes_sale ON payment_notes(sale_id);
+CREATE INDEX IF NOT EXISTS idx_activities_customer ON customer_activities(customer_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_status_valid_until ON quotes(status, valid_until);
+
 INSERT INTO brands (code, name, discount_rate) VALUES
     ('BINHMINH', 'Bình Minh', 18.00),
     ('CADIVI',   'Cadivi', 22.00),
@@ -565,10 +574,10 @@ ON CONFLICT (code) DO NOTHING;
 			INSERT INTO me_supplies.users (email, full_name, role, auth_provider, password_hash, phone)
 			VALUES ($1, $2, $3, 'LOCAL', $4, $5)
 			ON CONFLICT (email) DO UPDATE
-			SET password_hash = EXCLUDED.password_hash,
-			    role = EXCLUDED.role,
+			SET role = EXCLUDED.role,
 			    full_name = EXCLUDED.full_name,
 			    phone = COALESCE(me_supplies.users.phone, EXCLUDED.phone)
+			WHERE me_supplies.users.password_hash IS NULL
 		`, u.email, u.fullName, u.role, string(hash), u.phone)
 		if err != nil {
 			return fmt.Errorf("upsert demo user %s: %w", u.email, err)
@@ -576,7 +585,7 @@ ON CONFLICT (code) DO NOTHING;
 	}
 
 	// Seed sample customer profile and assign customer@tdt.vn to sale@tdt.vn
-	_, _ = db.Exec(`
+	if _, err := db.Exec(`
 		INSERT INTO me_supplies.customer_profiles (customer_id, company_name, site_address, tier, credit_limit, notes)
 		SELECT id, 'Công Ty Xây Dựng & Cơ Điện Nam Sài Gòn', '120 Nguyễn Thị Thập, Q.7, TP.HCM', 'Gold', 50000000.00, 'Khách hàng dự án thường xuyên'
 		FROM me_supplies.users WHERE email = 'customer@tdt.vn'
@@ -587,7 +596,9 @@ ON CONFLICT (code) DO NOTHING;
 		FROM me_supplies.users s, me_supplies.users c, me_supplies.users m
 		WHERE s.email = 'sale@tdt.vn' AND c.email = 'customer@tdt.vn' AND m.email = 'manager@tdt.vn'
 		ON CONFLICT DO NOTHING;
-	`)
+	`); err != nil {
+		log.Printf("warning: seed customer profile / assignment failed: %v", err)
+	}
 
 	return nil
 }

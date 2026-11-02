@@ -16,14 +16,14 @@ import { formatCurrencyVND } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
 
 function getBrandDisplay(b: any): string {
-  if (!b) return '';
-  if (typeof b === 'object') return String(b.name || b.code || '');
+  if (!b) return 'Chưa cập nhật';
+  if (typeof b === 'object') return String(b.name || b.code || 'Chưa cập nhật');
   return String(b);
 }
 
 function getCategoryDisplay(c: any): string {
-  if (!c) return '';
-  if (typeof c === 'object') return String(c.name || c.code || '');
+  if (!c) return 'Chưa cập nhật';
+  if (typeof c === 'object') return String(c.name || c.code || 'Chưa cập nhật');
   return String(c);
 }
 
@@ -51,7 +51,7 @@ export default function SaleProductsPage() {
     const set = new Set<string>();
     products.forEach((p) => {
       const b = getBrandDisplay(p.brand);
-      if (b) set.add(b);
+      if (b && b !== 'Chưa cập nhật') set.add(b);
     });
     return Array.from(set);
   }, [products]);
@@ -60,7 +60,7 @@ export default function SaleProductsPage() {
     const set = new Set<string>();
     products.forEach((p) => {
       const c = getCategoryDisplay(p.category);
-      if (c) set.add(c);
+      if (c && c !== 'Chưa cập nhật') set.add(c);
     });
     return Array.from(set);
   }, [products]);
@@ -392,7 +392,7 @@ export default function SaleProductsPage() {
             {/* Product info banner */}
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
               <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                {calcProduct.sku || calcProduct.code} • {calcProduct.brand}
+                {calcProduct.sku || calcProduct.code} • {getBrandDisplay(calcProduct.brand)}
               </div>
               <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 {calcProduct.name}

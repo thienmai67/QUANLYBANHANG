@@ -97,21 +97,26 @@ func (m *mockSaleRepo) GetOrderByIDForSale(ctx context.Context, orderID uuid.UUI
 	return &o, nil
 }
 
-func (m *mockSaleRepo) ListCustomersForSale(ctx context.Context, saleID uuid.UUID, query string, limit, offset int) ([]domain.SaleCustomerSummary, int, error) {
+func (m *mockSaleRepo) ListCustomersForSale(ctx context.Context, saleID *uuid.UUID, query string, limit, offset int) ([]domain.SaleCustomerSummary, int, error) {
 	m.Lock()
 	defer m.Unlock()
 	var list []domain.SaleCustomerSummary
-	custs := m.assignedCustomers[saleID]
-	for cid := range custs {
-		list = append(list, domain.SaleCustomerSummary{
-			ID:          cid,
-			Email:       "cust@test.com",
-			FullName:    "Khách Hàng Mẫu",
-			SaleID:      &saleID,
-			TotalSpent:  5000000,
-			OrderCount:  3,
-			CurrentDebt: 1500000,
-		})
+	for sID, custs := range m.assignedCustomers {
+		if saleID != nil && sID != *saleID {
+			continue
+		}
+		for cid := range custs {
+			assignedSale := sID
+			list = append(list, domain.SaleCustomerSummary{
+				ID:          cid,
+				Email:       "cust@test.com",
+				FullName:    "Khách Hàng Mẫu",
+				SaleID:      &assignedSale,
+				TotalSpent:  5000000,
+				OrderCount:  3,
+				CurrentDebt: 1500000,
+			})
+		}
 	}
 	return list, len(list), nil
 }
@@ -349,12 +354,12 @@ func (m *mockSaleRepo) RejectQuote(ctx context.Context, quoteID uuid.UUID, manag
 	return &q, nil
 }
 
-func (m *mockSaleRepo) ListActivities(ctx context.Context, saleID uuid.UUID, filters domain.ActivityFilters) ([]domain.CustomerActivity, int, error) {
+func (m *mockSaleRepo) ListActivities(ctx context.Context, saleID *uuid.UUID, filters domain.ActivityFilters) ([]domain.CustomerActivity, int, error) {
 	m.Lock()
 	defer m.Unlock()
 	var list []domain.CustomerActivity
 	for _, a := range m.activities {
-		if a.SaleID == saleID {
+		if saleID == nil || a.SaleID == *saleID {
 			list = append(list, a)
 		}
 	}
@@ -391,14 +396,14 @@ func (m *mockSaleRepo) UpdateActivity(ctx context.Context, activityID uuid.UUID,
 	return &act, nil
 }
 
-func (m *mockSaleRepo) GetDashboardStats(ctx context.Context, saleID uuid.UUID) (*domain.SaleDashboardStats, error) {
+func (m *mockSaleRepo) GetDashboardStats(ctx context.Context, saleID *uuid.UUID) (*domain.SaleDashboardStats, error) {
 	return &domain.SaleDashboardStats{
 		PendingOrdersCount:    1,
 		MonthDeliveredRevenue: 10000000,
 	}, nil
 }
 
-func (m *mockSaleRepo) GetPaymentList(ctx context.Context, saleID uuid.UUID, filters domain.SalePaymentFilters) ([]domain.SalePaymentItem, int, error) {
+func (m *mockSaleRepo) GetPaymentList(ctx context.Context, saleID *uuid.UUID, filters domain.SalePaymentFilters) ([]domain.SalePaymentItem, int, error) {
 	return []domain.SalePaymentItem{}, 0, nil
 }
 
@@ -417,7 +422,7 @@ func (m *mockSaleRepo) AddPaymentNote(ctx context.Context, orderID uuid.UUID, sa
 	return &pn, nil
 }
 
-func (m *mockSaleRepo) GetReportSummary(ctx context.Context, saleID uuid.UUID, from, to *time.Time) (*domain.SaleReportSummary, error) {
+func (m *mockSaleRepo) GetReportSummary(ctx context.Context, saleID *uuid.UUID, from, to *time.Time) (*domain.SaleReportSummary, error) {
 	return &domain.SaleReportSummary{
 		TotalDeliveredRevenue: 25000000,
 	}, nil

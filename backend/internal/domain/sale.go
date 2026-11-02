@@ -32,16 +32,22 @@ const (
 )
 
 var (
-	ErrQuoteNotFound                  = errors.New("quote not found")
-	ErrQuoteNotEditable              = errors.New("quote can only be edited in DRAFT status")
-	ErrQuoteDiscountExceeded          = errors.New("quote discount exceeds limit (10%) and requires manager approval")
-	ErrQuoteAlreadyConverted         = errors.New("quote has already been converted to an order")
-	ErrQuoteExpired                  = errors.New("quote has expired")
-	ErrQuoteInvalidStatusForSend     = errors.New("only DRAFT quotes can be sent")
-	ErrQuoteInvalidStatusForConvert  = errors.New("only SENT or ACCEPTED quotes can be converted to an order")
-	ErrCustomerNotFound              = errors.New("customer not found in sale scope")
-	ErrActivityNotFound              = errors.New("activity not found")
-	ErrForbiddenSale                 = errors.New("forbidden: resource outside sale scope")
+	ErrQuoteNotFound                 = errors.New("quote not found")
+	ErrQuoteNotEditable             = errors.New("quote can only be edited in DRAFT or PENDING_APPROVAL status")
+	ErrQuoteDiscountExceeded         = errors.New("quote discount exceeds limit (10%) and requires manager approval")
+	ErrQuoteAlreadyConverted        = errors.New("quote has already been converted to an order")
+	ErrQuoteExpired                 = errors.New("quote has expired")
+	ErrQuoteInvalidStatusForSend    = errors.New("only DRAFT quotes can be sent")
+	ErrQuoteInvalidStatusForConvert = errors.New("only SENT or ACCEPTED quotes can be converted to an order")
+	ErrCustomerNotFound             = errors.New("customer not found in sale scope")
+	ErrActivityNotFound             = errors.New("activity not found")
+	ErrForbiddenSale                = errors.New("forbidden: resource outside sale scope")
+	ErrPriceBelowFloor              = errors.New("đơn giá sản phẩm không được thấp hơn giá sàn cho phép")
+	ErrDiscountRateOutOfBounds      = errors.New("tỷ lệ chiết khấu phải từ 0% đến 100%")
+	ErrPaymentNoteExceedsRemaining  = errors.New("số tiền ghi chú thu tiền vượt quá số tiền còn lại của đơn hàng")
+	ErrInvalidCustomerTier          = errors.New("hạng khách hàng không hợp lệ")
+	ErrInvalidCreditLimit           = errors.New("hạn mức tín dụng không hợp lệ")
+	ErrValidUntilInPast             = errors.New("thời hạn hiệu lực của báo giá không được ở quá khứ")
 )
 
 type CustomerProfile struct {
@@ -67,31 +73,34 @@ type CustomerAssignment struct {
 }
 
 type SaleCustomerSummary struct {
-	ID          uuid.UUID        `json:"id" db:"id"`
-	Email       string           `json:"email" db:"email"`
-	FullName    string           `json:"fullName" db:"full_name"`
-	Phone       *string          `json:"phone,omitempty" db:"phone"`
-	Profile     *CustomerProfile `json:"profile,omitempty"`
-	TotalSpent  float64          `json:"totalSpent" db:"total_spent"` // DELIVERED orders
-	OrderCount  int              `json:"orderCount" db:"order_count"`
-	CurrentDebt float64          `json:"currentDebt" db:"current_debt"` // unpaid non-cancelled orders
-	SaleID      *uuid.UUID       `json:"saleId,omitempty" db:"sale_id"`
-	SaleName    *string          `json:"saleName,omitempty" db:"sale_name"`
-	CreatedAt   time.Time        `json:"createdAt" db:"created_at"`
+	ID                uuid.UUID        `json:"id" db:"id"`
+	Email             string           `json:"email" db:"email"`
+	FullName          string           `json:"fullName" db:"full_name"`
+	Phone             *string          `json:"phone,omitempty" db:"phone"`
+	Profile           *CustomerProfile `json:"profile,omitempty"`
+	TotalSpent        float64          `json:"totalSpent" db:"total_spent"` // DELIVERED orders
+	OrderCount        int              `json:"orderCount" db:"order_count"`
+	CurrentDebt       float64          `json:"currentDebt" db:"current_debt"` // unpaid non-cancelled orders
+	SaleID            *uuid.UUID       `json:"saleId,omitempty" db:"sale_id"`
+	SaleName          *string          `json:"saleName,omitempty" db:"sale_name"`
+	GeneratedPassword *string          `json:"generatedPassword,omitempty"` // populated only once upon creation
+	CreatedAt         time.Time        `json:"createdAt" db:"created_at"`
 }
 
 type QuoteItem struct {
-	ID           uuid.UUID `json:"id" db:"id"`
-	QuoteID      uuid.UUID `json:"quoteId" db:"quote_id"`
-	ProductID    uuid.UUID `json:"productId" db:"product_id"`
-	ProductSKU   string    `json:"productSku,omitempty" db:"product_sku"`
-	ProductName  string    `json:"productName,omitempty" db:"product_name"`
-	Quantity     float64   `json:"quantity" db:"quantity"`
-	Unit         string    `json:"unit" db:"unit"`
-	UnitPrice    float64   `json:"unitPrice" db:"unit_price"`
-	DiscountRate float64   `json:"discountRate" db:"discount_rate"` // in percent (e.g. 5.0)
-	LineTotal    float64   `json:"lineTotal" db:"line_total"`
-	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
+	ID                     uuid.UUID `json:"id" db:"id"`
+	QuoteID                uuid.UUID `json:"quoteId" db:"quote_id"`
+	ProductID              uuid.UUID `json:"productId" db:"product_id"`
+	ProductSKU             string    `json:"productSku,omitempty" db:"-"`
+	ProductName            string    `json:"productName,omitempty" db:"-"`
+	Quantity               float64   `json:"quantity" db:"quantity"`
+	Unit                   string    `json:"unit" db:"unit"`
+	UnitPrice              float64   `json:"unitPrice" db:"unit_price"`
+	DiscountRate           float64   `json:"discountRate" db:"discount_rate"` // in percent (e.g. 5.0)
+	BrandDiscountRate      float64   `json:"brandDiscountRate" db:"brand_discount_rate"`
+	AdditionalDiscountRate float64   `json:"additionalDiscountRate" db:"additional_discount_rate"`
+	LineTotal              float64   `json:"lineTotal" db:"line_total"`
+	CreatedAt              time.Time `json:"createdAt" db:"created_at"`
 }
 
 type Quote struct {
@@ -109,6 +118,8 @@ type Quote struct {
 	TotalAmount      float64     `json:"totalAmount" db:"total_amount"`
 	Notes            *string     `json:"notes,omitempty" db:"notes"`
 	RejectionReason  *string     `json:"rejectionReason,omitempty" db:"rejection_reason"`
+	ApprovedBy       *uuid.UUID  `json:"approvedBy,omitempty" db:"approved_by"`
+	ApprovedAt       *time.Time  `json:"approvedAt,omitempty" db:"approved_at"`
 	ConvertedOrderID *uuid.UUID  `json:"convertedOrderId,omitempty" db:"converted_order_id"`
 	Items            []QuoteItem `json:"items,omitempty" db:"-"`
 	CreatedAt        time.Time   `json:"createdAt" db:"created_at"`
@@ -146,14 +157,15 @@ type PaymentNote struct {
 
 // Request & Input types
 type CreateSaleCustomerRequest struct {
-	FullName    string  `json:"fullName"`
-	Email       string  `json:"email"`
-	Phone       *string `json:"phone,omitempty"`
-	CompanyName *string `json:"companyName,omitempty"`
-	SiteAddress *string `json:"siteAddress,omitempty"`
-	Tier        string  `json:"tier"` // Retail, Bronze, Silver, Gold
-	CreditLimit float64 `json:"creditLimit"`
-	Notes       *string `json:"notes,omitempty"`
+	SaleID      *uuid.UUID `json:"saleId,omitempty"` // For manager proxy creation
+	FullName    string     `json:"fullName"`
+	Email       string     `json:"email"`
+	Phone       *string    `json:"phone,omitempty"`
+	CompanyName *string    `json:"companyName,omitempty"`
+	SiteAddress *string    `json:"siteAddress,omitempty"`
+	Tier        string     `json:"tier"` // Retail, Bronze, Silver, Gold
+	CreditLimit float64    `json:"creditLimit"`
+	Notes       *string    `json:"notes,omitempty"`
 }
 
 type UpdateSaleCustomerRequest struct {
@@ -182,14 +194,17 @@ type SaleStaffSummary struct {
 }
 
 type QuoteItemInput struct {
-	ProductID    uuid.UUID `json:"productId"`
-	Quantity     float64   `json:"quantity"`
-	Unit         string    `json:"unit"`
-	UnitPrice    float64   `json:"unitPrice"`
-	DiscountRate float64   `json:"discountRate"`
+	ProductID              uuid.UUID `json:"productId"`
+	Quantity               float64   `json:"quantity"`
+	Unit                   string    `json:"unit"`
+	UnitPrice              float64   `json:"unitPrice"`
+	DiscountRate           float64   `json:"discountRate"`                     // Total discount
+	BrandDiscountRate      float64   `json:"brandDiscountRate,omitempty"`      // Brand discount
+	AdditionalDiscountRate float64   `json:"additionalDiscountRate,omitempty"` // Sale proposed additional discount
 }
 
 type CreateQuoteRequest struct {
+	SaleID     *uuid.UUID       `json:"saleId,omitempty"` // For manager proxy creation
 	CustomerID uuid.UUID        `json:"customerId"`
 	ValidUntil time.Time        `json:"validUntil"`
 	Notes      *string          `json:"notes,omitempty"`
@@ -207,6 +222,7 @@ type RejectQuoteRequest struct {
 }
 
 type CreateActivityRequest struct {
+	SaleID         *uuid.UUID `json:"saleId,omitempty"` // For manager proxy creation
 	CustomerID     uuid.UUID  `json:"customerId"`
 	Type           string     `json:"type"`
 	Content        string     `json:"content"`
@@ -272,18 +288,20 @@ type SalePaymentItem struct {
 	Order         Order         `json:"order"`
 	DaysDelivered int           `json:"daysDelivered"`
 	IsOverdue     bool          `json:"isOverdue"`
+	TotalNotes    float64       `json:"totalNotes"`
+	RemainingDebt float64       `json:"remainingDebt"`
 	Notes         []PaymentNote `json:"notes,omitempty"`
 }
 
 type SaleDashboardStats struct {
-	PendingOrdersCount     int                   `json:"pendingOrdersCount"`
-	Expiring2hOrdersCount  int                   `json:"expiring2hOrdersCount"`
-	MonthDeliveredRevenue  float64               `json:"monthDeliveredRevenue"`
-	OverdueDebt            float64               `json:"overdueDebt"`
-	DueFollowupsCount      int                   `json:"dueFollowupsCount"`
-	ExpiringQuotesCount    int                   `json:"expiringQuotesCount"`
-	UnpaidOrdersCount      int                   `json:"unpaidOrdersCount"`
-	TopCustomers           []SaleCustomerSummary `json:"topCustomers"`
+	PendingOrdersCount    int                   `json:"pendingOrdersCount"`
+	Expiring2hOrdersCount int                   `json:"expiring2hOrdersCount"`
+	MonthDeliveredRevenue float64               `json:"monthDeliveredRevenue"`
+	OverdueDebt           float64               `json:"overdueDebt"`
+	DueFollowupsCount     int                   `json:"dueFollowupsCount"`
+	ExpiringQuotesCount   int                   `json:"expiringQuotesCount"`
+	UnpaidOrdersCount     int                   `json:"unpaidOrdersCount"`
+	TopCustomers          []SaleCustomerSummary `json:"topCustomers"`
 }
 
 type SaleRevenueByDate struct {
@@ -320,7 +338,7 @@ type SaleRepository interface {
 	IsCustomerInSaleScope(ctx context.Context, saleID uuid.UUID, customerID uuid.UUID) (bool, error)
 	ListOrdersBySale(ctx context.Context, saleID uuid.UUID, filters SaleOrderFilters) ([]Order, int, error)
 	GetOrderByIDForSale(ctx context.Context, orderID uuid.UUID, saleID uuid.UUID) (*Order, error)
-	ListCustomersForSale(ctx context.Context, saleID uuid.UUID, query string, limit, offset int) ([]SaleCustomerSummary, int, error)
+	ListCustomersForSale(ctx context.Context, saleID *uuid.UUID, query string, limit, offset int) ([]SaleCustomerSummary, int, error)
 	GetCustomerForSale(ctx context.Context, customerID uuid.UUID, saleID uuid.UUID) (*SaleCustomerSummary, error)
 	CreateCustomerForSale(ctx context.Context, saleID uuid.UUID, req CreateSaleCustomerRequest) (*SaleCustomerSummary, error)
 	UpdateCustomerProfile(ctx context.Context, customerID uuid.UUID, saleID uuid.UUID, req UpdateSaleCustomerRequest) error
@@ -335,11 +353,11 @@ type SaleRepository interface {
 	ConvertQuoteToOrder(ctx context.Context, quoteID uuid.UUID, saleID uuid.UUID) (*Order, error)
 	ApproveQuote(ctx context.Context, quoteID uuid.UUID, managerID uuid.UUID) (*Quote, error)
 	RejectQuote(ctx context.Context, quoteID uuid.UUID, managerID uuid.UUID, reason string) (*Quote, error)
-	ListActivities(ctx context.Context, saleID uuid.UUID, filters ActivityFilters) ([]CustomerActivity, int, error)
+	ListActivities(ctx context.Context, saleID *uuid.UUID, filters ActivityFilters) ([]CustomerActivity, int, error)
 	CreateActivity(ctx context.Context, saleID uuid.UUID, req CreateActivityRequest) (*CustomerActivity, error)
 	UpdateActivity(ctx context.Context, activityID uuid.UUID, saleID uuid.UUID, req UpdateActivityRequest) (*CustomerActivity, error)
-	GetDashboardStats(ctx context.Context, saleID uuid.UUID) (*SaleDashboardStats, error)
-	GetPaymentList(ctx context.Context, saleID uuid.UUID, filters SalePaymentFilters) ([]SalePaymentItem, int, error)
+	GetDashboardStats(ctx context.Context, saleID *uuid.UUID) (*SaleDashboardStats, error)
+	GetPaymentList(ctx context.Context, saleID *uuid.UUID, filters SalePaymentFilters) ([]SalePaymentItem, int, error)
 	AddPaymentNote(ctx context.Context, orderID uuid.UUID, saleID uuid.UUID, req CreatePaymentNoteRequest) (*PaymentNote, error)
-	GetReportSummary(ctx context.Context, saleID uuid.UUID, from, to *time.Time) (*SaleReportSummary, error)
+	GetReportSummary(ctx context.Context, saleID *uuid.UUID, from, to *time.Time) (*SaleReportSummary, error)
 }

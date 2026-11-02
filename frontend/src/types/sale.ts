@@ -9,16 +9,23 @@ export type QuoteStatus =
   | 'CONVERTED'
   | 'PENDING_APPROVAL';
 
-export type ActivityType = 'CALL' | 'ZALO' | 'VISIT' | 'NOTE' | 'FOLLOWUP';
+export type ActivityType = 'CALL' | 'ZALO' | 'VISIT' | 'NOTE' | 'FOLLOWUP' | 'QUOTE_FOLLOWUP';
 
-export type CustomerTier = 'Retail' | 'Bronze' | 'Silver' | 'Gold';
+export type CustomerTier = 'Retail' | 'Bronze' | 'Silver' | 'Gold' | 'RETAIL' | 'CONTRACTOR' | 'WHOLESALE';
 
 export interface SaleCustomerProfile {
-  customerId: string;
+  id?: string;
+  userId?: string;
+  customerId?: string;
   companyName?: string;
+  taxCode?: string;
   siteAddress?: string;
   tier: CustomerTier;
   creditLimit: number;
+  creditDays?: number;
+  assignedSaleId?: string;
+  assignedSaleName?: string;
+  assignedAt?: string;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -35,6 +42,9 @@ export interface SaleCustomerSummary {
   currentDebt: number;
   saleId?: string;
   saleName?: string;
+  generatedPassword?: string;
+  mustChangePassword?: boolean;
+  companyName?: string;
   createdAt: string;
 }
 
@@ -47,7 +57,9 @@ export interface SaleQuoteItem {
   quantity: number;
   unit: string;
   unitPrice: number;
-  discountRate: number; // percentage (e.g. 5 for 5%)
+  discountRate: number; // total effective percentage
+  brandDiscountRate?: number;
+  additionalDiscountRate?: number;
   lineTotal: number;
   createdAt?: string;
 }
@@ -67,6 +79,8 @@ export interface SaleQuote {
   totalAmount: number;
   notes?: string;
   rejectionReason?: string;
+  approvedBy?: string;
+  approvedAt?: string;
   convertedOrderId?: string;
   items?: SaleQuoteItem[];
   createdAt: string;
@@ -155,8 +169,18 @@ export interface SaleStaffSummary {
   fullName: string;
   email: string;
   phone?: string;
+  assignedCustomersCount?: number;
+  activeOrdersCount?: number;
+}
+
+export interface SaleReportSummary {
+  issuedQuotesCount: number;
+  convertedOrdersCount: number;
+  conversionRate: number; // percentage (converted / issued * 100)
+  totalQuotedRevenue: number;
+  totalConvertedRevenue: number;
+  averageQuoteValue: number;
 }
 
 export const SALE_MAX_ADDITIONAL_DISCOUNT = 10.0;
 export const OVERDUE_DEBT_DAYS = 30;
-

@@ -25,6 +25,8 @@ interface QuoteItemRow {
   availableUnits: Array<{ unit: string; factor: number }>;
   basePrice: number;
   unitPrice: number;
+  brandDiscountRate: number;
+  additionalDiscountRate: number;
   discountRate: number;
   quantity: number;
 }
@@ -60,7 +62,7 @@ export function QuoteForm() {
     if (cloneFromId) {
       fetchQuotes();
     }
-  }, [fetchCustomers, fetchProducts, fetchQuotes, cloneFromId]);
+  }, [cloneFromId]); // Stable actions do not need to thrash effect
 
   // If cloning from existing quote
   useEffect(() => {
@@ -79,6 +81,9 @@ export function QuoteForm() {
                 ]
               : [{ unit: it.unit, factor: 1 }];
 
+            const brandDiscount = it.brandDiscountRate ?? (typeof p?.brand === 'object' && p?.brand !== null ? (p.brand as any).discountRate : p?.discountRate) ?? 0;
+            const additionalDiscount = it.additionalDiscountRate ?? (it.discountRate > brandDiscount ? it.discountRate - brandDiscount : 0);
+
             return {
               productId: it.productId,
               productName: it.productName || p?.name || 'Sản phẩm',
@@ -87,7 +92,9 @@ export function QuoteForm() {
               availableUnits,
               basePrice: p?.basePrice || it.unitPrice,
               unitPrice: it.unitPrice,
-              discountRate: it.discountRate,
+              brandDiscountRate: brandDiscount,
+              additionalDiscountRate: additionalDiscount,
+              discountRate: brandDiscount + additionalDiscount,
               quantity: it.quantity,
             };
           });
@@ -106,6 +113,10 @@ export function QuoteForm() {
       ...(defaultProduct.conversions || []).map((c: { unit: string; factor: number }) => ({ unit: c.unit, factor: c.factor })),
     ];
 
+    const brandDiscount = (typeof defaultProduct.brand === 'object' && defaultProduct.brand !== null
+      ? (defaultProduct.brand as any).discountRate
+      : defaultProduct.discountRate) || 0;
+
     setItems((prev) => [
       ...prev,
       {
@@ -116,7 +127,9 @@ export function QuoteForm() {
         availableUnits,
         basePrice: defaultProduct.basePrice,
         unitPrice: defaultProduct.basePrice,
-        discountRate: defaultProduct.discountRate || 0,
+        brandDiscountRate: brandDiscount,
+        additionalDiscountRate: 0,
+        discountRate: brandDiscount,
         quantity: 10,
       },
     ]);
@@ -131,6 +144,10 @@ export function QuoteForm() {
       ...(prod.conversions || []).map((c: { unit: string; factor: number }) => ({ unit: c.unit, factor: c.factor })),
     ];
 
+    const brandDiscount = (typeof prod.brand === 'object' && prod.brand !== null
+      ? (prod.brand as any).discountRate
+      : prod.discountRate) || 0;
+
     setItems((prev) =>
       prev.map((item, idx) => {
         if (idx !== index) return item;
@@ -143,8 +160,9 @@ export function QuoteForm() {
           availableUnits,
           basePrice: prod.basePrice,
           unitPrice: prod.basePrice,
-          discountRate: prod.discountRate || 0,
-          quantity: 10,
+          brandDiscountRate: brandDiscount,
+          additionalDiscountRate: item.additionalDiscountRate,
+          discountRate: brandDiscount + item.additionalDiscountRate,
         };
       })
     );
@@ -168,16 +186,20 @@ export function QuoteForm() {
 
   const handleItemFieldChange = (
     index: number,
-    field: 'quantity' | 'unitPrice' | 'discountRate',
+    field: 'quantity' | 'unitPrice' | 'additionalDiscountRate',
     value: number
   ) => {
     setItems((prev) =>
       prev.map((item, idx) => {
         if (idx !== index) return item;
-        return {
+        const updated = {
           ...item,
           [field]: value,
         };
+        if (field === 'additionalDiscountRate') {
+          updated.discountRate = updated.brandDiscountRate + value;
+        }
+        return updated;
       })
     );
   };
@@ -193,10 +215,11 @@ export function QuoteForm() {
     let highDisc = false;
     items.forEach((item) => {
       const lineSub = item.unitPrice * item.quantity;
-      const lineDisc = (lineSub * item.discountRate) / 100;
+      const effectiveRate = Math.min(100, item.brandDiscountRate + item.additionalDiscountRate);
+      const lineDisc = (lineSub * effectiveRate) / 100;
       sub += lineSub;
       disc += lineDisc;
-      if (item.discountRate > SALE_MAX_ADDITIONAL_DISCOUNT) {
+      if (item.additionalDiscountRate > SALE_MAX_ADDITIONAL_DISCOUNT) {
         highDisc = true;
       }
     });
@@ -230,14 +253,16 @@ export function QuoteForm() {
           quantity: i.quantity,
           unit: i.unit,
           unitPrice: i.unitPrice,
-          discountRate: i.discountRate,
+          brandDiscountRate: i.brandDiscountRate,
+          additionalDiscountRate: i.additionalDiscountRate,
+          discountRate: Math.min(100, i.brandDiscountRate + i.additionalDiscountRate),
         })),
       };
 
       const newQuote = await createQuote(payload);
       if (newQuote.status === 'PENDING_APPROVAL') {
         toast.warning(
-          `Báo giá ${newQuote.quoteNumber} đã được tạo với mức CK > 10% và chuyển sang trạng thái CHỜ DUYỆT!`
+          `Báo giá ${newQuote.quoteNumber} có mức CK thêm > 10% và đã chuyển sang trạng thái CHỜ QUẢN LÝ DUYỆT!`
         );
       } else {
         toast.success(`Đã tạo bản nháp báo giá ${newQuote.quoteNumber} thành công!`);
@@ -265,7 +290,7 @@ export function QuoteForm() {
             {cloneFromId ? 'Tạo bản sửa đổi Báo giá (Clone & Revise)' : 'Lập Báo giá B2B mới'}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Chiết khấu thông thường tối đa 10%. Mức chiết khấu cao hơn sẽ tự động gửi Quản lý phê duyệt.
+            Chiết khấu bổ sung Sale tối đa 10%. Mức chiết khấu cao hơn sẽ tự động gửi Quản lý phê duyệt.
           </p>
         </div>
       </div>
@@ -275,78 +300,78 @@ export function QuoteForm() {
           <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div className="text-xs text-amber-800 dark:text-amber-300">
             <strong className="block text-sm font-semibold">Cảnh báo hạn mức chiết khấu Sale:</strong>
-            Có sản phẩm được áp mức chiết khấu &gt; {SALE_MAX_ADDITIONAL_DISCOUNT}%. Khi tạo, báo giá sẽ ở trạng thái{' '}
+            Có sản phẩm được áp mức chiết khấu bổ sung &gt; {SALE_MAX_ADDITIONAL_DISCOUNT}%. Khi tạo, báo giá sẽ ở trạng thái{' '}
             <span className="font-bold underline">CHỜ DUYỆT (PENDING_APPROVAL)</span> và cần Quản lý duyệt trước khi có thể gửi cho khách hàng.
           </div>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Customer & Validity Info */}
+        {/* Customer & Quote Header Info */}
         <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-              Thông tin Báo giá & Khách hàng
-            </h2>
-          </div>
+          <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+            <User className="w-4 h-4 text-blue-600" /> Thông tin khách hàng & Thời hạn báo giá
+          </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Khách hàng nhận báo giá <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Khách hàng B2B phụ trách <span className="text-red-500">*</span>
               </label>
               <select
-                required
                 value={selectedCustomerId}
                 onChange={(e) => setSelectedCustomerId(e.target.value)}
+                required
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">-- Chọn khách hàng --</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.fullName} ({c.profile?.companyName || c.phone || c.email})
+                    {c.fullName} - {c.phone} {c.companyName ? `(${c.companyName})` : ''}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Thời hạn hiệu lực đến ngày <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Hiệu lực báo giá đến ngày <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
-                required
                 value={validUntil}
+                min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setValidUntil(e.target.value)}
+                required
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Điều khoản báo giá / Ghi chú
-            </label>
-            <textarea
-              rows={2}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Thời gian giao hàng, phương thức thanh toán, địa điểm tập kết..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Ghi chú điều khoản thương mại
+              </label>
+              <textarea
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Điều khoản giao hàng, địa điểm giao nhận, phương thức thanh toán..."
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
         </div>
 
         {/* Product Items Table */}
         <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                Danh mục vật tư báo giá ({items.length} món)
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-600" /> Danh mục vật tư báo giá ({items.length})
               </h2>
+              <p className="text-xs text-slate-500">
+                Giá niêm yết tự động lấy từ danh mục vật tư. Chiết khấu hãng được áp dụng mặc định.
+              </p>
             </div>
             <button
               type="button"
@@ -367,19 +392,22 @@ export function QuoteForm() {
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400">
                     <th className="py-2.5 px-3">Sản phẩm</th>
-                    <th className="py-2.5 px-3 w-32">Đơn vị</th>
-                    <th className="py-2.5 px-3 w-28 text-center">Số lượng</th>
-                    <th className="py-2.5 px-3 w-36 text-right">Đơn giá niêm yết</th>
-                    <th className="py-2.5 px-3 w-28 text-center">CK (%)</th>
+                    <th className="py-2.5 px-3 w-28">Đơn vị</th>
+                    <th className="py-2.5 px-3 w-24 text-center">Số lượng</th>
+                    <th className="py-2.5 px-3 w-32 text-right">Đơn giá niêm yết</th>
+                    <th className="py-2.5 px-3 w-24 text-center">CK Hãng</th>
+                    <th className="py-2.5 px-3 w-28 text-center">CK Sale (%)</th>
+                    <th className="py-2.5 px-3 w-24 text-center">Tổng CK</th>
                     <th className="py-2.5 px-3 w-36 text-right">Thành tiền</th>
-                    <th className="py-2.5 px-3 w-12 text-center"></th>
+                    <th className="py-2.5 px-3 w-10 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {items.map((item, index) => {
                     const lineSub = item.unitPrice * item.quantity;
-                    const lineTotal = lineSub * (1 - item.discountRate / 100);
-                    const isOverLimit = item.discountRate > SALE_MAX_ADDITIONAL_DISCOUNT;
+                    const totalRate = Math.min(100, item.brandDiscountRate + item.additionalDiscountRate);
+                    const lineTotal = lineSub * (1 - totalRate / 100);
+                    const isOverLimit = item.additionalDiscountRate > SALE_MAX_ADDITIONAL_DISCOUNT;
 
                     return (
                       <tr key={index} className="hover:bg-slate-50/50">
@@ -390,11 +418,14 @@ export function QuoteForm() {
                             onChange={(e) => handleProductChange(index, e.target.value)}
                             className="w-full px-2 py-1.5 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           >
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                [{typeof p.brand === 'object' && p.brand !== null ? (p.brand as any).name : p.brand}] {p.name} ({p.sku || p.code || ''})
-                              </option>
-                            ))}
+                            {products.map((p) => {
+                              const brandName = typeof p.brand === 'object' && p.brand !== null ? (p.brand as any).name : p.brand;
+                              return (
+                                <option key={p.id} value={p.id}>
+                                  [{brandName || 'TDT'}] {p.name} ({p.sku || p.code || ''})
+                                </option>
+                              );
+                            })}
                           </select>
                         </td>
 
@@ -447,7 +478,14 @@ export function QuoteForm() {
                           />
                         </td>
 
-                        {/* Discount */}
+                        {/* Brand discount (read only) */}
+                        <td className="py-2 px-3 text-center">
+                          <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            {item.brandDiscountRate}%
+                          </span>
+                        </td>
+
+                        {/* Additional discount entered by sale */}
                         <td className="py-2 px-3">
                           <div className="relative">
                             <input
@@ -455,11 +493,11 @@ export function QuoteForm() {
                               min="0"
                               max="50"
                               step="0.5"
-                              value={item.discountRate}
+                              value={item.additionalDiscountRate}
                               onChange={(e) =>
                                 handleItemFieldChange(
                                   index,
-                                  'discountRate',
+                                  'additionalDiscountRate',
                                   Number(e.target.value) || 0
                                 )
                               }
@@ -471,13 +509,20 @@ export function QuoteForm() {
                             />
                             {isOverLimit && (
                               <span
-                                className="absolute -top-2 -right-1 text-[9px] bg-amber-500 text-white px-1 rounded-full"
+                                className="absolute -top-2 -right-1 text-[9px] bg-amber-500 text-white px-1 rounded-full font-bold"
                                 title="Vượt hạn mức 10%"
                               >
                                 !
                               </span>
                             )}
                           </div>
+                        </td>
+
+                        {/* Effective Total Discount */}
+                        <td className="py-2 px-3 text-center">
+                          <span className={`text-xs font-bold ${isOverLimit ? 'text-amber-600' : 'text-blue-600'}`}>
+                            {totalRate}%
+                          </span>
                         </td>
 
                         {/* Line total */}
@@ -514,7 +559,7 @@ export function QuoteForm() {
               </span>
             </div>
             <div className="flex justify-between sm:justify-start gap-4 text-emerald-600 dark:text-emerald-400">
-              <span>Tổng chiết khấu:</span>
+              <span>Tổng chiết khấu thương mại:</span>
               <span className="font-semibold">-{formatCurrencyVND(discountTotal)}</span>
             </div>
             <div className="flex justify-between sm:justify-start gap-4 text-base font-bold text-slate-900 dark:text-slate-100 pt-1">

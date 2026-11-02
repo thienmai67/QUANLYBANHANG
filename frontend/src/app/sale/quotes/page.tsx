@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -31,24 +31,36 @@ export default function SaleQuotesPage() {
   const toast = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Convert confirmation modal
   const [convertingQuote, setConvertingQuote] = useState<SaleQuote | null>(null);
   const [isConverting, setIsConverting] = useState(false);
 
+  // 300ms debounce on search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchQuotes({
       status: statusFilter !== 'ALL' ? statusFilter : undefined,
-      q: searchTerm.trim() ? searchTerm.trim() : undefined,
+      q: debouncedSearch.trim() ? debouncedSearch.trim() : undefined,
     });
-  }, [fetchQuotes, statusFilter, searchTerm]);
+  }, [fetchQuotes, statusFilter, debouncedSearch]);
 
   const handleSend = async (quote: SaleQuote) => {
     try {
       await sendQuote(quote.id);
       toast.success(`Đã cập nhật trạng thái Báo giá ${quote.quoteNumber} sang ĐÃ GỬI (SENT)`);
-      fetchQuotes();
+      fetchQuotes({
+        status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        q: debouncedSearch.trim() ? debouncedSearch.trim() : undefined,
+      });
     } catch (err: any) {
       toast.error(err.message || 'Không thể gửi báo giá');
     }
@@ -204,6 +216,7 @@ export default function SaleQuotesPage() {
               {isLoading ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-500">
+                    <Clock className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
                     Đang tải danh sách báo giá...
                   </td>
                 </tr>
@@ -257,15 +270,20 @@ export default function SaleQuotesPage() {
                         >
                           {new Date(q.validUntil).toLocaleDateString('vi-VN')}
                         </div>
+                        {isExpired && q.status !== 'CONVERTED' && (
+                          <span className="text-[10px] text-red-500 font-bold block">
+                            Đã hết hạn
+                          </span>
+                        )}
                       </td>
 
                       {/* Subtotal */}
-                      <td className="py-3 px-4 text-right font-medium text-slate-600 dark:text-slate-300">
+                      <td className="py-3 px-4 text-right font-medium text-slate-700 dark:text-slate-300">
                         {formatCurrencyVND(q.subtotal)}
                       </td>
 
                       {/* Discount Total */}
-                      <td className="py-3 px-4 text-right text-emerald-600 dark:text-emerald-400 font-medium">
+                      <td className="py-3 px-4 text-right font-medium text-emerald-600 dark:text-emerald-400">
                         -{formatCurrencyVND(q.discountTotal)}
                       </td>
 
@@ -275,7 +293,9 @@ export default function SaleQuotesPage() {
                       </td>
 
                       {/* Status */}
-                      <td className="py-3 px-4 text-center">{getStatusBadge(q.status)}</td>
+                      <td className="py-3 px-4 text-center">
+                        {getStatusBadge(q.status)}
+                      </td>
 
                       {/* Actions */}
                       <td className="py-3 px-4 text-center">
@@ -283,8 +303,8 @@ export default function SaleQuotesPage() {
                           {/* View details */}
                           <Link
                             href={`/sale/quotes/${q.id}`}
-                            className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Xem chi tiết & In ấn"
+                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Xem chi tiết báo giá"
                           >
                             <Eye className="w-4 h-4" />
                           </Link>

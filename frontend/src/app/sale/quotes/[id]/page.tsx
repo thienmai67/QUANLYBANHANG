@@ -42,16 +42,33 @@ export default function SaleQuoteDetailPage() {
 
   useEffect(() => {
     if (!quoteId) return;
+
+    let isMounted = true;
     setIsLoading(true);
+
     api
       .get<SaleQuote>(`/sale/quotes/${quoteId}`)
-      .then((data) => setQuote(data))
-      .catch((err) => {
-        toast.error('Không tìm thấy báo giá hoặc bạn không có quyền xem');
-        router.push('/sale/quotes');
+      .then((data) => {
+        if (isMounted) {
+          setQuote(data);
+        }
       })
-      .finally(() => setIsLoading(false));
-  }, [quoteId, router, toast]);
+      .catch((err) => {
+        if (isMounted) {
+          toast.error('Không tìm thấy báo giá hoặc bạn không có quyền xem');
+          router.push('/sale/quotes');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [quoteId]); // Removed router & toast to prevent infinite re-render loop
 
   const handleSend = async () => {
     if (!quote) return;
@@ -88,9 +105,9 @@ export default function SaleQuoteDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="py-20 text-center text-slate-500">
-        <Clock className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-600" />
-        Đang tải thông tin báo giá...
+      <div className="py-24 text-center text-slate-500">
+        <Clock className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-600" />
+        <p className="font-medium text-sm">Đang tải thông tin báo giá...</p>
       </div>
     );
   }
@@ -285,38 +302,50 @@ export default function SaleQuoteDetailPage() {
                 <th className="py-2.5 px-3 border-r border-slate-300 text-center w-16">ĐVT</th>
                 <th className="py-2.5 px-3 border-r border-slate-300 text-center w-16">SL</th>
                 <th className="py-2.5 px-3 border-r border-slate-300 text-right w-28">Đơn giá niêm yết</th>
-                <th className="py-2.5 px-3 border-r border-slate-300 text-center w-20">CK (%)</th>
+                <th className="py-2.5 px-3 border-r border-slate-300 text-center w-24">Chiết khấu (%)</th>
                 <th className="py-2.5 px-3 text-right w-32">Thành tiền (VND)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {quote.items && quote.items.length > 0 ? (
-                quote.items.map((it, idx) => (
-                  <tr key={it.id || idx} className="hover:bg-slate-50/60">
-                    <td className="py-2 px-3 border-r border-slate-200 text-center font-medium">
-                      {idx + 1}
-                    </td>
-                    <td className="py-2 px-3 border-r border-slate-200 font-mono text-[11px]">
-                      {it.productSku || '-'}
-                    </td>
-                    <td className="py-2 px-3 border-r border-slate-200 font-medium">
-                      {it.productName || 'Sản phẩm'}
-                    </td>
-                    <td className="py-2 px-3 border-r border-slate-200 text-center">{it.unit}</td>
-                    <td className="py-2 px-3 border-r border-slate-200 text-center font-semibold">
-                      {it.quantity}
-                    </td>
-                    <td className="py-2 px-3 border-r border-slate-200 text-right">
-                      {formatCurrencyVND(it.unitPrice)}
-                    </td>
-                    <td className="py-2 px-3 border-r border-slate-200 text-center font-bold text-blue-700">
-                      {it.discountRate}%
-                    </td>
-                    <td className="py-2 px-3 text-right font-bold text-slate-900">
-                      {formatCurrencyVND(it.lineTotal)}
-                    </td>
-                  </tr>
-                ))
+                quote.items.map((it, idx) => {
+                  const hasBrand = it.brandDiscountRate && it.brandDiscountRate > 0;
+                  const hasAdd = it.additionalDiscountRate && it.additionalDiscountRate > 0;
+
+                  return (
+                    <tr key={it.id || idx} className="hover:bg-slate-50/60">
+                      <td className="py-2 px-3 border-r border-slate-200 text-center font-medium">
+                        {idx + 1}
+                      </td>
+                      <td className="py-2 px-3 border-r border-slate-200 font-mono text-[11px]">
+                        {it.productSku || '-'}
+                      </td>
+                      <td className="py-2 px-3 border-r border-slate-200 font-medium">
+                        {it.productName || 'Sản phẩm'}
+                      </td>
+                      <td className="py-2 px-3 border-r border-slate-200 text-center">{it.unit}</td>
+                      <td className="py-2 px-3 border-r border-slate-200 text-center font-semibold">
+                        {it.quantity}
+                      </td>
+                      <td className="py-2 px-3 border-r border-slate-200 text-right">
+                        {formatCurrencyVND(it.unitPrice)}
+                      </td>
+                      <td className="py-2 px-3 border-r border-slate-200 text-center">
+                        <div className="font-bold text-blue-700">{it.discountRate}%</div>
+                        {(hasBrand || hasAdd) && (
+                          <div className="text-[10px] text-slate-400 font-normal">
+                            {hasBrand ? `Hãng: ${it.brandDiscountRate}%` : ''}
+                            {hasBrand && hasAdd ? ' + ' : ''}
+                            {hasAdd ? `Sale: ${it.additionalDiscountRate}%` : ''}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-right font-bold text-slate-900">
+                        {formatCurrencyVND(it.lineTotal)}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={8} className="py-6 text-center text-slate-500 italic">

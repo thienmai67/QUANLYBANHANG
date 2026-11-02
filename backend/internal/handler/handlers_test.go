@@ -16,7 +16,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/auth"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
+	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/middleware"
 )
 
 type mockProductRepo struct {
@@ -961,6 +963,13 @@ func TestCreateOrder_Success(t *testing.T) {
 
 	body, _ := json.Marshal(orderPayload)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/orders", bytes.NewReader(body))
+	custID := uuid.New()
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, &auth.Claims{
+		UserID: custID.String(),
+		Role:   domain.RoleCustomer,
+		Email:  "test@test.com",
+	})
+	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
 	h.CreateOrder(rr, req)
@@ -1028,6 +1037,13 @@ func TestCreateOrder_DBError(t *testing.T) {
 	}
 	body, _ := json.Marshal(orderPayload)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/orders", bytes.NewReader(body))
+	custID := uuid.New()
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, &auth.Claims{
+		UserID: custID.String(),
+		Role:   domain.RoleCustomer,
+		Email:  "test@test.com",
+	})
+	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
 	h.CreateOrder(rr, req)
