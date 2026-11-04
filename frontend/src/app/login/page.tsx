@@ -102,10 +102,8 @@ export default function LoginPage() {
       return;
     }
 
-    const redirectParam =
-      typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('redirect')
-        : null;
+    const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const redirectParam = search ? (search.get('from') || search.get('redirect')) : null;
 
     if (redirectParam && redirectParam.startsWith('/')) {
       window.location.href = redirectParam;

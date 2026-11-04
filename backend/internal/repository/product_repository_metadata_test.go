@@ -210,11 +210,15 @@ func TestCODSettlement_And_ListShippers(t *testing.T) {
 		t.Fatalf("expected settlement total 300000 and count 1, got total %f, count %d", settlement.TotalAmount, settlement.OrderCount)
 	}
 
-	// Verify order was marked cod_remitted = true
+	// Verify order was marked cod_remitted = true and payment_status = PAID
 	var codRemitted bool
-	err = db.QueryRowContext(ctx, `SELECT cod_remitted FROM me_supplies.orders WHERE id = $1`, orderID).Scan(&codRemitted)
+	var paymentStatus string
+	err = db.QueryRowContext(ctx, `SELECT cod_remitted, payment_status FROM me_supplies.orders WHERE id = $1`, orderID).Scan(&codRemitted, &paymentStatus)
 	if err != nil || !codRemitted {
 		t.Fatalf("expected order cod_remitted to be true after settlement")
+	}
+	if paymentStatus != "PAID" {
+		t.Fatalf("expected order payment_status to be PAID after cod settlement, got %s", paymentStatus)
 	}
 
 	// 2. Query settlements list
@@ -381,5 +385,117 @@ func TestPhase2_Lifecycle_SecurityAndRoleHardening(t *testing.T) {
 	}
 	if updated.Status != domain.OrderStatusDelivered || updated.Version != 5 {
 		t.Fatalf("expected DELIVERED v5, got %s v%d", updated.Status, updated.Version)
+	}
+}
+
+func TestOrderCancellation_PaymentStatusTransitions(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		t.Skip("database not available")
+		return
+	}
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	repo := NewProductRepository(db)
+
+	// 1. Test UNPAID order cancelled -> CANCELLED
+	orderID1 := uuid.New()
+	cancelReason := "Khách hàng muốn đổi mẫu khác"
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO me_supplies.orders (id, order_number, customer_name, total_amount, status, payment_status, version)
+		VALUES ($1, $2, 'Cancel Test Unpaid', 100000, 'PENDING', 'UNPAID', 1)
+	`, orderID1, "ORD-CNC1-"+orderID1.String()[:8])
+	if err != nil {
+		t.Fatalf("insert order 1: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.orders WHERE id = $1", orderID1)
+	}()
+
+	cancelledOrder1, err := repo.UpdateOrderStatusWithDetails(ctx, orderID1, domain.UpdateOrderStatusRequest{
+		Status:             "CANCELLED",
+		Version:            1,
+		CancellationReason: &cancelReason,
+	}, domain.RoleManager, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cancel unpaid order failed: %v", err)
+	}
+	if cancelledOrder1.PaymentStatus != domain.PaymentStatusCancelled {
+		t.Fatalf("expected payment status CANCELLED, got %s", cancelledOrder1.PaymentStatus)
+	}
+
+	// 2. Test PAID order cancelled -> REFUND_PENDING
+	orderID2 := uuid.New()
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO me_supplies.orders (id, order_number, customer_name, total_amount, status, payment_status, version)
+		VALUES ($1, $2, 'Cancel Test Paid', 250000, 'PENDING', 'PAID', 1)
+	`, orderID2, "ORD-CNC2-"+orderID2.String()[:8])
+	if err != nil {
+		t.Fatalf("insert order 2: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.orders WHERE id = $1", orderID2)
+	}()
+
+	cancelledOrder2, err := repo.UpdateOrderStatusWithDetails(ctx, orderID2, domain.UpdateOrderStatusRequest{
+		Status:             "CANCELLED",
+		Version:            1,
+		CancellationReason: &cancelReason,
+	}, domain.RoleManager, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cancel paid order failed: %v", err)
+	}
+	if cancelledOrder2.PaymentStatus != domain.PaymentStatusRefundPending {
+		t.Fatalf("expected payment status REFUND_PENDING, got %s", cancelledOrder2.PaymentStatus)
+	}
+}
+
+func TestCreateOrder_2HDeadlineCalculation(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		t.Skip("database not available")
+		return
+	}
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	repo := NewProductRepository(db)
+
+	products, err := repo.ListProducts(ctx, 1, 0)
+	if err != nil || len(products) == 0 {
+		t.Skip("no products found for 2h deadline test")
+	}
+	p := products[0]
+
+	order := domain.Order{
+		ID:           uuid.New(),
+		CustomerName: "Khách 2H Test",
+		Is2H:         true,
+		Items: []domain.OrderItem{
+			{
+				ProductID: p.ID,
+				Quantity:  1,
+			},
+		},
+	}
+
+	err = repo.CreateOrder(ctx, &order)
+	if err != nil {
+		t.Fatalf("create 2h order: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.orders WHERE id = $1", order.ID)
+	}()
+
+	if order.Deadline2H == nil {
+		t.Fatalf("expected Deadline2H to be computed for 2H order, got nil")
+	}
+
+	diff := order.Deadline2H.Sub(order.CreatedAt)
+	if diff < time.Hour || diff > 3*time.Hour {
+		t.Fatalf("expected Deadline2H to be ~2 hours after CreatedAt, got diff %v", diff)
 	}
 }

@@ -62,6 +62,9 @@ export default function CartDrawer() {
     setExistingCreatedOrderId(null);
   }, [items]);
 
+  // Express 2H Delivery state
+  const [is2h, setIs2h] = useState(false);
+
   // PayOS QR Payment State
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [pollCount, setPollCount] = useState(0);
@@ -196,6 +199,21 @@ export default function CartDrawer() {
     e.preventDefault();
     if (!ensureAuthenticatedOrRedirect()) return;
     if (isSubmitting) return;
+
+    if (!customerName || customerName.trim().length < 2) {
+      toast.error('Vui lòng nhập họ và tên người nhận hợp lệ (tối thiểu 2 ký tự)');
+      return;
+    }
+    const phoneRegex = /^0\d{9}$/;
+    if (!customerPhone || !phoneRegex.test(customerPhone.trim())) {
+      toast.error('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam gồm 10 chữ số bắt đầu bằng số 0 (ví dụ: 0901234567)');
+      return;
+    }
+    if (!customerAddress || customerAddress.trim().length < 5) {
+      toast.error('Vui lòng nhập địa chỉ giao hàng chi tiết (tối thiểu 5 ký tự)');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const total = getTotalPrice();
@@ -239,7 +257,7 @@ export default function CartDrawer() {
         customerPhone: customerPhone || undefined,
         shippingAddress: customerAddress || undefined,
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
-        is2h: false,
+        is2h: is2h,
         items: items.map((i) => {
           let resolvedId = i.id;
           if (!uuidRegex.test(resolvedId)) {
@@ -463,6 +481,32 @@ export default function CartDrawer() {
                     placeholder="Số nhà, Tên đường, Phường/Xã, Quận/Huyện..."
                     className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-900 border border-transparent focus:border-blue-500 rounded-xl text-slate-900 dark:text-white outline-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Tùy chọn giao hàng
+                  </label>
+                  <div
+                    onClick={() => setIs2h(!is2h)}
+                    className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-center justify-between cursor-pointer transition-all hover:border-amber-400"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        id="is2h-checkbox"
+                        checked={is2h}
+                        onChange={(e) => setIs2h(e.target.checked)}
+                        className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer"
+                      />
+                      <label htmlFor="is2h-checkbox" className="text-sm font-semibold text-amber-900 dark:text-amber-200 cursor-pointer">
+                        Giao hàng siêu tốc 2 Giờ (Nội thành)
+                      </label>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 font-black uppercase rounded-full bg-amber-200/80 text-amber-900 dark:bg-amber-800 dark:text-amber-100 tracking-wider">
+                      Express 2H
+                    </span>
+                  </div>
                 </div>
 
                 <div>

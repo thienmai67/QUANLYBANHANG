@@ -33,7 +33,12 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
   const [searchResults, setSearchResults] = useState<{ id: string; name: string; sku: string; brand: string; price: string; image: string }[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { user, isAuthenticated, logout } = useAuthStore();
   const { items, getTotalItems, setIsOpen, clearCart } = useCartStore();
@@ -159,7 +164,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
             <ThemeToggle />
 
             {/* User Auth Pill Header */}
-            {isAuthenticated ? (
+            {mounted && isAuthenticated ? (
               <div className="flex items-center gap-2">
                 {user?.role === 'MANAGER' ? (
                   <Link
@@ -176,6 +181,14 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                   >
                     <ShieldCheck className="w-4 h-4 text-white" />
                     <span>Shipper Portal</span>
+                  </Link>
+                ) : user?.role === 'SALE' ? (
+                  <Link
+                    href="/sale"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-sm hover:scale-105 transition-all"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-white" />
+                    <span>Sale Portal</span>
                   </Link>
                 ) : (
                   <Link
@@ -217,7 +230,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
               title="Mở Giỏ Hàng Mua Lẻ"
             >
               <ShoppingCart className="w-5 h-5 text-slate-700 dark:text-slate-300 group-hover:text-blue-600 transition-colors" />
-              {cartCount > 0 && (
+              {mounted && cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-[#0c1322] animate-bounce">
                   {cartCount}
                 </span>

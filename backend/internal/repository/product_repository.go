@@ -960,6 +960,10 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 		order.CreatedAt = now
 	}
 	order.UpdatedAt = now
+	if order.Is2H && order.Deadline2H == nil {
+		d := order.CreatedAt.Add(2 * time.Hour)
+		order.Deadline2H = &d
+	}
 
 	orderQuery := `
         INSERT INTO me_supplies.orders (
@@ -1133,6 +1137,7 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 	var newPodConfirmedAt *time.Time = o.PodConfirmedAt
 	var newCODCollected float64 = o.CODCollected
 	var newDeliveredAt *time.Time = o.DeliveredAt
+	var newPaymentStatus domain.PaymentStatus = o.PaymentStatus
 
 	// 4. Specific transition business rules
 	// 4-pre: Block transition to PACKING for BANK_TRANSFER orders if not PAID
@@ -1301,6 +1306,12 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 			newIncidentReportedBy = &actorID
 		}
 		newIncidentReportedAt = &now
+
+		if o.PaymentStatus == domain.PaymentStatusPaid {
+			newPaymentStatus = domain.PaymentStatusRefundPending
+		} else if o.PaymentStatus == domain.PaymentStatusUnpaid || o.PaymentStatus == domain.PaymentStatusPending {
+			newPaymentStatus = domain.PaymentStatusCancelled
+		}
 	}
 
 	// 5. Atomic UPDATE with version increment
@@ -1318,8 +1329,9 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
             pod_recipient_name = $8,
             pod_confirmed_at = $9,
             cod_collected = $10,
-            delivered_at = $11
-        WHERE id = $12 AND version = $13
+            delivered_at = $11,
+            payment_status = $12
+        WHERE id = $13 AND version = $14
         RETURNING %s
     `, orderBaseSelectColumns)
 
@@ -1335,6 +1347,7 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		newPodConfirmedAt,
 		newCODCollected,
 		newDeliveredAt,
+		newPaymentStatus,
 		orderID,
 		req.Version,
 	)
@@ -1496,6 +1509,8 @@ func (r *productRepository) CreateCODSettlement(
         UPDATE me_supplies.orders
         SET cod_remitted = TRUE,
             cod_remitted_at = NOW(),
+            payment_status = 'PAID',
+            paid_at = NOW(),
             updated_at = NOW()
         WHERE id = ANY($1)
     `

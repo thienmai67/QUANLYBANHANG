@@ -1603,16 +1603,21 @@ func (r *saleRepository) ConvertQuoteToOrder(ctx context.Context, quoteID uuid.U
 			return nil, errors.New("số lượng sản phẩm vượt quá giới hạn 10.000")
 		}
 
-		// Recheck price floor on convert (P0-1)
+		// Recheck price floor and stock on convert (P0-1)
 		var basePrice float64
-		err = tx.QueryRowContext(ctx, `SELECT base_price FROM me_supplies.products WHERE id = $1`, it.productID).Scan(&basePrice)
+		var stockQuantity int
+		err = tx.QueryRowContext(ctx, `SELECT base_price, COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1`, it.productID).Scan(&basePrice, &stockQuantity)
 		if err != nil {
 			_ = tx.Rollback()
-			return nil, fmt.Errorf("verify product price on convert: %w", err)
+			return nil, fmt.Errorf("verify product price and stock on convert: %w", err)
 		}
 		if it.unitPrice < basePrice*0.10 {
 			_ = tx.Rollback()
 			return nil, domain.ErrPriceBelowFloor
+		}
+		if stockQuantity < int(it.quantity) {
+			_ = tx.Rollback()
+			return nil, domain.ErrInsufficientStock
 		}
 
 		sumLineTotals += it.lineTotal

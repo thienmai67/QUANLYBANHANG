@@ -190,7 +190,9 @@ export default function ShipperOrderCard({
           className={`p-3 rounded-xl border flex items-center justify-between ${
             isCod
               ? 'bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/80'
-              : 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/80'
+              : order.paymentStatus === 'PAID'
+                ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/80'
+                : 'bg-slate-50/80 border-slate-200 dark:bg-slate-900/40 dark:border-slate-800'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -198,17 +200,23 @@ export default function ShipperOrderCard({
               className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                 isCod
                   ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
-                  : 'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                  : order.paymentStatus === 'PAID'
+                    ? 'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                    : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
               }`}
             >
               <Banknote className="w-4 h-4" />
             </div>
             <div>
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {isCod ? 'Thu hộ tiền mặt (COD)' : 'Hình thức thanh toán'}
+                {isCod ? 'Thu hộ tiền mặt (COD)' : 'Thanh toán Online'}
               </div>
               <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                {isCod ? 'Thu đủ khi giao' : 'Đã thanh toán Online qua PayOS'}
+                {isCod
+                  ? 'Thu đủ khi giao'
+                  : order.paymentStatus === 'PAID'
+                    ? 'Đã thanh toán Online qua PayOS'
+                    : 'Chờ khách thanh toán'}
               </div>
             </div>
           </div>
@@ -217,10 +225,12 @@ export default function ShipperOrderCard({
             className={`text-lg font-black tabular-nums ${
               isCod
                 ? 'text-amber-900 dark:text-amber-300'
-                : 'text-emerald-800 dark:text-emerald-300'
+                : order.paymentStatus === 'PAID'
+                  ? 'text-emerald-800 dark:text-emerald-300'
+                  : 'text-slate-700 dark:text-slate-300'
             }`}
           >
-            {isCod ? formatCurrencyVND(totalAmount) : '0 ₫'}
+            {isCod ? formatCurrencyVND(totalAmount) : order.paymentStatus === 'PAID' ? '0 ₫' : formatCurrencyVND(totalAmount)}
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   Brand,
   Customer,
+  CustomerTier,
   Order,
   OrderItem,
   OrderStatus,
@@ -362,6 +363,42 @@ export const useManagerStore = create<ManagerState>()(
       },
 
       fetchCustomers: async () => {
+        try {
+          const res = await api.get<{ data: any[]; total: number }>('/sale/customers?limit=100');
+          const rawList = res?.data || (Array.isArray(res) ? res : []);
+          if (Array.isArray(rawList) && rawList.length > 0) {
+            const mappedCustomers: Customer[] = rawList.map((c, idx) => {
+              const code = `KH-${String(idx + 1).padStart(4, '0')}`;
+              const totalSpent = Number(c.totalSpent) || 0;
+              const tier: CustomerTier =
+                totalSpent >= 50000000
+                  ? 'Gold'
+                  : totalSpent >= 15000000
+                    ? 'Silver'
+                    : totalSpent > 0
+                      ? 'Bronze'
+                      : 'Retail';
+              return {
+                id: c.id,
+                code,
+                name: c.fullName || 'Khách hàng',
+                phone: c.phone || 'Chưa cập nhật',
+                email: c.email || 'Chưa cập nhật',
+                address: c.profile?.address || 'Chưa cập nhật địa chỉ',
+                tier,
+                createdAt: c.createdAt || new Date().toISOString(),
+                totalSpent,
+                ordersCount: Number(c.orderCount) || 0,
+                currentDebt: Number(c.currentDebt) || 0,
+                creditLimit: Number(c.profile?.creditLimit) || 0,
+              };
+            });
+            set({ customers: mappedCustomers });
+            return;
+          }
+        } catch {
+          // fallback to order derivation if /sale/customers is unavailable
+        }
         await get().fetchOrders();
       },
 

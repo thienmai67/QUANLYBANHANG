@@ -199,13 +199,25 @@ export default function CustomerProfilePage() {
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
-          ? { ...o, status: 'CANCELLED', cancellationReason: reason }
+          ? {
+              ...o,
+              status: 'CANCELLED',
+              cancellationReason: reason,
+              paymentStatus: o.paymentStatus === 'PAID' ? 'REFUND_PENDING' : 'CANCELLED',
+            }
           : o
       )
     );
     if (selectedOrder?.id === orderId) {
       setSelectedOrder((prev) =>
-        prev ? { ...prev, status: 'CANCELLED', cancellationReason: reason } : null
+        prev
+          ? {
+              ...prev,
+              status: 'CANCELLED',
+              cancellationReason: reason,
+              paymentStatus: prev.paymentStatus === 'PAID' ? 'REFUND_PENDING' : 'CANCELLED',
+            }
+          : null
       );
     }
   };
@@ -596,7 +608,9 @@ export default function CustomerProfilePage() {
   };
 
   // Calculate Spend & Status breakdown
-  const totalSpend = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const totalSpend = orders
+    .filter((o) => o.status === 'DELIVERED' || o.paymentStatus === 'PAID')
+    .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   const countPending = orders.filter((o) => o.status === 'PENDING').length;
   const countPacking = orders.filter((o) => o.status === 'PACKING').length;
   const countShipping = orders.filter((o) => o.status === 'SHIPPING').length;
@@ -608,7 +622,7 @@ export default function CustomerProfilePage() {
     const spendMap: Record<string, { amount: number; count: number }> = {};
 
     orders
-      .filter((o) => o.status !== 'CANCELLED')
+      .filter((o) => o.status === 'DELIVERED' || o.paymentStatus === 'PAID')
       .forEach((o) => {
         const d = new Date(o.createdAt);
         const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

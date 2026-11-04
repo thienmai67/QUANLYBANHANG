@@ -209,13 +209,25 @@ function OrdersManagementContent() {
             Chờ TT ({methodLabel})
           </span>
         );
-      case 'CANCELLED':
-      case 'REFUNDED':
       case 'REFUND_PENDING':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            Chờ hoàn tiền ({methodLabel})
+          </span>
+        );
+      case 'REFUNDED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            Đã hoàn tiền ({methodLabel})
+          </span>
+        );
+      case 'CANCELLED':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            {status === 'REFUNDED' ? 'Đã hoàn tiền' : 'Hủy TT'}
+            Đã hủy ({methodLabel})
           </span>
         );
       case 'UNPAID':
