@@ -26,34 +26,35 @@ export default function ShipperFilterTabs({
   ];
 
   return (
-    <div className="border-b border-[#e6e6e6]">
-      <nav
-        aria-label="Lọc đơn hàng"
-        className="flex items-center gap-6"
-      >
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => onChange(tab.id)}
-              className={`min-h-[48px] py-3 text-[14px] flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf] ${
-                isActive
-                  ? 'border-b-2 border-[#0a0a0a] text-[#0a0a0a] font-semibold'
-                  : 'border-b-2 border-transparent text-[#6b6b6b] font-normal hover:text-[#0a0a0a]'
-              }`}
-            >
-              <span>{tab.label}</span>
-              {typeof tab.count === 'number' && (
-                <span className="tabular-nums text-[#6b6b6b] font-normal">
-                  ({tab.count})
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
+    <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 flex items-center gap-1">
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onChange(tab.id)}
+            className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 ${
+              isActive
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm shadow-slate-900/5 font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <span>{tab.label}</span>
+            {typeof tab.count === 'number' && (
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
+                  isActive
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                    : 'bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {tab.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -7,7 +7,19 @@ import { formatCurrencyVND } from '@/lib/formatters';
 import { getTelUrl, getGoogleMapsUrl } from '@/lib/shipperHelpers';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
-import { Phone, Navigation, Loader2 } from 'lucide-react';
+import {
+  Phone,
+  Navigation,
+  Loader2,
+  PackageCheck,
+  CheckCircle2,
+  MapPin,
+  Clock,
+  Banknote,
+  Boxes,
+  ArrowRight,
+  ShieldCheck,
+} from 'lucide-react';
 
 /**
  * Shortens a shipping address to the most relevant local district/ward/city
@@ -65,7 +77,7 @@ export default function ShipperOrderCard({
     ? `${orderAny.totalWeight} kg`
     : orderAny.weight
     ? `${orderAny.weight} kg`
-    : '-';
+    : '';
 
   const handlePickup = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -94,75 +106,133 @@ export default function ShipperOrderCard({
     switch (order.status) {
       case 'PACKING':
         return (
-          <span className="text-[14px] px-2.5 py-1 rounded-[6px] bg-[#fffbeb] text-[#92400e] font-normal inline-block">
-            Chờ nhận
+          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 font-bold border border-amber-200 dark:border-amber-800">
+            <Clock className="w-3 h-3" />
+            <span>Chờ nhận tại kho</span>
           </span>
         );
       case 'SHIPPING':
         return (
-          <span className="text-[14px] px-2.5 py-1 rounded-[6px] bg-[#dcfae5] text-[#04250e] font-normal inline-block">
-            Đang giao
+          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800 animate-pulse">
+            <Navigation className="w-3 h-3" />
+            <span>Đang giao hàng</span>
           </span>
         );
       case 'DELIVERED':
         return (
-          <span className="text-[14px] px-2.5 py-1 rounded-[6px] bg-[#dcfae5] text-[#04250e] font-normal inline-block">
-            Đã giao
+          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>Đã giao thành công</span>
           </span>
         );
       case 'CANCELLED':
         return (
-          <span className="text-[14px] px-2.5 py-1 rounded-[6px] bg-[#ffedea] text-[#831c1e] font-normal inline-block">
-            Sự cố / Hủy
+          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 font-bold border border-rose-200 dark:border-rose-800">
+            <span>Sự cố / Đã hủy</span>
           </span>
         );
       default:
         return (
-          <span className="text-[14px] px-2.5 py-1 rounded-[6px] bg-[#eeeeee] text-[#3d3d3d] font-normal inline-block">
-            {order.status}
+          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+            <span>{order.status}</span>
           </span>
         );
     }
   };
 
-  // 1. Featured card: "Đơn tiếp theo" (border-strong #d0d0d0, 8px radius)
+  // 1. Featured card: "Đơn tiếp theo" (HERO CARD FOR SHIPPER)
   if (variant === 'featured') {
     return (
-      <div className="bg-white border border-[#d0d0d0] rounded-[8px] p-4 space-y-3">
-        {/* Row 1: Status pill */}
-        <div>{getStatusBadge()}</div>
+      <div className="relative overflow-hidden bg-white dark:bg-slate-900 border-2 border-blue-500/70 dark:border-blue-500/50 rounded-2xl p-4 shadow-lg shadow-blue-500/10 space-y-3.5">
+        {/* Top Tag Banner */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white shadow-sm">
+              Đơn tiếp theo
+            </span>
+            <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+              #{order.code}
+            </span>
+          </div>
+          <div>{getStatusBadge()}</div>
+        </div>
 
-        {/* Row 2: Customer name */}
-        <h3 className="text-[16px] font-medium text-[#0a0a0a] leading-tight">
-          {customerName}
-        </h3>
+        {/* Customer & Destination */}
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+            {customerName}
+          </h3>
+          <div className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            <MapPin className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <span className="font-medium">{order.shippingAddress}</span>
+          </div>
+        </div>
 
-        {/* Row 3: Full shipping address */}
-        <p className="text-[14px] text-[#6b6b6b] leading-[1.5]">
-          {order.shippingAddress}
-        </p>
-
-        {/* Row 4: Code, item count, weight */}
-        <p className="text-[14px] text-[#6b6b6b]">
-          {order.code} • {order.items.length} món • {weightText}
-        </p>
-
-        {/* Row 5: COD Amount */}
-        <div className="flex items-baseline justify-between pt-2 border-t border-[#e6e6e6]">
-          <span className="text-[14px] text-[#6b6b6b]">Thu hộ COD</span>
-          <span className="text-[20px] font-bold tabular-nums text-[#0a0a0a]">
-            {isCod ? formatCurrencyVND(totalAmount) : '0 ₫ (Đã thanh toán)'}
+        {/* Goods brief pill */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl">
+          <Boxes className="w-4 h-4 text-slate-400 shrink-0" />
+          <span className="font-medium text-slate-700 dark:text-slate-200">
+            {order.items.length} mặt hàng
+          </span>
+          {weightText && (
+            <>
+              <span>•</span>
+              <span>{weightText}</span>
+            </>
+          )}
+          <span className="ml-auto font-mono text-[11px] text-blue-600 dark:text-blue-400">
+            {order.code}
           </span>
         </div>
 
-        {/* Row 6: Primary Black Full-width Action Button */}
+        {/* COD Amount High-Visibility Box */}
+        <div
+          className={`p-3 rounded-xl border flex items-center justify-between ${
+            isCod
+              ? 'bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/80'
+              : 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/80'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                isCod
+                  ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                  : 'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+              }`}
+            >
+              <Banknote className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                {isCod ? 'Thu hộ tiền mặt (COD)' : 'Hình thức thanh toán'}
+              </div>
+              <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                {isCod ? 'Thu đủ khi giao' : 'Đã thanh toán Online qua PayOS'}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={`text-lg font-black tabular-nums ${
+              isCod
+                ? 'text-amber-900 dark:text-amber-300'
+                : 'text-emerald-800 dark:text-emerald-300'
+            }`}
+          >
+            {isCod ? formatCurrencyVND(totalAmount) : '0 ₫'}
+          </div>
+        </div>
+
+        {/* Primary Action Button (min-height: 50px, ergonomic 1-tap) */}
         {order.status === 'SHIPPING' && (
           <button
             type="button"
             onClick={() => onOpenPod?.(order)}
-            className="w-full min-h-[48px] rounded-[6px] bg-[#141414] text-white hover:bg-[#222222] text-[16px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+            className="w-full min-h-[50px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
-            Xác nhận đã giao
+            <CheckCircle2 className="w-5 h-5" />
+            <span>Xác nhận đã giao — Chụp ảnh POD</span>
           </button>
         )}
 
@@ -171,15 +241,18 @@ export default function ShipperOrderCard({
             type="button"
             onClick={handlePickup}
             disabled={isPickingUp}
-            className="w-full min-h-[48px] rounded-[6px] bg-[#141414] text-white hover:bg-[#222222] text-[16px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+            className="w-full min-h-[50px] rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             {isPickingUp ? (
               <>
-                <Loader2 className="w-[18px] h-[18px] animate-spin" />
-                <span>Đang nhận hàng...</span>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Đang lấy hàng...</span>
               </>
             ) : (
-              <span>Xác nhận lấy hàng</span>
+              <>
+                <PackageCheck className="w-5 h-5" />
+                <span>Xác nhận lấy hàng tại kho</span>
+              </>
             )}
           </button>
         )}
@@ -187,28 +260,29 @@ export default function ShipperOrderCard({
         {order.status === 'DELIVERED' && (
           <Link
             href={`/shipper/orders/${order.id}`}
-            className="w-full min-h-[48px] rounded-[6px] bg-[#141414] text-white hover:bg-[#222222] text-[16px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+            className="w-full min-h-[50px] rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all"
           >
-            Xem chi tiết đơn đã giao
+            <ShieldCheck className="w-5 h-5 text-emerald-400" />
+            <span>Xem bằng chứng đã giao</span>
           </Link>
         )}
 
-        {/* Row 7: 2 Secondary Buttons: Call & Maps */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
+        {/* 2 Quick Tactical Buttons: Call & Maps */}
+        <div className="grid grid-cols-2 gap-2 pt-0.5">
           {telUrl ? (
             <a
               href={telUrl}
-              className="min-h-[48px] rounded-[6px] bg-white text-[#0a0a0a] border border-[#e6e6e6] hover:bg-[#f2f2f2] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+              className="min-h-[46px] rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 dark:bg-slate-800 dark:hover:bg-emerald-950/50 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
-              <Phone className="w-[18px] h-[18px]" />
+              <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Gọi khách</span>
             </a>
           ) : (
             <button
               disabled
-              className="min-h-[48px] rounded-[6px] bg-[#f8f8f8] text-[#6b6b6b] border border-[#e6e6e6] text-[14px] font-normal flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
+              className="min-h-[46px] rounded-xl bg-slate-100 dark:bg-slate-800/40 text-slate-400 text-xs font-medium flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200/60 dark:border-slate-800"
             >
-              <Phone className="w-[18px] h-[18px]" />
+              <Phone className="w-4 h-4" />
               <span>Không có SĐT</span>
             </button>
           )}
@@ -216,37 +290,46 @@ export default function ShipperOrderCard({
           <button
             type="button"
             onClick={() => window.open(mapsUrl, '_blank')}
-            className="min-h-[48px] rounded-[6px] bg-white text-[#0a0a0a] border border-[#e6e6e6] hover:bg-[#f2f2f2] text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+            className="min-h-[46px] rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:bg-slate-800 dark:hover:bg-blue-950/50 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           >
-            <Navigation className="w-[18px] h-[18px]" />
-            <span>Mở bản đồ</span>
+            <Navigation className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span>Mở Google Maps</span>
           </button>
         </div>
       </div>
     );
   }
 
-  // 2. List variant: 2 lines per order
+  // 2. List variant: Queued orders with clean card styling
   return (
     <Link
       href={`/shipper/orders/${order.id}`}
-      className="block bg-white border border-[#e6e6e6] rounded-[8px] p-3.5 hover:border-[#d0d0d0] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
+      className="group block bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all active:scale-[0.99]"
     >
-      {/* Line 1: Customer Name + Amount (tabular-nums font-bold right) */}
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[16px] font-medium text-[#0a0a0a] truncate">
+      {/* Top line: Customer Name + COD Amount */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
           {customerName}
         </span>
-        <span className="text-[16px] font-bold tabular-nums text-[#0a0a0a] shrink-0">
+        <span
+          className={`text-sm font-black tabular-nums shrink-0 ${
+            isCod
+              ? 'text-amber-700 dark:text-amber-400'
+              : 'text-emerald-700 dark:text-emerald-400'
+          }`}
+        >
           {isCod ? formatCurrencyVND(totalAmount) : '0 ₫'}
         </span>
       </div>
 
-      {/* Line 2: Shortened address + status */}
-      <div className="mt-1 flex items-center justify-between gap-3">
-        <p className="text-[14px] text-[#6b6b6b] truncate flex-1">
-          {formatShortAddress(order.shippingAddress)}
-        </p>
+      {/* Bottom line: Shortened address + status pill */}
+      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-1.5 truncate flex-1">
+          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span className="truncate">{formatShortAddress(order.shippingAddress)}</span>
+          <span>•</span>
+          <span className="shrink-0 font-mono text-[11px]">#{order.code}</span>
+        </div>
         <div className="shrink-0">{getStatusBadge()}</div>
       </div>
     </Link>

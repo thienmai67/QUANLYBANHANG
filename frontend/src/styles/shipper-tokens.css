@@ -1,47 +1,78 @@
-/* Shipper Portal Design System v2 — achromatic-ledger (light) */
+/* Shipper Portal Design System v3 — Modern Clean Industrial (Sunlight High-Visibility & Dark Pro) */
 :root {
-  --shipper-bg: #f8f8f8;
+  --shipper-bg: #f8fafc; /* slate-50 */
   --shipper-card: #ffffff;
-  --shipper-border: #e6e6e6;
-  --shipper-border-strong: #d0d0d0;
-  --shipper-text-primary: #0a0a0a;
-  --shipper-text-secondary: #6b6b6b;
-  --shipper-btn-primary-bg: #141414;
+  --shipper-border: #e2e8f0; /* slate-200 */
+  --shipper-border-strong: #cbd5e1; /* slate-300 */
+  --shipper-text-primary: #0f172a; /* slate-900 */
+  --shipper-text-secondary: #64748b; /* slate-500 */
+  --shipper-text-muted: #94a3b8; /* slate-400 */
+
+  /* Brand Accents */
+  --shipper-primary: #0284c7; /* Sky 600 - energetic blue */
+  --shipper-primary-hover: #0369a1;
+  --shipper-accent: #f97316; /* Amber-Orange 500 */
+  --shipper-btn-primary-bg: #0f172a;
   --shipper-btn-primary-text: #ffffff;
-  --shipper-accent: #1d5fbf;
 
-  --shipper-status-delivering-bg: #dcfae5;
-  --shipper-status-delivering-text: #04250e;
-  --shipper-status-warning-bg: #fffbeb;
-  --shipper-status-warning-text: #92400e;
-  --shipper-status-neutral-bg: #eeeeee;
-  --shipper-status-neutral-text: #3d3d3d;
-  --shipper-status-error-bg: #ffedea;
-  --shipper-status-error-text: #831c1e;
+  /* Status Colors */
+  --shipper-status-delivering-bg: #ecfdf5; /* emerald-50 */
+  --shipper-status-delivering-text: #065f46; /* emerald-800 */
+  --shipper-status-delivering-border: #a7f3d0;
+  
+  --shipper-status-warning-bg: #fffbeb; /* amber-50 */
+  --shipper-status-warning-text: #92400e; /* amber-800 */
+  --shipper-status-warning-border: #fde68a;
 
-  --shipper-radius-card: 8px;
-  --shipper-radius-control: 6px;
+  --shipper-status-neutral-bg: #f1f5f9; /* slate-100 */
+  --shipper-status-neutral-text: #334155; /* slate-700 */
+  --shipper-status-neutral-border: #e2e8f0;
+
+  --shipper-status-error-bg: #fef2f2; /* rose-50 */
+  --shipper-status-error-text: #991b1b; /* rose-800 */
+  --shipper-status-error-border: #fecaca;
+
+  /* Radii & Shadows */
+  --shipper-radius-card: 16px;
+  --shipper-radius-control: 12px;
+  --shipper-radius-pill: 9999px;
+  --shipper-shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  --shipper-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
 }
 
 .shipper-dark-mode {
-  --shipper-bg: #121212;
-  --shipper-card: #1c1c1c;
-  --shipper-border: #2a2a2a;
-  --shipper-border-strong: #3d3d3d;
-  --shipper-text-primary: #f5f5f5;
-  --shipper-text-secondary: #a0a0a0;
-  --shipper-btn-primary-bg: #ffffff;
-  --shipper-btn-primary-text: #141414;
-  --shipper-accent: #4d8fe8;
+  --shipper-bg: #0b0f19; /* deep slate dark */
+  --shipper-card: #151d2e; /* slate-800/90 */
+  --shipper-border: #1e293b;
+  --shipper-border-strong: #334155;
+  --shipper-text-primary: #f8fafc;
+  --shipper-text-secondary: #94a3b8;
+  --shipper-text-muted: #64748b;
 
-  --shipper-status-delivering-bg: #0d2818;
-  --shipper-status-delivering-text: #86efac;
-  --shipper-status-warning-bg: #2d2006;
+  --shipper-primary: #38bdf8;
+  --shipper-primary-hover: #7dd3fc;
+  --shipper-accent: #fb923c;
+  --shipper-btn-primary-bg: #38bdf8;
+  --shipper-btn-primary-text: #0f172a;
+
+  --shipper-status-delivering-bg: #064e3b;
+  --shipper-status-delivering-text: #a7f3d0;
+  --shipper-status-delivering-border: #047857;
+
+  --shipper-status-warning-bg: #451a03;
   --shipper-status-warning-text: #fde68a;
-  --shipper-status-neutral-bg: #262626;
-  --shipper-status-neutral-text: #d4d4d4;
-  --shipper-status-error-bg: #350b0d;
-  --shipper-status-error-text: #fca5a5;
+  --shipper-status-warning-border: #78350f;
+
+  --shipper-status-neutral-bg: #1e293b;
+  --shipper-status-neutral-text: #cbd5e1;
+  --shipper-status-neutral-border: #334155;
+
+  --shipper-status-error-bg: #4c0519;
+  --shipper-status-error-text: #fecdd3;
+  --shipper-status-error-border: #881337;
+
+  --shipper-shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+  --shipper-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.4);
 }
 
 @media (prefers-reduced-motion: reduce) {

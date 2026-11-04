@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
 import { Order } from '@/types/manager';
 import { formatCurrencyVND } from '@/lib/formatters';
+import { Package, Banknote, CheckCircle2, RotateCw } from 'lucide-react';
 
 export default function ShipperDispatchFeedPage() {
   const { user } = useAuthStore();
@@ -20,6 +21,7 @@ export default function ShipperDispatchFeedPage() {
   const [filterTab, setFilterTab] = useState<ShipperFilterTabType>('ALL');
   const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
   const [selectedIncidentOrder, setSelectedIncidentOrder] = useState<Order | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -27,7 +29,12 @@ export default function ShipperDispatchFeedPage() {
   }, [fetchOrders, fetchShippers]);
 
   const handleManualRefresh = useCallback(async () => {
-    await Promise.all([fetchOrders(), fetchShippers()]);
+    setIsRefreshing(true);
+    try {
+      await Promise.all([fetchOrders(), fetchShippers()]);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [fetchOrders, fetchShippers]);
 
   const currentShipperId = user?.shipperId || user?.id || '';
@@ -50,6 +57,10 @@ export default function ShipperDispatchFeedPage() {
     );
   }, [myOrders]);
 
+  const deliveredOrders = useMemo(() => {
+    return myOrders.filter((o) => o.status === 'DELIVERED');
+  }, [myOrders]);
+
   // Next order:
   // 1. Highest priority is an active SHIPPING order
   // 2. Otherwise next PACKING order
@@ -59,18 +70,6 @@ export default function ShipperDispatchFeedPage() {
     return activeOrders[0] || null;
   }, [activeOrders]);
 
-  // Dynamic calculations for finding text according to §3 and §5:
-  // - next order code
-  // - next order COD amount
-  // - remaining active orders count
-  // - total remaining COD of unfinished orders (next order + waiting orders)
-  const nextOrderCod = useMemo(() => {
-    if (!nextOrder) return 0;
-    return nextOrder.paymentMethod === 'COD'
-      ? (nextOrder.total ?? nextOrder.totalAmount ?? 0)
-      : 0;
-  }, [nextOrder]);
-
   const totalRemainingCod = useMemo(() => {
     return activeOrders.reduce((sum, o) => {
       if (o.paymentMethod === 'COD') {
@@ -79,22 +78,6 @@ export default function ShipperDispatchFeedPage() {
       return sum;
     }, 0);
   }, [activeOrders]);
-
-  const findingSentence = useMemo(() => {
-    if (!nextOrder) {
-      return 'Hôm nay đã hoàn thành tất cả đơn hàng. Còn 0 đơn cần giao, tổng thu hộ còn lại 0 ₫.';
-    }
-    const codText =
-      nextOrderCod > 0
-        ? `thu hộ ${formatCurrencyVND(nextOrderCod)}`
-        : 'đã thanh toán (0 ₫)';
-    const remainingCount = activeOrders.length - 1;
-    const remainingCountText =
-      remainingCount > 0
-        ? `còn ${remainingCount} đơn nữa trong ngày`
-        : 'đơn cuối cùng trong ngày';
-    return `Tiếp theo: ${nextOrder.code} (${codText}), ${remainingCountText}, tổng thu hộ còn lại ${formatCurrencyVND(totalRemainingCod)}.`;
-  }, [nextOrder, nextOrderCod, activeOrders.length, totalRemainingCod]);
 
   // Remaining queued orders (excluding nextOrder so it doesn't duplicate)
   const listOrdersPool = useMemo(() => {
@@ -125,29 +108,78 @@ export default function ShipperDispatchFeedPage() {
   return (
     <RouteGuard allowedRoles={['SHIPPER']} fallbackUrl="/login" forbiddenUrl="/403">
       <ShipperShell>
-        <div className="px-4 py-3 space-y-3">
-          {/* 2. Tiêu đề màn hình 24px + 1 câu finding 14px */}
-          <div>
-            <h1 className="text-[24px] font-bold leading-tight text-[#0a0a0a]">
-              Đơn giao hôm nay
-            </h1>
-            <p className="text-[14px] text-[#6b6b6b] mt-1 leading-[1.5]">
-              {findingSentence}
-            </p>
+        <div className="px-4 py-3.5 space-y-4">
+          {/* 1. Daily Summary Banner */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                  Lịch trình hôm nay
+                </span>
+                <h1 className="text-lg font-black tracking-tight text-white mt-0.5">
+                  Đơn Giao Hôm Nay
+                </h1>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleManualRefresh}
+                title="Làm mới danh sách đơn"
+                className={`w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all ${
+                  isRefreshing ? 'animate-spin text-blue-400' : ''
+                }`}
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Metrics Row: 2 Quick Stats */}
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-1.5 text-slate-300 text-[11px]">
+                  <Package className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Đơn cần giao</span>
+                </div>
+                <div className="text-lg font-black text-white tabular-nums mt-0.5">
+                  {activeOrders.length}{' '}
+                  <span className="text-xs font-normal text-slate-400">
+                    / {myOrders.length} đơn
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-1.5 text-slate-300 text-[11px]">
+                  <Banknote className="w-3.5 h-3.5 text-amber-400" />
+                  <span>COD cần thu</span>
+                </div>
+                <div className="text-base font-black text-amber-300 tabular-nums mt-0.5">
+                  {formatCurrencyVND(totalRemainingCod)}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* 3. "Lộ trình hôm nay" (signature element, bắt buộc có) */}
+          {/* 2. Lộ trình hôm nay (Route Stepper Widget) */}
           <ShipperWidgets
             shipperId={currentShipperId}
             orders={myOrders}
             nextOrderId={nextOrder?.id}
           />
 
-          {/* 4. "Đơn tiếp theo" */}
+          {/* 3. Hero Card: "Đơn tiếp theo" */}
           <div className="space-y-2">
-            <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
-              Đơn tiếp theo
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Đơn tiếp theo cần xử lý
+              </h2>
+              {nextOrder && (
+                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  Ưu tiên số 1
+                </span>
+              )}
+            </div>
+
             {nextOrder ? (
               <ShipperOrderCard
                 order={nextOrder}
@@ -159,17 +191,27 @@ export default function ShipperDispatchFeedPage() {
                 onPickupSuccess={handleManualRefresh}
               />
             ) : (
-              <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4 text-[14px] text-[#6b6b6b]">
-                Không có đơn tiếp theo cần giao.
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 text-center space-y-2">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Đã hoàn thành hết đơn!
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Hiện không còn đơn hàng nào đang chờ giao. Nghỉ ngơi hoặc nộp tiền COD vào sổ quỹ nhé.
+                </p>
               </div>
             )}
           </div>
 
-          {/* 5. "Đơn chờ nhận" + Tab lọc: Tất cả / Chờ nhận / Đang giao */}
+          {/* 4. Tab lọc & Danh sách các đơn chờ nhận tiếp theo */}
           <div className="space-y-3 pt-2">
-            <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
-              Đơn chờ nhận
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Hàng chờ nhận &amp; giao ({listOrdersPool.length})
+              </h2>
+            </div>
 
             <ShipperFilterTabs
               activeTab={filterTab}
@@ -177,11 +219,11 @@ export default function ShipperDispatchFeedPage() {
               counts={tabCounts}
             />
 
-            {/* Danh sách 2 dòng mỗi đơn */}
+            {/* List items */}
             <div className="space-y-2 pt-1">
               {displayedListOrders.length === 0 ? (
-                <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4 text-center text-[14px] text-[#6b6b6b]">
-                  Không có đơn hàng nào trong danh sách này.
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                  Không có đơn hàng nào trong bộ lọc này.
                 </div>
               ) : (
                 displayedListOrders.map((order) => (
