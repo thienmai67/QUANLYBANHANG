@@ -36,7 +36,7 @@ export default function ShipperOrderDetailPage() {
   const router = useRouter();
   const toast = useToast();
   const { user } = useAuthStore();
-  const { orders, shippers, updateOrderStatusWithActor, fetchOrders } = useManagerStore();
+  const { orders, updateOrderStatusWithActor, fetchOrders } = useManagerStore();
 
   const [isPodModalOpen, setIsPodModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
@@ -69,9 +69,8 @@ export default function ShipperOrderDetailPage() {
 
   const currentShipperId = user?.shipperId || user?.id || '';
   const currentShipperName =
-    shippers.find((s) => s.id === currentShipperId)?.name ||
-    user?.name ||
     user?.fullName ||
+    user?.name ||
     'Nhân viên giao hàng';
 
   const storeOrder = orders.find((o) => o.id === orderId);

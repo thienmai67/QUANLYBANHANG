@@ -16,7 +16,7 @@ import { Package, Banknote, CheckCircle2, RotateCw } from 'lucide-react';
 
 export default function ShipperDispatchFeedPage() {
   const { user } = useAuthStore();
-  const { orders, shippers, fetchOrders, fetchShippers } = useManagerStore();
+  const { orders, fetchOrders } = useManagerStore();
 
   const [filterTab, setFilterTab] = useState<ShipperFilterTabType>('ALL');
   const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
@@ -25,23 +25,31 @@ export default function ShipperDispatchFeedPage() {
 
   useEffect(() => {
     fetchOrders();
-    fetchShippers();
-  }, [fetchOrders, fetchShippers]);
+  }, [fetchOrders]);
+
+  // Auto background sync every 20s when tab is active
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchOrders();
+      }
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
 
   const handleManualRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([fetchOrders(), fetchShippers()]);
+      await fetchOrders();
     } finally {
       setIsRefreshing(false);
     }
-  }, [fetchOrders, fetchShippers]);
+  }, [fetchOrders]);
 
   const currentShipperId = user?.shipperId || user?.id || '';
   const currentShipperName =
-    shippers.find((s) => s.id === currentShipperId)?.name ||
-    user?.name ||
     user?.fullName ||
+    user?.name ||
     'Nhân viên giao hàng';
 
   // Strict isolation: shipper only sees their assigned orders

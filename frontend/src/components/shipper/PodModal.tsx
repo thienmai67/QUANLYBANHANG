@@ -132,6 +132,14 @@ export default function PodModal({
       );
 
       if (res.success) {
+        // Haptic vibration feedback on mobile device
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          try {
+            navigator.vibrate([40, 60, 40]);
+          } catch {
+            // ignore
+          }
+        }
         toast.success(
           `Đã giao thành công đơn #${order.code} cho ${receiverName.trim()}!`
         );

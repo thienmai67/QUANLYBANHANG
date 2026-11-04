@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getToken, decodeToken, removeTokens } from '@/lib/auth';
+import { getToken, decodeToken, removeTokens, syncAuthCookies } from '@/lib/auth';
 import { useAuthStore, UserRole } from '@/store/useAuthStore';
 import { ShieldAlert, Lock, Loader2 } from 'lucide-react';
 
@@ -24,6 +24,7 @@ export default function RouteGuard({
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
+    syncAuthCookies();
     const token = getToken();
 
     if (!token && !isAuthenticated && !user) {

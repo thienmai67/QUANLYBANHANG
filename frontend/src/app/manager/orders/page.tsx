@@ -64,6 +64,16 @@ function OrdersManagementContent() {
     fetchQuotes();
   }, [fetchOrders, fetchProducts, fetchShippers, fetchQuotes]);
 
+  // Periodic background refresh every 25s when tab is active
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchOrders();
+      }
+    }, 25000);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+
   // Filter states
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');

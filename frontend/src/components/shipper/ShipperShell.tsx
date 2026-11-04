@@ -28,10 +28,26 @@ export default function ShipperShell({ children }: ShipperShellProps) {
   const { isHighContrast, toggleHighContrast } = useShipperUIStore();
   const { shippers, orders } = useManagerStore();
 
+  const [isOffline, setIsOffline] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setIsOffline(true);
+    }
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const currentShipperId = user?.shipperId || user?.id || '';
   const shipperInfo =
     shippers.find((s) => s.id === currentShipperId) || {
-      name: user?.name || user?.fullName || 'Nhân viên giao hàng',
+      name: user?.fullName || user?.name || 'Nhân viên giao hàng',
       shiftStatus: 'available',
       activeOrders: 0,
     };
@@ -151,6 +167,14 @@ export default function ShipperShell({ children }: ShipperShellProps) {
             </button>
           </div>
         </header>
+
+        {/* Offline Alert Banner */}
+        {isOffline && (
+          <div className="bg-amber-500 text-slate-950 px-4 py-1.5 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-sm sticky top-14 z-30">
+            <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping inline-block" />
+            Mất kết nối mạng. Đang chờ kết nối lại...
+          </div>
+        )}
 
         {/* Main content area */}
         <main className="flex-1 pb-[84px]">{children}</main>

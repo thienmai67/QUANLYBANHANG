@@ -366,6 +366,10 @@ export const useManagerStore = create<ManagerState>()(
       },
 
       fetchShippers: async () => {
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.role !== 'MANAGER' && (currentUser.role as any) !== 'ADMIN') {
+          return;
+        }
         set({ shippersLoading: true, shippersError: null });
         try {
           const res = await api.get<{ data: any[]; total: number }>('/shippers');
