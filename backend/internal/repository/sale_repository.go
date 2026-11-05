@@ -1603,10 +1603,10 @@ func (r *saleRepository) ConvertQuoteToOrder(ctx context.Context, quoteID uuid.U
 			return nil, errors.New("số lượng sản phẩm vượt quá giới hạn 10.000")
 		}
 
-		// Recheck price floor and stock on convert (P0-1)
+		// Recheck price floor and stock on convert (P0-1) with FOR UPDATE lock
 		var basePrice float64
 		var stockQuantity int
-		err = tx.QueryRowContext(ctx, `SELECT base_price, COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1`, it.productID).Scan(&basePrice, &stockQuantity)
+		err = tx.QueryRowContext(ctx, `SELECT base_price, COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1 FOR UPDATE`, it.productID).Scan(&basePrice, &stockQuantity)
 		if err != nil {
 			_ = tx.Rollback()
 			return nil, fmt.Errorf("verify product price and stock on convert: %w", err)
@@ -1615,7 +1615,7 @@ func (r *saleRepository) ConvertQuoteToOrder(ctx context.Context, quoteID uuid.U
 			_ = tx.Rollback()
 			return nil, domain.ErrPriceBelowFloor
 		}
-		if stockQuantity < int(it.quantity) {
+		if float64(stockQuantity) < it.quantity {
 			_ = tx.Rollback()
 			return nil, domain.ErrInsufficientStock
 		}
@@ -1699,14 +1699,14 @@ func (r *saleRepository) ApproveQuote(ctx context.Context, quoteID uuid.UUID, ma
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE me_supplies.quotes
 		SET status = 'ACCEPTED', rejection_reason = NULL, approved_by = $1, approved_at = NOW(), updated_at = NOW()
-		WHERE id = $2 AND status = 'PENDING_APPROVAL'
+		WHERE id = $2 AND status = 'PENDING_APPROVAL' AND valid_until >= NOW()
 	`, managerID, quoteID)
 	if err != nil {
 		return nil, fmt.Errorf("approve quote: %w", err)
 	}
 	affected, _ := res.RowsAffected()
 	if affected == 0 {
-		return nil, errors.New("báo giá không tồn tại hoặc không ở trạng thái chờ duyệt (PENDING_APPROVAL)")
+		return nil, errors.New("báo giá không tồn tại, đã hết hạn hoặc không ở trạng thái chờ duyệt (PENDING_APPROVAL)")
 	}
 	return r.GetQuoteByID(ctx, quoteID, nil)
 }
@@ -2203,7 +2203,10 @@ func (r *saleRepository) GetPaymentList(ctx context.Context, saleID *uuid.UUID, 
 			o.PaymentStatus != domain.PaymentStatusPaid &&
 			daysDelivered > domain.OverdueDebtDays
 
-		remaining := math.Max(0, o.TotalAmount-totalNotes)
+		remaining := float64(0)
+		if o.PaymentStatus != domain.PaymentStatusPaid && o.PaymentStatus != domain.PaymentStatusCancelled && o.PaymentStatus != domain.PaymentStatusRefunded {
+			remaining = math.Max(0, o.TotalAmount-totalNotes)
+		}
 
 		items = append(items, domain.SalePaymentItem{
 			Order:         *o,
@@ -2315,6 +2318,10 @@ func (r *saleRepository) AddPaymentNote(ctx context.Context, orderID uuid.UUID, 
 		_ = tx.Rollback()
 		return nil, errors.New("không thể thêm ghi chú thu tiền cho đơn hàng đã hủy")
 	}
+	if order.PaymentStatus == domain.PaymentStatusPaid || order.PaymentStatus == domain.PaymentStatusRefunded || order.PaymentStatus == domain.PaymentStatusRefundPending {
+		_ = tx.Rollback()
+		return nil, errors.New("đơn hàng đã được thanh toán hoặc đang trong quy trình hoàn tiền, không thể ghi nhận thêm tiền mặt")
+	}
 
 	// P1-4: Prevent recording note amount exceeding remaining debt
 	var currentCollected float64
@@ -2411,11 +2418,11 @@ func (r *saleRepository) GetReportSummary(ctx context.Context, saleID *uuid.UUID
 
 	whereSQL := strings.Join(whereClauses, " AND ")
 
-	// Total delivered revenue
+	// Total delivered revenue (F-HIGH-12: loại trừ đơn đã hoàn tiền)
 	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`
 		SELECT COALESCE(SUM(o.total_amount), 0)
 		FROM me_supplies.orders o
-		WHERE %s AND o.status = 'DELIVERED'
+		WHERE %s AND o.status = 'DELIVERED' AND o.payment_status != 'REFUNDED'
 	`, whereSQL), args...).Scan(&rep.TotalDeliveredRevenue); err != nil {
 		return nil, fmt.Errorf("report delivered revenue: %w", err)
 	}
@@ -2460,11 +2467,11 @@ func (r *saleRepository) GetReportSummary(ctx context.Context, saleID *uuid.UUID
 		rep.ConversionRate = math.Round((float64(rep.QuotesConverted)/float64(totalIssuedQuotes))*1000) / 10.0
 	}
 
-	// Revenue by date (P1-1: 14 most recent days)
+	// Revenue by date (P1-1: 14 most recent days, F-HIGH-12: loại trừ REFUNDED)
 	dateQuery := fmt.Sprintf(`
 		SELECT to_char(o.created_at::date, 'YYYY-MM-DD') AS dt, COALESCE(SUM(o.total_amount), 0), COUNT(*)
 		FROM me_supplies.orders o
-		WHERE %s AND o.status = 'DELIVERED'
+		WHERE %s AND o.status = 'DELIVERED' AND o.payment_status != 'REFUNDED'
 		GROUP BY o.created_at::date
 		ORDER BY o.created_at::date DESC
 		LIMIT 14
@@ -2488,12 +2495,12 @@ func (r *saleRepository) GetReportSummary(ctx context.Context, saleID *uuid.UUID
 		return nil, fmt.Errorf("report revenue by date: %w", err)
 	}
 
-	// Revenue by customer
+	// Revenue by customer (F-HIGH-12: loại trừ REFUNDED)
 	custRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT cu.id, cu.full_name, COALESCE(SUM(o.total_amount), 0) AS amt
 		FROM me_supplies.orders o
 		INNER JOIN me_supplies.users cu ON cu.id = o.customer_id
-		WHERE %s AND o.status = 'DELIVERED'
+		WHERE %s AND o.status = 'DELIVERED' AND o.payment_status != 'REFUNDED'
 		GROUP BY cu.id, cu.full_name
 		ORDER BY amt DESC
 		LIMIT 10
@@ -2510,14 +2517,14 @@ func (r *saleRepository) GetReportSummary(ctx context.Context, saleID *uuid.UUID
 		return nil, fmt.Errorf("report revenue by customer: %w", err)
 	}
 
-	// Revenue by brand
+	// Revenue by brand (F-HIGH-12: loại trừ REFUNDED)
 	brandRows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT b.name, COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS amt
 		FROM me_supplies.orders o
 		INNER JOIN me_supplies.order_items oi ON oi.order_id = o.id
 		INNER JOIN me_supplies.products p ON p.id = oi.product_id
 		INNER JOIN me_supplies.brands b ON b.id = p.brand_id
-		WHERE %s AND o.status = 'DELIVERED'
+		WHERE %s AND o.status = 'DELIVERED' AND o.payment_status != 'REFUNDED'
 		GROUP BY b.name
 		ORDER BY amt DESC
 		LIMIT 10

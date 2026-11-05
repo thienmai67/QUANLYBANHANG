@@ -105,6 +105,11 @@ func (h *SSOHandler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if !user.IsActive {
+		h.errRedirect(w, r, "account_deactivated")
+		return
+	}
+
 	tokenPair, err := h.jwtService.GenerateTokenPair(user)
 	if err != nil {
 		h.errRedirect(w, r, "token_generation_failed")

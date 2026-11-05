@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -266,7 +267,18 @@ func (r *shipperRepository) ReclaimPoolEmail(ctx context.Context, email string) 
 		return nil, domain.ErrReclaimBlocked
 	}
 
-	if _, err := tx.ExecContext(ctx, `UPDATE me_supplies.users SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, *pool.AssignedUserID); err != nil {
+	// F-HIGH-06: Chặn thu hồi nếu shipper còn giữ tiền COD chưa nộp về cửa hàng
+	var unremittedCOD int
+	if err := tx.GetContext(ctx, &unremittedCOD, `SELECT COUNT(*) FROM me_supplies.orders WHERE shipper_id = $1 AND status = 'DELIVERED' AND payment_method = 'COD' AND cod_remitted = FALSE`, *pool.AssignedUserID); err != nil {
+		return nil, err
+	}
+	if unremittedCOD > 0 {
+		return nil, domain.ErrReclaimBlocked
+	}
+
+	// F-CRIT-03: Đổi tên email user cũ để giải phóng email gốc trong pool, tránh duplicate key khi cấp lại email này cho shipper mới
+	archivedEmail := fmt.Sprintf("%s.reclaimed.%s", email, pool.AssignedUserID.String()[:8])
+	if _, err := tx.ExecContext(ctx, `UPDATE me_supplies.users SET email = $1, is_active = FALSE, updated_at = NOW() WHERE id = $2`, archivedEmail, *pool.AssignedUserID); err != nil {
 		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx, `

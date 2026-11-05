@@ -1058,6 +1058,11 @@ func (h *Handler) GetPaymentStatus(w http.ResponseWriter, req *http.Request) {
 			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền xem thông tin thanh toán đơn này")
 			return
 		}
+	} else if claims.Role == domain.RoleShipper {
+		if order.ShipperID == nil || order.ShipperID.String() != claims.UserID {
+			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Shipper chỉ có thể kiểm tra trạng thái thanh toán của đơn hàng được giao cho mình")
+			return
+		}
 	} else if claims.Role == domain.RoleSale {
 		saleUUID, parseErr := uuid.Parse(claims.UserID)
 		if parseErr != nil || !h.isOrderInSaleScope(req.Context(), saleUUID, order) {

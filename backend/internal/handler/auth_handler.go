@@ -279,6 +279,11 @@ func (h *AuthHandler) HandleRefreshToken(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if !user.IsActive {
+		writeJSONError(w, http.StatusForbidden, "Tài khoản đã bị vô hiệu hóa, vui lòng liên hệ quản lý", "FORBIDDEN")
+		return
+	}
+
 	tokenPair, err := h.jwtService.GenerateTokenPair(user)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "Không thể tạo phiên đăng nhập mới", "INTERNAL_ERROR")

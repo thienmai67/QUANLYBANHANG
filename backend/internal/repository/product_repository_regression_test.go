@@ -445,4 +445,36 @@ func TestWave5_ProductInventoryStockDeductionAndCeiling(t *testing.T) {
 	if err != nil || currentStock != 10 {
 		t.Errorf("expected stock to be restored from 7 to 10 upon cancellation, got stock %d, err %v", currentStock, err)
 	}
+
+	// 7. Test F-CRIT-01: Zero-stock approval must fail with ErrInsufficientStock
+	_, err = db.ExecContext(ctx, "UPDATE me_supplies.products SET stock_quantity = 0 WHERE id = $1", p.ID)
+	if err != nil {
+		t.Fatalf("failed to set stock to 0: %v", err)
+	}
+
+	zeroStockOrderID := uuid.New()
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO me_supplies.orders (id, order_number, customer_name, payment_method, total_amount, status, payment_status, version)
+		VALUES ($1, $2, 'Zero Stock Test', 'COD', 500000, 'PENDING', 'UNPAID', 1)
+	`, zeroStockOrderID, "ORD-ZERO-"+zeroStockOrderID.String()[:8])
+	if err != nil {
+		t.Fatalf("insert zero stock order: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.order_items WHERE order_id = $1", zeroStockOrderID)
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.orders WHERE id = $1", zeroStockOrderID)
+	}()
+
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO me_supplies.order_items (id, order_id, product_id, quantity, unit_price, converted_quantity, created_at)
+		VALUES ($1, $2, $3, 2, 250000, 2, NOW())
+	`, uuid.New(), zeroStockOrderID, p.ID)
+	if err != nil {
+		t.Fatalf("insert zero stock order item: %v", err)
+	}
+
+	_, err = repo.UpdateOrderStatus(ctx, zeroStockOrderID, domain.OrderStatusPacking, 1, domain.RoleManager, uuid.Nil)
+	if !errors.Is(err, domain.ErrInsufficientStock) {
+		t.Errorf("expected ErrInsufficientStock when transitioning zero stock product to PACKING, got: %v", err)
+	}
 }

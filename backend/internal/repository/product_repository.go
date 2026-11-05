@@ -1178,20 +1178,23 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 				_ = tx.Rollback()
 				return nil, fmt.Errorf("check stock for product %s: %w", it.productID, err)
 			}
-			if currentStock > 0 && float64(currentStock) < it.qty {
+			if float64(currentStock) < it.qty {
 				_ = tx.Rollback()
 				return nil, domain.ErrInsufficientStock
 			}
-			if float64(currentStock) >= it.qty && it.qty > 0 {
-				_, err = tx.ExecContext(ctx, `
-					UPDATE me_supplies.products
-					SET stock_quantity = stock_quantity - $1, updated_at = NOW()
-					WHERE id = $2 AND stock_quantity >= $1
-				`, int(math.Ceil(it.qty)), it.productID)
-				if err != nil {
-					_ = tx.Rollback()
-					return nil, fmt.Errorf("deduct stock: %w", err)
-				}
+			res, err := tx.ExecContext(ctx, `
+				UPDATE me_supplies.products
+				SET stock_quantity = stock_quantity - $1, updated_at = NOW()
+				WHERE id = $2 AND stock_quantity >= $1
+			`, int(math.Ceil(it.qty)), it.productID)
+			if err != nil {
+				_ = tx.Rollback()
+				return nil, fmt.Errorf("deduct stock: %w", err)
+			}
+			rowsAff, _ := res.RowsAffected()
+			if rowsAff == 0 {
+				_ = tx.Rollback()
+				return nil, domain.ErrInsufficientStock
 			}
 		}
 	}
@@ -1238,7 +1241,7 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 			}
 			var shipperRole domain.UserRole
 			var isActive bool
-			err = tx.QueryRowContext(ctx, `SELECT role, is_active FROM me_supplies.users WHERE id = $1`, parsedShipperID).Scan(&shipperRole, &isActive)
+			err = tx.QueryRowContext(ctx, `SELECT role, is_active FROM me_supplies.users WHERE id = $1 FOR UPDATE`, parsedShipperID).Scan(&shipperRole, &isActive)
 			if err != nil || shipperRole != domain.RoleShipper || !isActive {
 				_ = tx.Rollback()
 				return nil, domain.ErrInvalidShipper
@@ -1248,6 +1251,15 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		if newShipperID == nil {
 			_ = tx.Rollback()
 			return nil, domain.ErrShipperRequired
+		} else {
+			// Lock shipper row FOR UPDATE to serialize concurrent capacity assignments
+			var shipperRole domain.UserRole
+			var isActive bool
+			err = tx.QueryRowContext(ctx, `SELECT role, is_active FROM me_supplies.users WHERE id = $1 FOR UPDATE`, *newShipperID).Scan(&shipperRole, &isActive)
+			if err != nil || shipperRole != domain.RoleShipper || !isActive {
+				_ = tx.Rollback()
+				return nil, domain.ErrInvalidShipper
+			}
 		}
 
 		// D1.4: Kiểm tra shipper không quá 5 đơn đang giao (SHIPPING)
