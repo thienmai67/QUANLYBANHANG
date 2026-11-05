@@ -225,6 +225,84 @@ export default function OrderSuccessPage() {
               </div>
             </div>
 
+            {/* Live Delivery Progress Stepper */}
+            <div className="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                  <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                    Tiến Độ Xử Lý &amp; Giao Hàng Trực Tiếp
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Clock className="w-3.5 h-3.5 text-orange-500" />
+                  <span>Dự kiến giao: <strong className="text-slate-900 dark:text-white">{order?.is2h ? 'Trong 2 Giờ' : 'Trong Ngày'}</strong></span>
+                </div>
+              </div>
+
+              {/* 4 Steps Timeline */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 sm:gap-2 relative">
+                {/* Step 1 */}
+                <div className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-emerald-600/20 shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs text-slate-900 dark:text-white">1. Tiếp Nhận Đơn</h3>
+                    <p className="text-[11px] text-slate-400">Đã vào hệ thống TDT</p>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-600/20 shrink-0 animate-pulse">
+                    <Package className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs text-blue-600 dark:text-blue-400">2. Xuất Kho Đóng Gói</h3>
+                    <p className="text-[11px] text-slate-400">Thủ kho đang kiểm đếm</p>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2 opacity-60">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center font-bold text-sm shrink-0 border border-slate-200 dark:border-slate-700">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs text-slate-700 dark:text-slate-300">3. Shipper Di Chuyển</h3>
+                    <p className="text-[11px] text-slate-400">Tài xế giao tận nhà</p>
+                  </div>
+                </div>
+
+                {/* Step 4 */}
+                <div className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2 opacity-60">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center font-bold text-sm shrink-0 border border-slate-200 dark:border-slate-700">
+                    <Banknote className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs text-slate-700 dark:text-slate-300">4. Nhận Hàng &amp; COD</h3>
+                    <p className="text-[11px] text-slate-400">Kiểm tra trước khi trả</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Emergency Hotline Strip */}
+              <div className="p-3.5 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Phone className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0" />
+                  <span>Cần điều chỉnh địa chỉ hoặc giao gấp sự cố?</span>
+                </div>
+                <a
+                  href="tel:19006868"
+                  className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>Hotline Hỗ Trợ 24/7 (1900 6868)</span>
+                </a>
+              </div>
+            </div>
+
             {/* Delivery & Payment Details Card */}
             <div className="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
               <h2 className="font-bold text-base text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">

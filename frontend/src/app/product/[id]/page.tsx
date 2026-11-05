@@ -22,6 +22,7 @@ import {
   ArrowLeft,
   Minus,
   Plus,
+  PackageCheck,
 } from 'lucide-react';
 
 interface ProductDetailData {
@@ -88,6 +89,88 @@ function normalizeProductDetail(raw: any): ProductDetailData {
   };
 }
 
+interface AccessoryItem {
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  image: string;
+}
+
+function getRecommendedAccessories(product: ProductDetailData): AccessoryItem[] {
+  const text = `${product.name} ${product.category} ${product.sku}`.toLowerCase();
+  if (text.includes('ống') || text.includes('upvc') || text.includes('ppr') || text.includes('bình minh') || text.includes('tiền phong')) {
+    return [
+      {
+        id: 'acc-keo-upvc-200g',
+        name: 'Keo dán ống nhựa uPVC Bình Minh (Tuýp 200g)',
+        price: 28000,
+        unit: 'Tuýp',
+        image: '/images/products/ong-binh-minh-1.jpg',
+      },
+      {
+        id: 'acc-bang-tan-cao-su',
+        name: 'Băng tan cao su non quấn ren chống xì nước',
+        price: 6000,
+        unit: 'Cuộn',
+        image: '/images/products/ong-binh-minh-1.jpg',
+      },
+    ];
+  }
+  if (text.includes('dây') || text.includes('cáp') || text.includes('cadivi') || text.includes('điện')) {
+    return [
+      {
+        id: 'acc-bang-keo-nano',
+        name: 'Băng keo cách điện Nano chống cháy 10m',
+        price: 8000,
+        unit: 'Cuộn',
+        image: '/images/products/day-cap-don-1.jpg',
+      },
+      {
+        id: 'acc-ong-ruot-ga-phi16',
+        name: 'Ống gen ruột gà chống cháy luồn dây Φ16 (10m)',
+        price: 35000,
+        unit: 'Cuộn',
+        image: '/images/products/day-cap-don-1.jpg',
+      },
+    ];
+  }
+  if (text.includes('mcb') || text.includes('aptomat') || text.includes('công tắc') || text.includes('ổ cắm') || text.includes('schneider') || text.includes('panasonic')) {
+    return [
+      {
+        id: 'acc-de-am-chu-nhat',
+        name: 'Hộp đế âm tường chữ nhật chống cháy Sino',
+        price: 5000,
+        unit: 'Cái',
+        image: '/images/products/schneider-mcb-1.jpg',
+      },
+      {
+        id: 'acc-but-thu-dien',
+        name: 'Bút thử điện thông minh có đèn báo an toàn',
+        price: 32000,
+        unit: 'Cái',
+        image: '/images/products/schneider-mcb-1.jpg',
+      },
+    ];
+  }
+  return [
+    {
+      id: 'acc-bang-keo-nano',
+      name: 'Băng keo cách điện Nano chuyên dụng',
+      price: 8000,
+      unit: 'Cuộn',
+      image: '/images/products/day-cap-don-1.jpg',
+    },
+    {
+      id: 'acc-gang-tay-bao-ho',
+      name: 'Găng tay sợi bảo hộ thi công cơ điện',
+      price: 12000,
+      unit: 'Đôi',
+      image: '/images/products/schneider-mcb-1.jpg',
+    },
+  ];
+}
+
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -99,6 +182,7 @@ export default function ProductDetailPage() {
   const [notFoundError, setNotFoundError] = useState<boolean>(false);
   const [quantity, setQuantity] = useState<number>(1);
   const [addedFeedback, setAddedFeedback] = useState<boolean>(false);
+  const [selectedAccs, setSelectedAccs] = useState<Record<string, boolean>>({});
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { addItem, setOpenToCheckout } = useCartStore();
@@ -172,6 +256,25 @@ export default function ProductDetailPage() {
       },
       true
     );
+
+    const accessories = getRecommendedAccessories(product);
+    accessories.forEach((acc) => {
+      if (selectedAccs[acc.id]) {
+        addItem(
+          {
+            id: acc.id,
+            sku: acc.id.toUpperCase(),
+            name: acc.name,
+            price: `${acc.price.toLocaleString('vi-VN')} ₫`,
+            unitPrice: acc.price,
+            image: acc.image,
+            quantity: 1,
+          },
+          false
+        );
+      }
+    });
+
     setAddedFeedback(true);
     setTimeout(() => setAddedFeedback(false), 2000);
   };
@@ -199,6 +302,24 @@ export default function ProductDetailPage() {
       },
       false
     );
+
+    const accessories = getRecommendedAccessories(product);
+    accessories.forEach((acc) => {
+      if (selectedAccs[acc.id]) {
+        addItem(
+          {
+            id: acc.id,
+            sku: acc.id.toUpperCase(),
+            name: acc.name,
+            price: `${acc.price.toLocaleString('vi-VN')} ₫`,
+            unitPrice: acc.price,
+            image: acc.image,
+            quantity: 1,
+          },
+          false
+        );
+      }
+    });
 
     router.push('/checkout');
   };
@@ -376,6 +497,77 @@ export default function ProductDetailPage() {
                     ) : null}
                   </div>
                 </div>
+
+                {/* Frequently Bought Together Accessories */}
+                {(() => {
+                  const accessories = getRecommendedAccessories(product);
+                  const selectedAccCount = accessories.filter((a) => selectedAccs[a.id]).length;
+                  const accAddonTotal = accessories
+                    .filter((a) => selectedAccs[a.id])
+                    .reduce((sum, a) => sum + a.price, 0);
+                  const totalWithAccessories = product.basePrice * quantity + accAddonTotal;
+
+                  return (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-amber-600 dark:text-amber-400 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                          <PackageCheck className="w-4 h-4" /> Đừng quên mua kèm phụ kiện
+                        </span>
+                        <span className="text-[11px] text-slate-500">Tránh thiếu đồ khi thợ đến lắp</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {accessories.map((acc) => {
+                          const isChecked = !!selectedAccs[acc.id];
+                          return (
+                            <label
+                              key={acc.id}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                                isChecked
+                                  ? 'bg-white dark:bg-slate-900 border-amber-500 shadow-sm'
+                                  : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    setSelectedAccs((prev) => ({
+                                      ...prev,
+                                      [acc.id]: e.target.checked,
+                                    }));
+                                  }}
+                                  className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                                />
+                                <div>
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                    {acc.name}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    Quy cách: 1 {acc.unit}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400 shrink-0 ml-2">
+                                +{acc.price.toLocaleString('vi-VN')} ₫
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+
+                      {accAddonTotal > 0 && (
+                        <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <span>Tổng tiền gồm {selectedAccCount} phụ kiện:</span>
+                          <span className="text-sm font-black font-mono text-orange-500">
+                            {totalWithAccessories.toLocaleString('vi-VN')} ₫
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Quantity + Action Buttons */}
                 <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-5">

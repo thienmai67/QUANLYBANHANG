@@ -14,8 +14,33 @@ interface ChatMessageItemProps {
 export default function ChatMessageItem({ message }: ChatMessageItemProps) {
   const isUser = message.sender === 'user';
   const addItem = useCartStore((state) => state.addItem);
+  const openCartDrawer = useCartStore((state) => state.setIsOpen);
   const toast = useToast();
   const [addedSkuMap, setAddedSkuMap] = useState<Record<string, boolean>>({});
+
+  const handleAddAllProducts = () => {
+    if (!message.products || message.products.length === 0) return;
+    if (typeof window !== 'undefined' && !getAccessToken()) {
+      toast.warning('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng');
+      return;
+    }
+    message.products.forEach((prod) => {
+      addItem(
+        {
+          id: prod.id || prod.sku,
+          sku: prod.sku,
+          name: prod.name,
+          price: `${Math.round(prod.finalPrice).toLocaleString('vi-VN')} ₫`,
+          unitPrice: prod.finalPrice,
+          image: prod.image || '/images/products/day-cap-don-1.jpg',
+          quantity: 1,
+        },
+        false
+      );
+    });
+    openCartDrawer(true);
+    toast.success(`Đã thêm tất cả ${message.products.length} sản phẩm gợi ý vào giỏ hàng!`);
+  };
 
   const handleAddToCart = (prod: ChatProductItem) => {
     if (typeof window !== 'undefined' && !getAccessToken()) {
@@ -242,9 +267,21 @@ export default function ChatMessageItem({ message }: ChatMessageItemProps) {
         {/* Product Cards Grid if Bot message has products */}
         {!isUser && message.products && message.products.length > 0 && (
           <div className="mt-3 w-full space-y-2.5">
-            <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 px-1">
-              <Package className="w-3.5 h-3.5 text-blue-500" />
-              Sản phẩm đề xuất trong kho ({message.products.length}):
+            <div className="flex items-center justify-between px-1">
+              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <Package className="w-3.5 h-3.5 text-blue-500" />
+                Sản phẩm đề xuất trong kho ({message.products.length}):
+              </div>
+              {message.products.length > 1 && (
+                <button
+                  type="button"
+                  onClick={handleAddAllProducts}
+                  className="px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-[10px] shadow-sm flex items-center gap-1 transition-all active:scale-95"
+                >
+                  <ShoppingCart className="w-3 h-3" />
+                  <span>Thêm cả {message.products.length} món</span>
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
               {message.products.map((prod) => {

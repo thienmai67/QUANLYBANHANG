@@ -172,8 +172,51 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          /* Two Column Layout on Desktop, 1 Column on Mobile */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="space-y-6">
+            {/* Free Shipping Progress Indicator */}
+            {(() => {
+              const freeShipThreshold = 500000;
+              const isEligible = totalPrice >= freeShipThreshold;
+              const remaining = Math.max(0, freeShipThreshold - totalPrice);
+              const progressPercent = Math.min(100, Math.round((totalPrice / freeShipThreshold) * 100));
+
+              return (
+                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
+                    <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
+                      <Truck className={`w-4 h-4 ${isEligible ? 'text-emerald-500' : 'text-orange-500'}`} />
+                      {isEligible ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                          🎉 Đơn hàng của bạn đã đủ điều kiện MIỄN PHÍ VẬN CHUYỂN!
+                        </span>
+                      ) : (
+                        <span>
+                          Mua thêm <strong className="text-orange-500 font-mono font-black">{remaining.toLocaleString('vi-VN')} ₫</strong> để nhận <strong className="text-emerald-600 dark:text-emerald-400">Miễn Phí Giao Hàng</strong>!
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-mono text-xs font-bold text-slate-400 hidden sm:inline">
+                      {progressPercent}%
+                    </span>
+                  </div>
+
+                  {/* Progress track */}
+                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isEligible
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                      }`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Two Column Layout on Desktop, 1 Column on Mobile */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Column: Product Table (8 cols on desktop) */}
             <div className="lg:col-span-8 space-y-4">
               {/* Product List Card */}
@@ -384,6 +427,7 @@ export default function CartPage() {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         )}
       </main>
