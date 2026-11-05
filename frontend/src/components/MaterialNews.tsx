@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { ChevronRight, Calendar, ArrowRight, BookOpen } from "lucide-react";
 import { MATERIAL_NEWS } from "@/data/materialData";
 
@@ -17,13 +18,13 @@ export default function MaterialNews() {
             TIN TỨC SỰ KIỆN & TÀI NGUYÊN KỸ THUẬT
           </h2>
         </div>
-        <a
-          href="#news"
+        <Link
+          href="/cong-trinh"
           className="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400 hover:text-orange-600 flex items-center gap-1 transition-colors"
         >
-          <span>Xem tất cả</span>
+          <span>Xem cẩm nang combo sửa nhà</span>
           <ChevronRight className="w-4 h-4" />
-        </a>
+        </Link>
       </div>
 
       {/* News Grid (3 items) */}

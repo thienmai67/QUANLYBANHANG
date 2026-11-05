@@ -92,6 +92,12 @@ export default function ChatBotWidget() {
 
   // Load project context from localStorage (Cải tiến 2)
   useEffect(() => {
+    const handleOpen = () => {
+      setIsOpen(true);
+      setIsMinimized(false);
+    };
+    window.addEventListener('open-me-chat', handleOpen);
+
     try {
       const savedContext = localStorage.getItem(PROJECT_CONTEXT_KEY);
       if (savedContext) {
@@ -103,6 +109,8 @@ export default function ChatBotWidget() {
     } catch {
       // ignore
     }
+
+    return () => window.removeEventListener('open-me-chat', handleOpen);
   }, []);
 
   // Load chat history from localStorage

@@ -28,8 +28,8 @@ export default function MaterialWhyUs(_props: MaterialWhyUsProps) {
     },
     {
       icon: <BadgeDollarSign className="w-6 h-6 text-white" />,
-      title: "Chiết Khấu Đại Lý Cấp 1",
-      desc: "Hợp đồng phân phối trực tiếp từ nhà máy, áp dụng mức chiết khấu tối đa (-18% Bình Minh, -22% Cadivi, -15% Panasonic) cho nhà thầu.",
+      title: "Giá Bán Lẻ Minh Bạch & Tiết Kiệm",
+      desc: "Giá bán lẻ niêm yết rõ ràng theo từng mét dây, cây ống, cái CB, cam kết rẻ hơn tiệm điện nước nhỏ lẻ khu vực.",
     },
     {
       icon: <Truck className="w-6 h-6 text-white" />,
@@ -70,7 +70,7 @@ export default function MaterialWhyUs(_props: MaterialWhyUsProps) {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Chính sách công nợ & chiết khấu đại lý Cấp 1 tối ưu cho nhà thầu</span>
+                <span>Đổi trả linh hoạt trong 7 ngày nếu mua nhầm kích thước (phi ống, cỡ dây)</span>
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { Building2, ShieldCheck, Mail, MapPin } from "lucide-react";
 import { MATERIAL_PARTNERS } from "@/data/materialData";
 
@@ -35,7 +36,7 @@ export default function MaterialFooter() {
             </div>
             <p className="text-slate-500 font-medium text-sm leading-relaxed max-w-xs">
               Chất Lượng Thật. Uy Tín Thật.<br />
-              Nền tảng phân phối sỉ vật tư điện nước cơ điện M&amp;E chính hãng hàng đầu Việt Nam.
+              Hệ thống bán lẻ vật tư điện nước cơ điện M&amp;E chính hãng giao tận nhà hàng đầu Việt Nam.
             </p>
           </div>
 
@@ -46,7 +47,7 @@ export default function MaterialFooter() {
               <li><a href="/shop" className="hover:text-blue-600 transition-colors">Tra Cứu Bảng Giá Vật Tư</a></li>
               <li><a href="/shop?cat=D%C3%A2y%20%26%20C%C3%A1p%20%C4%90i%E1%BB%87n" className="hover:text-blue-600 transition-colors">Dây &amp; Cáp Điện Cadivi</a></li>
               <li><a href="/shop?cat=%E1%BB%90ng%20%26%20Ph%E1%BB%A5%20Ki%E1%BB%87n%20Nh%E1%BB%B1a" className="hover:text-blue-600 transition-colors">Ống &amp; Phụ Kiện Nhựa Bình Minh</a></li>
-              <li><a href="/cong-trinh" className="hover:text-blue-600 transition-colors">Gói Vật Tư Công Trình</a></li>
+              <li><a href="/cong-trinh" className="hover:text-blue-600 transition-colors">Combo Vật Tư Sửa Nhà</a></li>
             </ul>
           </div>
 
@@ -54,10 +55,10 @@ export default function MaterialFooter() {
           <div className="space-y-6">
             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Tiêu Chuẩn &amp; Pháp Lý</h4>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400 font-medium">
-              <li className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500"/> Chứng Nhận CO/CQ Chính Hãng</li>
-              <li>Hóa Đơn GTGT (VAT) Hợp Lệ</li>
-              <li>Tiêu Chuẩn TCVN / IEC</li>
-              <li>Chính Sách Công Nợ Nhà Thầu</li>
+              <li><Link href="/shop" className="hover:text-blue-600 transition-colors flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500"/> 100% Hàng Chính Hãng CO/CQ</Link></li>
+              <li><Link href="/shop" className="hover:text-blue-600 transition-colors">Hóa Đơn Điện Tử Đầy Đủ</Link></li>
+              <li><Link href="/cong-trinh" className="hover:text-blue-600 transition-colors">Quy Chuẩn An Toàn TCVN / IEC</Link></li>
+              <li><Link href="/shop" className="hover:text-blue-600 transition-colors text-emerald-600 dark:text-emerald-400 font-semibold">Đổi Trả Dễ Dàng Trong 7 Ngày</Link></li>
             </ul>
           </div>
 

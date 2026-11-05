@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useRef, useEffect, useMemo } from "react";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import React, { useEffect, useMemo } from "react";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import * as motion from "motion/react-client";
 import { useAdminStore } from "@/store/useAdminStore";
 
@@ -39,7 +40,6 @@ export default function MaterialCategoryGrid({
 }: {
   onSelectCategory?: (id: string) => void;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const products = useAdminStore((state) => state.products);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
 
@@ -59,13 +59,6 @@ export default function MaterialCategoryGrid({
     });
   }, [products]);
 
-  const scrollLeft = () => {
-    if (scrollRef.current) scrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
-  };
-  const scrollRight = () => {
-    if (scrollRef.current) scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
-  };
-
   return (
     <section className="relative w-full overflow-hidden">
       <div className="flex items-center justify-between mb-8">
@@ -73,26 +66,16 @@ export default function MaterialCategoryGrid({
           Danh Mục <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">Vật Tư M&amp;E</span>
         </h2>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={scrollLeft}
-            className="p-2 rounded-full border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-          </button>
-          <button
-            onClick={scrollRight}
-            className="p-2 rounded-full border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-          >
-            <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-          </button>
-        </div>
+        <Link
+          href="/shop"
+          className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 transition-colors"
+        >
+          <span>Xem tất cả danh mục</span>
+          <ChevronRight className="w-4 h-4" />
+        </Link>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pb-4"
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pb-4">
         {categoriesWithCounts.map((cat, idx) => (
           <motion.div
             key={cat.id}

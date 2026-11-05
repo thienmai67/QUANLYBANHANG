@@ -255,32 +255,31 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                 href="/shop"
                 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
-                <Package className="w-4 h-4" /> Mua Sản Phẩm Lẻ
+                <Package className="w-4 h-4 text-blue-600" /> Mua Sản Phẩm Lẻ
               </Link>
               <Link
                 href="/cong-trinh"
-                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
               >
-                <Building2 className="w-4 h-4" /> Gói Công Trình
+                <Building2 className="w-4 h-4 text-orange-500" /> Combo Sửa Nhà
               </Link>
               <Link
-                href="/shop"
+                href="/cart"
                 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
-                <Wrench className="w-4 h-4" /> Công Cụ M&amp;E
+                <ShoppingCart className="w-4 h-4 text-blue-500" /> Giỏ Hàng
               </Link>
-              <Link
-                href="/shop"
-                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('open-me-chat'));
+                  }
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 hover:text-orange-600 transition-colors"
               >
-                <ShieldCheck className="w-4 h-4" /> Thương Hiệu chính hãng
-              </Link>
-              <Link
-                href="/shop"
-                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
-                <Newspaper className="w-4 h-4" /> Bản Tin &amp; Tiêu Chuẩn
-              </Link>
+                <Zap className="w-4 h-4 text-amber-500 fill-amber-500/20" /> Trợ Lý Kỹ Thuật AI
+              </button>
             </nav>
 
             {/* Right Trust Pill */}
@@ -300,15 +299,34 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center gap-2"
               >
-                <Package className="w-4 h-4" /> Mua Bán Lẻ
+                <Package className="w-4 h-4 text-blue-600" /> Mua Bán Lẻ
               </Link>
               <Link
                 href="/cong-trinh"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center gap-2"
               >
-                <Building2 className="w-4 h-4" /> Gói Công Trình
+                <Building2 className="w-4 h-4 text-orange-500" /> Combo Sửa Nhà
               </Link>
+              <Link
+                href="/cart"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center gap-2"
+              >
+                <ShoppingCart className="w-4 h-4 text-blue-500" /> Giỏ Hàng
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('open-me-chat'));
+                  }
+                }}
+                className="p-3 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 flex items-center justify-center gap-2 font-bold"
+              >
+                <Zap className="w-4 h-4 text-amber-500" /> Chat Tư Vấn AI
+              </button>
             </div>
           </div>
         )}

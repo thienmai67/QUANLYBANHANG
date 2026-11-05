@@ -3,7 +3,8 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import { useAdminStore } from "@/store/useAdminStore";
-import { Eye, Package } from "lucide-react";
+import { useCartStore } from "@/store/useCartStore";
+import { ShoppingBag, Package } from "lucide-react";
 import * as motion from "motion/react-client";
 
 interface MaterialProductShowcaseProps {
@@ -14,6 +15,7 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
   const adminProducts = useAdminStore((state) => state.products);
   const productsLoading = useAdminStore((state) => state.productsLoading);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
+  const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
     fetchProducts();
@@ -39,6 +41,7 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
       brand: p.brand || "Cadivi",
       category: p.category || "CABLE",
       price: priceStr,
+      rawPrice: rawPrice,
       unit: p.unit || "Bộ",
       image: p.image || "/images/products/day-cap-don-1.jpg",
       badge: p.badge || "MỚI",
@@ -99,14 +102,32 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
                   alt={prod.name} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                {/* Quick Actions overlay */}
+                {/* Quick Add overlay */}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
-                  <div 
-                    className="p-3 bg-white text-slate-900 rounded-full transition-transform hover:scale-110 active:scale-95"
-                    title="Xem chi tiết"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      addItem(
+                        {
+                          id: prod.id,
+                          sku: prod.sku,
+                          name: prod.name,
+                          price: prod.price,
+                          unitPrice: prod.rawPrice,
+                          image: prod.image,
+                          quantity: 1,
+                        },
+                        true
+                      );
+                    }}
+                    className="py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-lg shadow-orange-500/30 flex items-center justify-center gap-1.5 transition-all transform hover:scale-105 active:scale-95"
+                    title="Thêm nhanh vào giỏ"
                   >
-                    <Eye className="w-5 h-5" />
-                  </div>
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>+ Thêm Vào Giỏ</span>
+                  </button>
                 </div>
               </div>
 
