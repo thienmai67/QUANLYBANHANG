@@ -924,7 +924,7 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 
 		var basePrice float64
 		var stockQuantity int
-		err := tx.QueryRowContext(ctx, `SELECT base_price, COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1`, item.ProductID).Scan(&basePrice, &stockQuantity)
+		err := tx.QueryRowContext(ctx, `SELECT base_price, COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1 AND is_active = TRUE`, item.ProductID).Scan(&basePrice, &stockQuantity)
 		if err != nil {
 			_ = tx.Rollback()
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1173,10 +1173,18 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 
 		for _, it := range reqItems {
 			var currentStock int
-			err := tx.QueryRowContext(ctx, `SELECT COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1 FOR UPDATE`, it.productID).Scan(&currentStock)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			var isActive bool
+			err := tx.QueryRowContext(ctx, `SELECT COALESCE(stock_quantity, 0), is_active FROM me_supplies.products WHERE id = $1 FOR UPDATE`, it.productID).Scan(&currentStock, &isActive)
+			if err != nil {
 				_ = tx.Rollback()
+				if errors.Is(err, sql.ErrNoRows) {
+					return nil, domain.ErrProductNotFound
+				}
 				return nil, fmt.Errorf("check stock for product %s: %w", it.productID, err)
+			}
+			if !isActive {
+				_ = tx.Rollback()
+				return nil, domain.ErrProductNotFound
 			}
 			if float64(currentStock) < it.qty {
 				_ = tx.Rollback()
@@ -1680,6 +1688,26 @@ func (r *productRepository) UpdateOrderPaymentLink(ctx context.Context, orderID 
 }
 
 func (r *productRepository) UpdateOrderPaymentStatus(ctx context.Context, orderID uuid.UUID, paymentStatus domain.PaymentStatus, paidAt *time.Time) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	var order domain.Order
+	err = tx.GetContext(ctx, &order, "SELECT id, status, payment_status FROM me_supplies.orders WHERE id = $1 FOR UPDATE", orderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.ErrOrderNotFound
+		}
+		return fmt.Errorf("lock order: %w", err)
+	}
+
+	targetPaymentStatus := paymentStatus
+	if paymentStatus == domain.PaymentStatusPaid && order.Status == domain.OrderStatusCancelled {
+		targetPaymentStatus = domain.PaymentStatusRefundPending
+	}
+
 	query := `
 		UPDATE me_supplies.orders
 		SET payment_status = $1,
@@ -1687,15 +1715,69 @@ func (r *productRepository) UpdateOrderPaymentStatus(ctx context.Context, orderI
 		    updated_at = NOW()
 		WHERE id = $3
 	`
-	res, err := r.db.ExecContext(ctx, query, paymentStatus, paidAt, orderID)
+	_, err = tx.ExecContext(ctx, query, targetPaymentStatus, paidAt, orderID)
 	if err != nil {
 		return fmt.Errorf("update order payment status: %w", err)
 	}
+
+	return tx.Commit()
+}
+
+func (r *productRepository) ProcessPayOSWebhook(ctx context.Context, orderCode int64, rawPayload []byte) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	insertEvent := `
+		INSERT INTO me_supplies.payment_webhook_events (order_code, event_type, payload)
+		VALUES ($1, 'PAYOS', $2)
+		ON CONFLICT (order_code, event_type) DO NOTHING
+	`
+	res, err := tx.ExecContext(ctx, insertEvent, orderCode, rawPayload)
+	if err != nil {
+		return fmt.Errorf("record webhook event: %w", err)
+	}
 	rowsAffected, _ := res.RowsAffected()
 	if rowsAffected == 0 {
-		return domain.ErrOrderNotFound
+		return nil
 	}
-	return nil
+
+	var order domain.Order
+	queryOrder := `
+		SELECT id, status, payment_status, total_amount
+		FROM me_supplies.orders
+		WHERE payos_order_code = $1
+		FOR UPDATE
+	`
+	err = tx.GetContext(ctx, &order, queryOrder, orderCode)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return tx.Commit()
+		}
+		return fmt.Errorf("lock order by payos_order_code: %w", err)
+	}
+
+	targetPaymentStatus := domain.PaymentStatusPaid
+	if order.Status == domain.OrderStatusCancelled {
+		targetPaymentStatus = domain.PaymentStatusRefundPending
+	}
+
+	if order.PaymentStatus != domain.PaymentStatusPaid && order.PaymentStatus != domain.PaymentStatusRefunded {
+		updateOrder := `
+			UPDATE me_supplies.orders
+			SET payment_status = $1,
+			    paid_at = NOW(),
+			    updated_at = NOW()
+			WHERE id = $2
+		`
+		if _, err := tx.ExecContext(ctx, updateOrder, targetPaymentStatus, order.ID); err != nil {
+			return fmt.Errorf("update order payment status via webhook: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (r *productRepository) GetPendingBankTransferOrdersForCheck(ctx context.Context, olderThan time.Duration) ([]domain.Order, error) {

@@ -2,6 +2,9 @@ package handler
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"context"
 	"encoding/json"
 	"errors"
@@ -19,6 +22,7 @@ import (
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/auth"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/middleware"
+	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/payos"
 )
 
 type mockProductRepo struct {
@@ -323,8 +327,30 @@ func (m *mockProductRepo) UpdateOrderPaymentStatus(ctx context.Context, orderID 
 	defer m.Unlock()
 	for i := range m.orders {
 		if m.orders[i].ID == orderID {
-			m.orders[i].PaymentStatus = paymentStatus
+			targetStatus := paymentStatus
+			if paymentStatus == domain.PaymentStatusPaid && m.orders[i].Status == domain.OrderStatusCancelled {
+				targetStatus = domain.PaymentStatusRefundPending
+			}
+			m.orders[i].PaymentStatus = targetStatus
 			m.orders[i].PaidAt = paidAt
+			return nil
+		}
+	}
+	return nil
+}
+
+func (m *mockProductRepo) ProcessPayOSWebhook(ctx context.Context, orderCode int64, rawPayload []byte) error {
+	m.Lock()
+	defer m.Unlock()
+	for i := range m.orders {
+		if m.orders[i].PayOSOrderCode != nil && *m.orders[i].PayOSOrderCode == orderCode {
+			now := time.Now()
+			m.orders[i].PaidAt = &now
+			if m.orders[i].Status == domain.OrderStatusCancelled {
+				m.orders[i].PaymentStatus = domain.PaymentStatusRefundPending
+			} else {
+				m.orders[i].PaymentStatus = domain.PaymentStatusPaid
+			}
 			return nil
 		}
 	}
@@ -1113,5 +1139,108 @@ func TestCreateOrder_DBError(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "failed to create order") {
 		t.Errorf("expected 'failed to create order' message, got %s", rr.Body.String())
+	}
+}
+
+func TestHandlePayOSWebhook(t *testing.T) {
+	repo := newMockProductRepo()
+	orderCode := int64(987654321)
+	orderID := uuid.New()
+	repo.orders = []domain.Order{
+		{
+			ID:             orderID,
+			OrderNumber:    "ORD-123456",
+			Status:         domain.OrderStatusPending,
+			PaymentStatus:  domain.PaymentStatusPending,
+			PayOSOrderCode: &orderCode,
+		},
+	}
+
+	checksumKey := "test-webhook-checksum-12345"
+	payosClient := payos.NewClient("test-client", "test-key", checksumKey)
+	h := New(repo)
+	h.SetPayOSClient(payosClient)
+
+	// 1. Success case
+	webhookData := map[string]any{
+		"orderCode": orderCode,
+		"amount":    100000,
+		"code":      "00",
+		"desc":      "success",
+	}
+	hMac := hmac.New(sha256.New, []byte(checksumKey))
+	hMac.Write([]byte("amount=100000&code=00&desc=success&orderCode=987654321"))
+	validSig := hex.EncodeToString(hMac.Sum(nil))
+
+	payload := map[string]any{
+		"code":      "00",
+		"desc":      "success",
+		"data":      webhookData,
+		"signature": validSig,
+	}
+	bodyBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/payment/payos-webhook", bytes.NewReader(bodyBytes))
+	rr := httptest.NewRecorder()
+	h.HandlePayOSWebhook(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d (body: %s)", rr.Code, rr.Body.String())
+	}
+	if repo.orders[0].PaymentStatus != domain.PaymentStatusPaid {
+		t.Errorf("expected order payment status PAID, got %s", repo.orders[0].PaymentStatus)
+	}
+
+	// 2. Invalid signature
+	payloadInvalidSig := map[string]any{
+		"code":      "00",
+		"desc":      "success",
+		"data":      webhookData,
+		"signature": "bad-signature",
+	}
+	badBody, _ := json.Marshal(payloadInvalidSig)
+	reqBad := httptest.NewRequest(http.MethodPost, "/api/v1/payment/payos-webhook", bytes.NewReader(badBody))
+	rrBad := httptest.NewRecorder()
+	h.HandlePayOSWebhook(rrBad, reqBad)
+
+	if rrBad.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400 for bad signature, got %d", rrBad.Code)
+	}
+
+	// 3. Cancelled order transitioned to REFUND_PENDING
+	orderCodeCancelled := int64(888888888)
+	repo.orders = append(repo.orders, domain.Order{
+		ID:             uuid.New(),
+		OrderNumber:    "ORD-CANCELLED",
+		Status:         domain.OrderStatusCancelled,
+		PaymentStatus:  domain.PaymentStatusCancelled,
+		PayOSOrderCode: &orderCodeCancelled,
+	})
+
+	hMac2 := hmac.New(sha256.New, []byte(checksumKey))
+	hMac2.Write([]byte("amount=100000&code=00&desc=success&orderCode=888888888"))
+	sig2 := hex.EncodeToString(hMac2.Sum(nil))
+
+	payloadCancelled := map[string]any{
+		"code": "00",
+		"desc": "success",
+		"data": map[string]any{
+			"orderCode": orderCodeCancelled,
+			"amount":    100000,
+			"code":      "00",
+			"desc":      "success",
+		},
+		"signature": sig2,
+	}
+	bodyCan, _ := json.Marshal(payloadCancelled)
+	reqCan := httptest.NewRequest(http.MethodPost, "/api/v1/payment/payos-webhook", bytes.NewReader(bodyCan))
+	rrCan := httptest.NewRecorder()
+	h.HandlePayOSWebhook(rrCan, reqCan)
+
+	if rrCan.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rrCan.Code)
+	}
+	if repo.orders[1].PaymentStatus != domain.PaymentStatusRefundPending {
+		t.Errorf("expected order payment status REFUND_PENDING, got %s", repo.orders[1].PaymentStatus)
 	}
 }

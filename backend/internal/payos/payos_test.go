@@ -95,3 +95,44 @@ func TestClient_GetPaymentStatus(t *testing.T) {
 		t.Errorf("expected status PAID, got %s", status.Status)
 	}
 }
+
+func TestClient_VerifyWebhookSignature(t *testing.T) {
+	client := NewClient("test-client", "test-key", "secret-checksum-key")
+
+	data := map[string]any{
+		"orderCode": int64(123456789),
+		"amount":    250000,
+		"desc":      "success",
+		"code":      "00",
+	}
+
+	h := hmac.New(sha256.New, []byte("secret-checksum-key"))
+	h.Write([]byte("amount=250000&code=00&desc=success&orderCode=123456789"))
+	validSig := hex.EncodeToString(h.Sum(nil))
+
+	if !client.VerifyWebhookSignature(data, validSig) {
+		t.Errorf("expected valid signature to verify successfully")
+	}
+
+	// Invalid signature
+	if client.VerifyWebhookSignature(data, "invalid-sig") {
+		t.Errorf("expected invalid signature to fail verification")
+	}
+
+	// Tampered data
+	tamperedData := map[string]any{
+		"orderCode": int64(123456789),
+		"amount":    500000,
+		"desc":      "success",
+		"code":      "00",
+	}
+	if client.VerifyWebhookSignature(tamperedData, validSig) {
+		t.Errorf("expected tampered data to fail verification")
+	}
+
+	// Empty checksum key client
+	noKeyClient := NewClient("test-client", "test-key", "")
+	if noKeyClient.VerifyWebhookSignature(data, validSig) {
+		t.Errorf("expected client with empty checksum key to fail verification")
+	}
+}

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"errors"
 	"fmt"
 	"math"
@@ -404,21 +405,27 @@ func (h *Handler) ListOrders(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if claims.Role == domain.RoleShipper {
-			if parsedID, err := uuid.Parse(claims.UserID); err == nil {
-				orders, err := h.productRepo.ListOrdersByShipper(req.Context(), parsedID, limit, offset)
-				if err != nil {
-					writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn đơn hàng")
-					return
-				}
-				w.Header().Set("Content-Type", "application/json")
-				_ = json.NewEncoder(w).Encode(orders)
+			parsedID, err := uuid.Parse(claims.UserID)
+			if err != nil {
+				writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID shipper không hợp lệ")
 				return
 			}
+			orders, err := h.productRepo.ListOrdersByShipper(req.Context(), parsedID, limit, offset)
+			if err != nil {
+				writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn đơn hàng")
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(orders)
+			return
 		}
 		if claims.Role == domain.RoleCustomer {
-			if parsedID, err := uuid.Parse(claims.UserID); err == nil {
-				customerID = &parsedID
+			parsedID, err := uuid.Parse(claims.UserID)
+			if err != nil {
+				writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID khách hàng không hợp lệ")
+				return
 			}
+			customerID = &parsedID
 		}
 	}
 
@@ -511,6 +518,10 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if strings.TrimSpace(order.CustomerName) == "" {
+		order.CustomerName = "Khách hàng"
+	}
+
 	if order.ID == uuid.Nil {
 		order.ID = uuid.New()
 	}
@@ -527,6 +538,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 	order.PodConfirmedAt = nil
 	order.CODCollected = 0
 	order.PayOSOrderCode = nil
+	order.Deadline2H = nil
 
 	if order.PaymentMethod != nil {
 		pm := strings.ToUpper(strings.TrimSpace(*order.PaymentMethod))
@@ -703,6 +715,14 @@ func (h *Handler) UpdateOrderStatus(w http.ResponseWriter, req *http.Request) {
 			writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi xử lý cập nhật trạng thái đơn hàng")
 		}
 		return
+	}
+
+	if updatedOrder.Status == domain.OrderStatusCancelled && updatedOrder.PayOSOrderCode != nil && *updatedOrder.PayOSOrderCode > 0 && h.payosClient != nil {
+		cancelReason := "Đơn hàng đã bị hủy"
+		if updatedOrder.CancellationReason != nil && strings.TrimSpace(*updatedOrder.CancellationReason) != "" {
+			cancelReason = *updatedOrder.CancellationReason
+		}
+		_ = h.payosClient.CancelPayment(req.Context(), *updatedOrder.PayOSOrderCode, cancelReason)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -965,8 +985,8 @@ func (h *Handler) CreatePaymentLink(w http.ResponseWriter, req *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "ORDER_DELIVERED", "Đơn hàng đã giao thành công")
 		return
 	}
-	if order.PaymentStatus == domain.PaymentStatusPaid {
-		writeAPIError(w, http.StatusBadRequest, "ALREADY_PAID", "Đơn hàng đã được thanh toán")
+	if order.PaymentStatus == domain.PaymentStatusPaid || order.PaymentStatus == domain.PaymentStatusRefundPending || order.PaymentStatus == domain.PaymentStatusRefunded {
+		writeAPIError(w, http.StatusBadRequest, "ALREADY_PAID", "Đơn hàng đã được thanh toán hoặc đang chờ xử lý hoàn tiền")
 		return
 	}
 
@@ -1220,4 +1240,65 @@ func (h *Handler) MarkPaid(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(updated)
+}
+
+func (h *Handler) HandlePayOSWebhook(w http.ResponseWriter, req *http.Request) {
+	if h.payosClient == nil {
+		writeAPIError(w, http.StatusInternalServerError, "CONFIG_ERROR", "Dịch vụ thanh toán chưa được cấu hình")
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "BAD_REQUEST", "Không thể đọc dữ liệu webhook")
+		return
+	}
+	defer req.Body.Close()
+
+	var payload payos.WebhookPayload
+	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_JSON", "Định dạng JSON webhook không hợp lệ")
+		return
+	}
+
+	if payload.Signature == "" || payload.Data == nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_PAYLOAD", "Thiếu chữ ký hoặc dữ liệu webhook")
+		return
+	}
+
+	if !h.payosClient.VerifyWebhookSignature(payload.Data, payload.Signature) {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_SIGNATURE", "Chữ ký webhook PayOS không hợp lệ")
+		return
+	}
+
+	var orderCode int64
+	switch v := payload.Data["orderCode"].(type) {
+	case float64:
+		orderCode = int64(v)
+	case int64:
+		orderCode = v
+	case int:
+		orderCode = int64(v)
+	case json.Number:
+		orderCode, _ = v.Int64()
+	case string:
+		orderCode, _ = strconv.ParseInt(v, 10, 64)
+	}
+
+	if orderCode <= 0 {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_ORDER_CODE", "Mã đơn hàng PayOS không hợp lệ")
+		return
+	}
+
+	if err := h.productRepo.ProcessPayOSWebhook(req.Context(), orderCode, bodyBytes); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi xử lý xác nhận thanh toán")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"success": true,
+		"message": "Webhook processed successfully",
+	})
 }

@@ -136,6 +136,8 @@ func main() {
 		r.Get("/brands", productHandler.ListBrands)
 		r.Get("/categories", productHandler.ListCategories)
 		r.Post("/chat", chatHandler.HandleChat)
+		r.Post("/payment/payos-webhook", productHandler.HandlePayOSWebhook)
+		r.Post("/payos/webhook", productHandler.HandlePayOSWebhook)
 
 		// Authenticated Routes (Any Logged In User / Customer)
 		r.Group(func(r chi.Router) {
@@ -457,6 +459,17 @@ CREATE TABLE IF NOT EXISTS me_supplies.shipper_applications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_shipper_applications_status ON me_supplies.shipper_applications(status);
+CREATE INDEX IF NOT EXISTS idx_shipper_applications_phone ON me_supplies.shipper_applications(phone);
+
+CREATE TABLE IF NOT EXISTS me_supplies.payment_webhook_events (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_code   BIGINT NOT NULL,
+    event_type   VARCHAR(50) NOT NULL DEFAULT 'PAYOS',
+    payload      JSONB NOT NULL,
+    processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_payment_webhook_order_event UNIQUE (order_code, event_type)
+);
+CREATE INDEX IF NOT EXISTS idx_payment_webhook_events_order ON me_supplies.payment_webhook_events(order_code);
 
 CREATE TABLE IF NOT EXISTS me_supplies.shipper_email_pool (
     email            VARCHAR(255) PRIMARY KEY,

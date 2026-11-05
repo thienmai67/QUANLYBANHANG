@@ -84,7 +84,7 @@ func (r *userRepository) UpdateProfile(ctx context.Context, id uuid.UUID, fullNa
 		UPDATE me_supplies.users
 		SET full_name = $1, phone = $2, avatar_url = COALESCE($3, avatar_url), updated_at = NOW()
 		WHERE id = $4
-		RETURNING id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, created_at, updated_at`
+		RETURNING id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, is_active, must_change_password, created_at, updated_at`
 
 	var user domain.User
 	if err := r.db.GetContext(ctx, &user, query, fullName, phone, avatarURL, id); err != nil {

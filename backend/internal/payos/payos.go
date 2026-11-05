@@ -11,6 +11,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -71,6 +74,69 @@ type PaymentStatusData struct {
 	CreatedAt          string `json:"createdAt"`
 	CanceledAt         string `json:"canceledAt,omitempty"`
 	CancellationReason string `json:"cancellationReason,omitempty"`
+}
+
+type WebhookPayload struct {
+	Code      string         `json:"code"`
+	Desc      string         `json:"desc"`
+	Data      map[string]any `json:"data"`
+	Signature string         `json:"signature"`
+}
+
+func formatWebhookValue(val any) string {
+	if val == nil {
+		return ""
+	}
+	switch v := val.(type) {
+	case string:
+		return v
+	case int:
+		return strconv.Itoa(v)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case float64:
+		if v == float64(int64(v)) {
+			return strconv.FormatInt(int64(v), 10)
+		}
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case json.Number:
+		return v.String()
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func (c *Client) VerifyWebhookSignature(data map[string]any, signature string) bool {
+	if c.ChecksumKey == "" || len(data) == 0 || signature == "" {
+		return false
+	}
+
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		if k == "signature" {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var parts []string
+	for _, k := range keys {
+		valStr := formatWebhookValue(data[k])
+		parts = append(parts, fmt.Sprintf("%s=%s", k, valStr))
+	}
+	dataStr := strings.Join(parts, "&")
+
+	h := hmac.New(sha256.New, []byte(c.ChecksumKey))
+	h.Write([]byte(dataStr))
+	expectedSig := hex.EncodeToString(h.Sum(nil))
+
+	return hmac.Equal([]byte(expectedSig), []byte(signature))
 }
 
 func (c *Client) GenerateSignature(amount int, cancelURL, description string, orderCode int64, returnURL string) string {

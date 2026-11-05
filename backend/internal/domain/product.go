@@ -286,6 +286,7 @@ type ProductRepository interface {
 	GetUnitConversion(ctx context.Context, fromUnitID, toUnitID uuid.UUID) (*UnitConversion, error)
 	UpdateOrderPaymentLink(ctx context.Context, orderID uuid.UUID, payosOrderCode int64, checkoutURL string) error
 	UpdateOrderPaymentStatus(ctx context.Context, orderID uuid.UUID, paymentStatus PaymentStatus, paidAt *time.Time) error
+	ProcessPayOSWebhook(ctx context.Context, orderCode int64, rawPayload []byte) error
 	GetPendingBankTransferOrdersForCheck(ctx context.Context, olderThan time.Duration) ([]Order, error)
 	CancelTimedOutBankTransferOrders(ctx context.Context, olderThan time.Duration) (int64, error)
 }

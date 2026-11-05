@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"regexp"
 	"errors"
 	"net/http"
 	"strings"
@@ -85,6 +86,15 @@ func recordFailedAttempt(email string) {
 	attemptMutex.Lock()
 	defer attemptMutex.Unlock()
 
+	if len(failedLoginMap) > 500 {
+		cutoff := time.Now().Add(-lockoutDuration)
+		for k, v := range failedLoginMap {
+			if v.blockedAt.Before(cutoff) {
+				delete(failedLoginMap, k)
+			}
+		}
+	}
+
 	attempt, exists := failedLoginMap[email]
 	if !exists {
 		failedLoginMap[email] = &loginAttempt{count: 1, blockedAt: time.Now()}
@@ -117,6 +127,12 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	emailRegex := regexp.MustCompile("^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$")
+	if !emailRegex.MatchString(cleanEmail) {
+		writeJSONError(w, http.StatusBadRequest, "Định dạng email không hợp lệ.")
+		return
+	}
+
 	// Validate FullName length (2 to 50 characters)
 	runeCount := len([]rune(cleanFullName))
 	if runeCount < 2 || runeCount > 50 {
@@ -127,6 +143,10 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// Validate Password min length (8 chars)
 	if len(req.Password) < 8 {
 		writeJSONError(w, http.StatusBadRequest, "Mật khẩu phải chứa ít nhất 8 ký tự.")
+		return
+	}
+	if len(req.Password) > 72 {
+		writeJSONError(w, http.StatusBadRequest, "Mật khẩu không được vượt quá 72 ký tự.")
 		return
 	}
 
@@ -439,6 +459,10 @@ func (h *AuthHandler) HandleChangePassword(w http.ResponseWriter, r *http.Reques
 
 	if len(req.NewPassword) < 8 {
 		writeJSONError(w, http.StatusBadRequest, "Mật khẩu mới phải có ít nhất 8 ký tự", "INVALID_NEW_PASSWORD")
+		return
+	}
+	if len(req.NewPassword) > 72 {
+		writeJSONError(w, http.StatusBadRequest, "Mật khẩu mới không được vượt quá 72 ký tự", "INVALID_NEW_PASSWORD")
 		return
 	}
 

@@ -191,11 +191,19 @@ func (h *ShipperHandler) CreateApplication(w http.ResponseWriter, r *http.Reques
 	var cleanPlate, cleanLicense *string
 	if req.LicensePlate != nil {
 		if p := strings.TrimSpace(*req.LicensePlate); p != "" {
+			if len([]rune(p)) > 20 {
+				writeJSONError(w, http.StatusBadRequest, "Biển số xe không được vượt quá 20 ký tự")
+				return
+			}
 			cleanPlate = &p
 		}
 	}
 	if req.DriverLicense != nil {
 		if d := strings.TrimSpace(*req.DriverLicense); d != "" {
+			if len([]rune(d)) > 50 {
+				writeJSONError(w, http.StatusBadRequest, "Giấy phép lái xe không được vượt quá 50 ký tự")
+				return
+			}
 			cleanLicense = &d
 		}
 	}

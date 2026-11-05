@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
@@ -67,13 +68,48 @@ type ChatResponse struct {
 type ChatHandler struct {
 	productRepo domain.ProductRepository
 	httpClient  *http.Client
+	rateMu      sync.Mutex
+	rateLimits  map[string][]time.Time
 }
 
 func NewChatHandler(productRepo domain.ProductRepository) *ChatHandler {
 	return &ChatHandler{
 		productRepo: productRepo,
 		httpClient:  &http.Client{Timeout: 25 * time.Second},
+		rateLimits:  make(map[string][]time.Time),
 	}
+}
+
+func (h *ChatHandler) isRateLimited(ip string) bool {
+	h.rateMu.Lock()
+	defer h.rateMu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-1 * time.Minute)
+
+	if len(h.rateLimits) > 500 {
+		for k, v := range h.rateLimits {
+			if len(v) == 0 || v[len(v)-1].Before(cutoff) {
+				delete(h.rateLimits, k)
+			}
+		}
+	}
+
+	timestamps := h.rateLimits[ip]
+	valid := make([]time.Time, 0, len(timestamps))
+	for _, t := range timestamps {
+		if t.After(cutoff) {
+			valid = append(valid, t)
+		}
+	}
+
+	if len(valid) >= 30 {
+		h.rateLimits[ip] = valid
+		return true
+	}
+
+	h.rateLimits[ip] = append(valid, now)
+	return false
 }
 
 func formatVND(amount float64) string {
@@ -134,6 +170,21 @@ func (h *ChatHandler) HandleChat(w http.ResponseWriter, req *http.Request) {
 		writeAPIError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Phương thức không được hỗ trợ")
 		return
 	}
+
+	ip := req.Header.Get("X-Forwarded-For")
+	if ip != "" {
+		ip = strings.Split(ip, ",")[0]
+	} else {
+		ip = req.RemoteAddr
+	}
+	ip = strings.TrimSpace(ip)
+
+	if h.isRateLimited(ip) {
+		writeAPIError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Bạn gửi quá nhiều yêu cầu, vui lòng thử lại sau 1 phút")
+		return
+	}
+
+	req.Body = http.MaxBytesReader(w, req.Body, 1<<20)
 
 	var chatReq ChatRequest
 	if err := json.NewDecoder(req.Body).Decode(&chatReq); err != nil {

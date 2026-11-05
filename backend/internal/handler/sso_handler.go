@@ -57,12 +57,14 @@ func (h *SSOHandler) HandleGoogleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 	http.SetCookie(w, &http.Cookie{
 		Name:     oauthStateCookie,
 		Value:    state,
 		Path:     "/",
 		MaxAge:   600,
 		HttpOnly: true,
+		Secure:   isSecure,
 		SameSite: http.SameSiteLaxMode,
 	})
 	http.Redirect(w, r, h.cfg.AuthCodeURL(state), http.StatusTemporaryRedirect)
@@ -75,7 +77,8 @@ func (h *SSOHandler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request
 		h.errRedirect(w, r, "invalid_state")
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: oauthStateCookie, MaxAge: -1, Path: "/"})
+	isSecureCallback := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+	http.SetCookie(w, &http.Cookie{Name: oauthStateCookie, MaxAge: -1, Path: "/", HttpOnly: true, Secure: isSecureCallback})
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
