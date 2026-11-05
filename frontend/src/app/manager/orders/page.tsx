@@ -7,6 +7,7 @@ import { Order, OrderStatus } from '@/types/manager';
 import { exportOrdersToExcel } from '@/lib/excel';
 import { formatCurrencyVND, formatDateTime } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
+import { useAuthStore } from '@/store/useAuthStore';
 import { OrderStatusBadge } from '@/components/manager/OrderStatusBadge';
 import { OrderCountdownBadge } from '@/components/manager/OrderCountdownBadge';
 import { OrderDetailModal } from '@/components/manager/OrderDetailModal';
@@ -49,6 +50,7 @@ const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
 
 function OrdersManagementContent() {
   const searchParams = useSearchParams();
+  const { user } = useAuthStore();
   const toast = useToast();
   const { orders, ordersLoading, ordersError, fetchOrders, fetchProducts, fetchShippers, approveOrder, markOrderPaid } = useManagerStore();
   const { quotes, fetchQuotes } = useSaleStore();
@@ -146,7 +148,8 @@ function OrdersManagementContent() {
     if (processingOrderId) return;
     setProcessingOrderId(order.id);
     try {
-      const res = await approveOrder(order.id, 'Manager Hải Đăng');
+      const actorName = user?.name || user?.fullName || 'Quản lý';
+      const res = await approveOrder(order.id, actorName);
       if (res.success) {
         toast.success(
           `Đã duyệt đơn #${order.code}, trừ tồn kho thành công và chuyển sang Đang đóng gói`

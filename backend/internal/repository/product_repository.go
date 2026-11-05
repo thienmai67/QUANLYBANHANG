@@ -55,6 +55,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
                 p.brand_id AS p_brand_id,
                 p.category_id AS p_category_id,
                 p.base_price,
+                COALESCE(p.stock_quantity, 0) AS stock_quantity,
                 p.diameter_mm,
                 p.pressure_class,
                 p.cross_section_mm2,
@@ -99,7 +100,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
 
 		err := rows.Scan(
 			&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID,
-			&p.BasePrice, &p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating,
+			&p.BasePrice, &p.StockQuantity, &p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating,
 			&specs, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 			&brand.ID, &brand.Code, &brand.Name, &brand.DiscountRate, &brand.CreatedAt, &brand.UpdatedAt,
 			&cat.ID, &cat.Code, &cat.Name, &parentID, &cat.Type, &cat.CreatedAt, &cat.UpdatedAt,
@@ -136,6 +137,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
 func (r *productRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
 	query := `
         SELECT  p.id, p.sku, p.name, p.brand_id, p.category_id, p.base_price,
+                COALESCE(p.stock_quantity, 0) AS stock_quantity,
                 p.diameter_mm, p.pressure_class, p.cross_section_mm2, p.amp_rating, p.specifications,
                 COALESCE(p.is_active, TRUE) AS is_active, p.created_at, p.updated_at
         FROM products p
@@ -147,8 +149,7 @@ func (r *productRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
 
 	row := r.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
-		&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID, &p.BasePrice,
-		&p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating, &specs,
+		&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID, &p.BasePrice, &p.StockQuantity, &p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating, &specs,
 		&p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
@@ -183,6 +184,7 @@ func (r *productRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
 func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*domain.Product, error) {
 	query := `
         SELECT  p.id, p.sku, p.name, p.brand_id, p.category_id, p.base_price,
+                COALESCE(p.stock_quantity, 0) AS stock_quantity,
                 p.diameter_mm, p.pressure_class, p.cross_section_mm2, p.amp_rating, p.specifications,
                 COALESCE(p.is_active, TRUE) AS is_active, p.created_at, p.updated_at
         FROM products p
@@ -194,8 +196,7 @@ func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*d
 
 	row := r.db.QueryRowContext(ctx, query, sku)
 	err := row.Scan(
-		&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID, &p.BasePrice,
-		&p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating, &specs,
+		&p.ID, &p.SKU, &p.Name, &p.BrandID, &p.CategoryID, &p.BasePrice, &p.StockQuantity, &p.DiameterMM, &p.PressureClass, &p.CrossSectionMM2, &p.AmpRating, &specs,
 		&p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
@@ -922,13 +923,21 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 		}
 
 		var basePrice float64
-		err := tx.QueryRowContext(ctx, `SELECT base_price FROM me_supplies.products WHERE id = $1`, item.ProductID).Scan(&basePrice)
+		var stockQuantity int
+		err := tx.QueryRowContext(ctx, `SELECT base_price, COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1`, item.ProductID).Scan(&basePrice, &stockQuantity)
 		if err != nil {
 			_ = tx.Rollback()
-			if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 				return domain.ErrProductNotFound
 			}
 			return fmt.Errorf("fetch product base price: %w", err)
+		}
+
+		// D5 (F06): Kiểm tra tồn kho khi tạo đơn:
+		// Quá kho hoặc vượt trần tạm thời 5000 khi kho chưa seed thì từ chối
+		if (stockQuantity > 0 && item.Quantity > float64(stockQuantity)) || (stockQuantity == 0 && item.Quantity >= 5000) {
+			_ = tx.Rollback()
+			return domain.ErrInsufficientStock
 		}
 
 		// Round unit_price to integer VND
@@ -940,9 +949,12 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 	// Round total to integer VND
 	order.TotalAmount = math.Round(computedTotal)
 	order.Version = 1
-	if order.PaymentStatus == "" {
-		order.PaymentStatus = domain.PaymentStatusUnpaid
-	}
+	// D1.1 (F03): Luôn ép UNPAID lúc tạo đơn, shipper/delivered/cancel = nil
+	order.PaymentStatus = domain.PaymentStatusUnpaid
+	order.ShipperID = nil
+	order.DeliveredAt = nil
+	order.CancellationReason = nil
+	order.Status = domain.OrderStatusPending
 	now := time.Now()
 	if order.CreatedAt.IsZero() {
 		order.CreatedAt = now
@@ -1131,6 +1143,78 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 				return nil, domain.ErrPaymentNotConfirmed
 			}
 		}
+
+		// D5: Trừ kho trong cùng transaction với chuyển trạng thái PACKING
+		itemRows, err := tx.QueryContext(ctx, `SELECT product_id, quantity FROM me_supplies.order_items WHERE order_id = $1`, o.ID)
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("fetch order items for inventory deduction: %w", err)
+		}
+		type itemReq struct {
+			productID uuid.UUID
+			qty       float64
+		}
+		var reqItems []itemReq
+		for itemRows.Next() {
+			var it itemReq
+			if err := itemRows.Scan(&it.productID, &it.qty); err != nil {
+				_ = itemRows.Close()
+				_ = tx.Rollback()
+				return nil, fmt.Errorf("scan order item: %w", err)
+			}
+			reqItems = append(reqItems, it)
+		}
+		_ = itemRows.Close()
+
+		for _, it := range reqItems {
+			var currentStock int
+			err := tx.QueryRowContext(ctx, `SELECT COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1 FOR UPDATE`, it.productID).Scan(&currentStock)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				_ = tx.Rollback()
+				return nil, fmt.Errorf("check stock for product %s: %w", it.productID, err)
+			}
+			if currentStock > 0 && float64(currentStock) < it.qty {
+				_ = tx.Rollback()
+				return nil, domain.ErrInsufficientStock
+			}
+			if float64(currentStock) >= it.qty && it.qty > 0 {
+				_, err = tx.ExecContext(ctx, `
+					UPDATE me_supplies.products
+					SET stock_quantity = stock_quantity - $1, updated_at = NOW()
+					WHERE id = $2 AND stock_quantity >= $1
+				`, int(math.Ceil(it.qty)), it.productID)
+				if err != nil {
+					_ = tx.Rollback()
+					return nil, fmt.Errorf("deduct stock: %w", err)
+				}
+			}
+		}
+	}
+
+	// D5: Hoàn kho nếu đơn bị hủy sau khi đã duyệt PACKING/SHIPPING
+	if (o.Status == domain.OrderStatusPacking || o.Status == domain.OrderStatusShipping) && toStatus == domain.OrderStatusCancelled {
+		restoreRows, err := tx.QueryContext(ctx, `SELECT product_id, quantity FROM me_supplies.order_items WHERE order_id = $1`, o.ID)
+		if err == nil {
+			type restoreReq struct {
+				productID uuid.UUID
+				qty       float64
+			}
+			var restItems []restoreReq
+			for restoreRows.Next() {
+				var it restoreReq
+				if err := restoreRows.Scan(&it.productID, &it.qty); err == nil {
+					restItems = append(restItems, it)
+				}
+			}
+			_ = restoreRows.Close()
+			for _, it := range restItems {
+				_, _ = tx.ExecContext(ctx, `
+					UPDATE me_supplies.products
+					SET stock_quantity = stock_quantity + $1, updated_at = NOW()
+					WHERE id = $2
+				`, it.qty, it.productID)
+			}
+		}
 	}
 
 	// 4a. PACKING -> SHIPPING: require shipper_id and validate shipper role
@@ -1148,8 +1232,9 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 				return nil, domain.ErrInvalidShipper
 			}
 			var shipperRole domain.UserRole
-			err = tx.QueryRowContext(ctx, `SELECT role FROM me_supplies.users WHERE id = $1`, parsedShipperID).Scan(&shipperRole)
-			if err != nil || shipperRole != domain.RoleShipper {
+			var isActive bool
+			err = tx.QueryRowContext(ctx, `SELECT role, is_active FROM me_supplies.users WHERE id = $1`, parsedShipperID).Scan(&shipperRole, &isActive)
+			if err != nil || shipperRole != domain.RoleShipper || !isActive {
 				_ = tx.Rollback()
 				return nil, domain.ErrInvalidShipper
 			}
@@ -1158,6 +1243,18 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		if newShipperID == nil {
 			_ = tx.Rollback()
 			return nil, domain.ErrShipperRequired
+		}
+
+		// D1.4: Kiểm tra shipper không quá 5 đơn đang giao (SHIPPING)
+		var activeShippingCount int
+		err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM me_supplies.orders WHERE shipper_id = $1 AND status = 'SHIPPING'`, *newShipperID).Scan(&activeShippingCount)
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("count shipper active orders: %w", err)
+		}
+		if activeShippingCount >= 5 {
+			_ = tx.Rollback()
+			return nil, domain.ErrShipperCapacityExceeded
 		}
 	}
 
@@ -1476,7 +1573,7 @@ func (r *productRepository) ListShippers(ctx context.Context, limit, offset int)
 	}
 
 	var total int
-	countQuery := `SELECT COUNT(*) FROM me_supplies.users WHERE role = 'SHIPPER'`
+	countQuery := `SELECT COUNT(*) FROM me_supplies.users WHERE role = 'SHIPPER' AND is_active = TRUE`
 	if err := r.db.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count shippers: %w", err)
 	}
@@ -1491,7 +1588,7 @@ func (r *productRepository) ListShippers(ctx context.Context, limit, offset int)
         LEFT JOIN me_supplies.orders o 
             ON o.shipper_id = u.id 
             AND o.status IN ('PACKING', 'SHIPPING')
-        WHERE u.role = 'SHIPPER'
+        WHERE u.role = 'SHIPPER' AND u.is_active = TRUE
         GROUP BY u.id, u.full_name, u.phone
         ORDER BY u.full_name ASC
         LIMIT $1 OFFSET $2

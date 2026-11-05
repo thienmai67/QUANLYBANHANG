@@ -1,41 +1,35 @@
 'use client';
 
 import React from 'react';
-import { useShipperUIStore } from '@/store/useShipperUIStore';
 
-interface TabCounts {
-  shipping: number;
-  packing: number;
-  twoHours: number;
-  completed: number;
-}
+export type ShipperFilterTabType = 'ALL' | 'PACKING' | 'SHIPPING';
 
 interface ShipperFilterTabsProps {
-  counts: TabCounts;
+  activeTab: ShipperFilterTabType;
+  onChange: (tab: ShipperFilterTabType) => void;
+  counts?: {
+    all: number;
+    packing: number;
+    shipping: number;
+  };
 }
 
-export default function ShipperFilterTabs({ counts }: ShipperFilterTabsProps) {
-  const { activeTab, setActiveTab, isHighContrast } = useShipperUIStore();
-
-  const tabs: Array<{
-    id: 'SHIPPING' | 'PACKING' | '2H' | 'COMPLETED';
-    label: string;
-    count: number;
-  }> = [
-    { id: 'SHIPPING', label: 'Đang vận chuyển', count: counts.shipping },
-    { id: 'PACKING', label: 'Chờ lấy hàng', count: counts.packing },
-    { id: '2H', label: 'Hỏa tốc 2H', count: counts.twoHours },
-    { id: 'COMPLETED', label: 'Đã hoàn tất', count: counts.completed },
+export default function ShipperFilterTabs({
+  activeTab,
+  onChange,
+  counts,
+}: ShipperFilterTabsProps) {
+  const tabs: Array<{ id: ShipperFilterTabType; label: string; count?: number }> = [
+    { id: 'ALL', label: 'Tất cả', count: counts?.all },
+    { id: 'PACKING', label: 'Chờ nhận', count: counts?.packing },
+    { id: 'SHIPPING', label: 'Đang giao', count: counts?.shipping },
   ];
 
   return (
-    <div className="px-4 pt-3 pb-1">
-      <div
-        className={`flex items-center gap-1.5 p-1 rounded-2xl overflow-x-auto no-scrollbar border ${
-          isHighContrast
-            ? 'bg-white border-2 border-black'
-            : 'bg-slate-900/90 border-slate-800'
-        }`}
+    <div className="border-b border-[#e6e6e6]">
+      <nav
+        aria-label="Lọc đơn hàng"
+        className="flex items-center gap-6"
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -43,35 +37,23 @@ export default function ShipperFilterTabs({ counts }: ShipperFilterTabsProps) {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+              onClick={() => onChange(tab.id)}
+              className={`min-h-[48px] py-3 text-[14px] flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf] ${
                 isActive
-                  ? isHighContrast
-                    ? 'bg-black text-white border-2 border-black font-black'
-                    : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
-                  : isHighContrast
-                  ? 'text-black hover:bg-slate-100 font-bold'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'border-b-2 border-[#0a0a0a] text-[#0a0a0a] font-semibold'
+                  : 'border-b-2 border-transparent text-[#6b6b6b] font-normal hover:text-[#0a0a0a]'
               }`}
             >
               <span>{tab.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  isActive
-                    ? isHighContrast
-                      ? 'bg-white text-black'
-                      : 'bg-emerald-700 text-emerald-100'
-                    : isHighContrast
-                    ? 'bg-slate-200 text-black'
-                    : 'bg-slate-800 text-slate-400'
-                }`}
-              >
-                {tab.count}
-              </span>
+              {typeof tab.count === 'number' && (
+                <span className="tabular-nums text-[#6b6b6b] font-normal">
+                  ({tab.count})
+                </span>
+              )}
             </button>
           );
         })}
-      </div>
+      </nav>
     </div>
   );
 }

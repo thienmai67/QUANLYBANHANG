@@ -1,247 +1,229 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import RouteGuard from '@/components/auth/RouteGuard';
 import ShipperShell from '@/components/shipper/ShipperShell';
 import ShipperWidgets from '@/components/shipper/ShipperWidgets';
-import ShipperFilterTabs from '@/components/shipper/ShipperFilterTabs';
+import ShipperFilterTabs, { ShipperFilterTabType } from '@/components/shipper/ShipperFilterTabs';
 import ShipperOrderCard from '@/components/shipper/ShipperOrderCard';
 import PodModal from '@/components/shipper/PodModal';
 import IncidentModal from '@/components/shipper/IncidentModal';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
-import { useShipperUIStore } from '@/store/useShipperUIStore';
 import { Order } from '@/types/manager';
-import { get2HDeadline } from '@/lib/orderRules';
-import {
-  PackageOpen,
-  CheckCircle2,
-  Inbox,
-  ArrowDown,
-  Loader2,
-} from 'lucide-react';
+import { formatCurrencyVND } from '@/lib/formatters';
 
 export default function ShipperDispatchFeedPage() {
   const { user } = useAuthStore();
   const { orders, shippers, fetchOrders, fetchShippers } = useManagerStore();
 
+  const [filterTab, setFilterTab] = useState<ShipperFilterTabType>('ALL');
+  const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
+  const [selectedIncidentOrder, setSelectedIncidentOrder] = useState<Order | null>(null);
+
   useEffect(() => {
     fetchOrders();
     fetchShippers();
   }, [fetchOrders, fetchShippers]);
-  const { activeTab, isHighContrast } = useShipperUIStore();
 
-  const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
-  const [selectedIncidentOrder, setSelectedIncidentOrder] = useState<Order | null>(null);
-  const [completedPageSize, setCompletedPageSize] = useState<number>(5);
+  const handleManualRefresh = useCallback(async () => {
+    await Promise.all([fetchOrders(), fetchShippers()]);
+  }, [fetchOrders, fetchShippers]);
 
   const currentShipperId = user?.shipperId || user?.id || '';
   const currentShipperName =
     shippers.find((s) => s.id === currentShipperId)?.name ||
     user?.name ||
+    user?.fullName ||
     'Nhân viên giao hàng';
 
-  // STRICT DATA ISOLATION: Shipper only sees orders assigned to their shipperId
+  // Strict isolation: shipper only sees their assigned orders
   const myOrders = useMemo(() => {
     if (!currentShipperId) return [];
     return orders.filter((o) => o.shipperId === currentShipperId);
   }, [orders, currentShipperId]);
 
-  // Tab counts
-  const tabCounts = useMemo(() => {
-    return {
-      shipping: myOrders.filter((o) => o.status === 'SHIPPING').length,
-      packing: myOrders.filter((o) => o.status === 'PACKING').length,
-      twoHours: myOrders.filter(
-        (o) =>
-          (o.is2H || o.deliveryType === '2H') &&
-          (o.status === 'SHIPPING' || o.status === 'PACKING')
-      ).length,
-      completed: myOrders.filter(
-        (o) => o.status === 'DELIVERED' || o.status === 'CANCELLED'
-      ).length,
-    };
+  // Active orders (not delivered, not cancelled)
+  const activeOrders = useMemo(() => {
+    return myOrders.filter(
+      (o) => o.status === 'SHIPPING' || o.status === 'PACKING'
+    );
   }, [myOrders]);
 
-  // Filtered orders according to active tab
-  const tabFilteredOrders = useMemo(() => {
-    switch (activeTab) {
-      case 'SHIPPING':
-        return myOrders.filter((o) => o.status === 'SHIPPING');
-      case 'PACKING':
-        return myOrders.filter((o) => o.status === 'PACKING');
-      case '2H':
-        return myOrders.filter(
-          (o) =>
-            (o.is2H || o.deliveryType === '2H') &&
-            (o.status === 'SHIPPING' || o.status === 'PACKING')
-        );
-      case 'COMPLETED':
-        return myOrders.filter(
-          (o) => o.status === 'DELIVERED' || o.status === 'CANCELLED'
-        );
-      default:
-        return myOrders;
-    }
-  }, [myOrders, activeTab]);
+  // Next order:
+  // 1. Highest priority is an active SHIPPING order
+  // 2. Otherwise next PACKING order
+  const nextOrder = useMemo(() => {
+    const shipping = activeOrders.find((o) => o.status === 'SHIPPING');
+    if (shipping) return shipping;
+    return activeOrders[0] || null;
+  }, [activeOrders]);
 
-  // Priority Sorting:
-  // - Active orders: nearing 2H deadline or overdue first, then earliest createdAt
-  // - Completed orders: newest delivered/cancelled first
-  const sortedOrders = useMemo(() => {
-    const list = [...tabFilteredOrders];
+  // Dynamic calculations for finding text according to §3 and §5:
+  // - next order code
+  // - next order COD amount
+  // - remaining active orders count
+  // - total remaining COD of unfinished orders (next order + waiting orders)
+  const nextOrderCod = useMemo(() => {
+    if (!nextOrder) return 0;
+    return nextOrder.paymentMethod === 'COD'
+      ? (nextOrder.total ?? nextOrder.totalAmount ?? 0)
+      : 0;
+  }, [nextOrder]);
 
-    if (activeTab === 'COMPLETED') {
-      return list.sort((a, b) => {
-        const timeA = new Date(
-          a.deliveredAt || a.cancelledAt || a.createdAt
-        ).getTime();
-        const timeB = new Date(
-          b.deliveredAt || b.cancelledAt || b.createdAt
-        ).getTime();
-        return timeB - timeA;
-      });
-    }
-
-    const nowTime = Date.now();
-
-    return list.sort((a, b) => {
-      const is2HA = Boolean(a.is2H || a.deliveryType === '2H');
-      const is2HB = Boolean(b.is2H || b.deliveryType === '2H');
-
-      const deadlineA = is2HA
-        ? get2HDeadline({
-            is2H: true,
-            deadline2H: a.deadline2H,
-            createdAt: a.createdAt,
-          })?.getTime() || Infinity
-        : Infinity;
-
-      const deadlineB = is2HB
-        ? get2HDeadline({
-            is2H: true,
-            deadline2H: b.deadline2H,
-            createdAt: b.createdAt,
-          })?.getTime() || Infinity
-        : Infinity;
-
-      // 1. If both are 2H orders, sort by closest deadline (smallest timestamp)
-      if (is2HA && is2HB) {
-        return deadlineA - deadlineB;
+  const totalRemainingCod = useMemo(() => {
+    return activeOrders.reduce((sum, o) => {
+      if (o.paymentMethod === 'COD') {
+        return sum + (o.total ?? o.totalAmount ?? 0);
       }
+      return sum;
+    }, 0);
+  }, [activeOrders]);
 
-      // 2. 2H orders come before standard orders
-      if (is2HA && !is2HB) return -1;
-      if (!is2HA && is2HB) return 1;
-
-      // 3. Otherwise sort by earliest created (FIFO queue discipline)
-      return (
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-    });
-  }, [tabFilteredOrders, activeTab]);
-
-  // Pagination for completed orders
-  const displayedOrders = useMemo(() => {
-    if (activeTab === 'COMPLETED') {
-      return sortedOrders.slice(0, completedPageSize);
+  const findingSentence = useMemo(() => {
+    if (!nextOrder) {
+      return 'Hôm nay đã hoàn thành tất cả đơn hàng. Còn 0 đơn cần giao, tổng thu hộ còn lại 0 ₫.';
     }
-    return sortedOrders;
-  }, [sortedOrders, activeTab, completedPageSize]);
+    const codText =
+      nextOrderCod > 0
+        ? `thu hộ ${formatCurrencyVND(nextOrderCod)}`
+        : 'đã thanh toán (0 ₫)';
+    const remainingCount = activeOrders.length - 1;
+    const remainingCountText =
+      remainingCount > 0
+        ? `còn ${remainingCount} đơn nữa trong ngày`
+        : 'đơn cuối cùng trong ngày';
+    return `Tiếp theo: ${nextOrder.code} (${codText}), ${remainingCountText}, tổng thu hộ còn lại ${formatCurrencyVND(totalRemainingCod)}.`;
+  }, [nextOrder, nextOrderCod, activeOrders.length, totalRemainingCod]);
 
-  const hasMoreCompleted =
-    activeTab === 'COMPLETED' && sortedOrders.length > completedPageSize;
+  // Remaining queued orders (excluding nextOrder so it doesn't duplicate)
+  const listOrdersPool = useMemo(() => {
+    if (!nextOrder) return activeOrders;
+    return activeOrders.filter((o) => o.id !== nextOrder.id);
+  }, [activeOrders, nextOrder]);
+
+  const tabCounts = useMemo(() => {
+    return {
+      all: listOrdersPool.length,
+      packing: listOrdersPool.filter((o) => o.status === 'PACKING').length,
+      shipping: listOrdersPool.filter((o) => o.status === 'SHIPPING').length,
+    };
+  }, [listOrdersPool]);
+
+  const displayedListOrders = useMemo(() => {
+    switch (filterTab) {
+      case 'PACKING':
+        return listOrdersPool.filter((o) => o.status === 'PACKING');
+      case 'SHIPPING':
+        return listOrdersPool.filter((o) => o.status === 'SHIPPING');
+      case 'ALL':
+      default:
+        return listOrdersPool;
+    }
+  }, [listOrdersPool, filterTab]);
 
   return (
-    <RouteGuard
-      allowedRoles={['SHIPPER']}
-      fallbackUrl="/login"
-      forbiddenUrl="/403"
-    >
+    <RouteGuard allowedRoles={['SHIPPER']} fallbackUrl="/login" forbiddenUrl="/403">
       <ShipperShell>
-        {/* Top Summary Widgets */}
-        <ShipperWidgets shipperId={currentShipperId} />
-
-        {/* Filter Tabs with Live Badges */}
-        <ShipperFilterTabs counts={tabCounts} />
-
-        {/* Orders Feed */}
         <div className="px-4 py-3 space-y-3">
-          {displayedOrders.length === 0 ? (
-            <div
-              className={`p-10 rounded-2xl text-center space-y-3 ${
-                isHighContrast
-                  ? 'bg-white text-black border-2 border-black'
-                  : 'bg-slate-900/60 border border-slate-800 text-slate-400'
-              }`}
-            >
-              <div className="w-14 h-14 rounded-2xl bg-slate-800/80 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
-                <Inbox className="w-7 h-7" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white">
-                  Không có đơn hàng nào
-                </p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {activeTab === 'SHIPPING' && 'Hiện không có đơn nào đang trên đường giao'}
-                  {activeTab === 'PACKING' && 'Không có đơn nào đang chờ nhận tại kho'}
-                  {activeTab === '2H' && 'Không có đơn hỏa tốc 2H cần giao gấp'}
-                  {activeTab === 'COMPLETED' && 'Chưa có đơn hàng nào hoàn tất trong ca'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {displayedOrders.map((order) => (
-                <ShipperOrderCard
-                  key={order.id}
-                  order={order}
-                  shipperId={currentShipperId}
-                  shipperName={currentShipperName}
-                  onOpenPod={(ord) => setSelectedPodOrder(ord)}
-                  onOpenIncident={(ord) => setSelectedIncidentOrder(ord)}
-                />
-              ))}
+          {/* 2. Tiêu đề màn hình 24px + 1 câu finding 14px */}
+          <div>
+            <h1 className="text-[24px] font-bold leading-tight text-[#0a0a0a]">
+              Đơn giao hôm nay
+            </h1>
+            <p className="text-[14px] text-[#6b6b6b] mt-1 leading-[1.5]">
+              {findingSentence}
+            </p>
+          </div>
 
-              {/* Load More Button for Completed tab */}
-              {hasMoreCompleted && (
-                <div className="pt-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setCompletedPageSize((prev) => prev + 5)}
-                    className={`min-h-[48px] px-6 py-2.5 rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-all ${
-                      isHighContrast
-                        ? 'bg-yellow-400 text-black hover:bg-yellow-300 border-2 border-black font-black'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-                    }`}
-                  >
-                    <ArrowDown className="w-4 h-4" />
-                    <span>Xem thêm đơn hoàn tất ({sortedOrders.length - completedPageSize} đơn còn lại)</span>
-                  </button>
+          {/* 3. "Lộ trình hôm nay" (signature element, bắt buộc có) */}
+          <ShipperWidgets
+            shipperId={currentShipperId}
+            orders={myOrders}
+            nextOrderId={nextOrder?.id}
+          />
+
+          {/* 4. "Đơn tiếp theo" */}
+          <div className="space-y-2">
+            <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
+              Đơn tiếp theo
+            </h2>
+            {nextOrder ? (
+              <ShipperOrderCard
+                order={nextOrder}
+                shipperId={currentShipperId}
+                shipperName={currentShipperName}
+                variant="featured"
+                onOpenPod={(ord) => setSelectedPodOrder(ord)}
+                onOpenIncident={(ord) => setSelectedIncidentOrder(ord)}
+                onPickupSuccess={handleManualRefresh}
+              />
+            ) : (
+              <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4 text-[14px] text-[#6b6b6b]">
+                Không có đơn tiếp theo cần giao.
+              </div>
+            )}
+          </div>
+
+          {/* 5. "Đơn chờ nhận" + Tab lọc: Tất cả / Chờ nhận / Đang giao */}
+          <div className="space-y-3 pt-2">
+            <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
+              Đơn chờ nhận
+            </h2>
+
+            <ShipperFilterTabs
+              activeTab={filterTab}
+              onChange={setFilterTab}
+              counts={tabCounts}
+            />
+
+            {/* Danh sách 2 dòng mỗi đơn */}
+            <div className="space-y-2 pt-1">
+              {displayedListOrders.length === 0 ? (
+                <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4 text-center text-[14px] text-[#6b6b6b]">
+                  Không có đơn hàng nào trong danh sách này.
                 </div>
+              ) : (
+                displayedListOrders.map((order) => (
+                  <ShipperOrderCard
+                    key={order.id}
+                    order={order}
+                    shipperId={currentShipperId}
+                    shipperName={currentShipperName}
+                    variant="list"
+                    onOpenPod={(ord) => setSelectedPodOrder(ord)}
+                    onOpenIncident={(ord) => setSelectedIncidentOrder(ord)}
+                    onPickupSuccess={handleManualRefresh}
+                  />
+                ))
               )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* POD Modal */}
+        {/* Existing POD and Incident modals */}
         <PodModal
           order={selectedPodOrder}
           shipperId={currentShipperId}
           shipperName={currentShipperName}
           isOpen={Boolean(selectedPodOrder)}
           onClose={() => setSelectedPodOrder(null)}
-          onSuccess={() => setSelectedPodOrder(null)}
+          onSuccess={() => {
+            setSelectedPodOrder(null);
+            handleManualRefresh();
+          }}
         />
 
-        {/* Incident Reporting Modal */}
         <IncidentModal
           order={selectedIncidentOrder}
           shipperId={currentShipperId}
           shipperName={currentShipperName}
           isOpen={Boolean(selectedIncidentOrder)}
           onClose={() => setSelectedIncidentOrder(null)}
-          onSuccess={() => setSelectedIncidentOrder(null)}
+          onSuccess={() => {
+            setSelectedIncidentOrder(null);
+            handleManualRefresh();
+          }}
         />
       </ShipperShell>
     </RouteGuard>

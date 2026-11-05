@@ -239,7 +239,14 @@ func TestUpdateOrderStatus_LifecycleTransitions(t *testing.T) {
 	}
 
 	// 5. Valid transition: SHIPPING -> DELIVERED by assigned Shipper (version 3 -> 4)
-	updated, err = repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusDelivered, 3, domain.RoleShipper, shipperID)
+	podPhoto := "https://minio.local/pod/photo-test.jpg"
+	recipientName := "Nguyen Van A"
+	updated, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:           string(domain.OrderStatusDelivered),
+		Version:          3,
+		PodPhotoURL:      &podPhoto,
+		PodRecipientName: &recipientName,
+	}, domain.RoleShipper, shipperID)
 	if err != nil {
 		t.Fatalf("expected successful transition to DELIVERED: %v", err)
 	}
@@ -251,7 +258,12 @@ func TestUpdateOrderStatus_LifecycleTransitions(t *testing.T) {
 	}
 
 	// 6. Terminal state: DELIVERED -> CANCELLED or any other status must fail
-	_, err = repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusCancelled, 4, domain.RoleManager, uuid.Nil)
+	cancelReason := "Huy don hang theo yeu cau"
+	_, err = repo.UpdateOrderStatusWithDetails(ctx, orderID, domain.UpdateOrderStatusRequest{
+		Status:             string(domain.OrderStatusCancelled),
+		Version:            4,
+		CancellationReason: &cancelReason,
+	}, domain.RoleManager, uuid.Nil)
 	if !errors.Is(err, domain.ErrInvalidTransition) {
 		t.Fatalf("expected ErrInvalidTransition from terminal DELIVERED status, got %v", err)
 	}
@@ -316,5 +328,121 @@ func TestUpdateOrderStatus_OptimisticLocking_Concurrent(t *testing.T) {
 
 	if successCount != 1 || conflictCount != 1 {
 		t.Errorf("expected exactly 1 success and 1 conflict, got %d successes and %d conflicts", successCount, conflictCount)
+	}
+}
+
+func TestWave5_ProductInventoryStockDeductionAndCeiling(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		return
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	repo := NewProductRepository(db)
+
+	products, err := repo.ListProducts(ctx, 1, 0)
+	if err != nil || len(products) == 0 {
+		t.Skip("no products found for inventory test")
+	}
+	p := products[0]
+
+	// 1. Order of 5000 units must be rejected with ErrInsufficientStock
+	largeOrder := &domain.Order{
+		ID:           uuid.New(),
+		CustomerName: "Du Huge Order Test",
+		TotalAmount:  1000000,
+		Items: []domain.OrderItem{
+			{
+				ID:        uuid.New(),
+				ProductID: p.ID,
+				Quantity:  5000,
+			},
+		},
+	}
+	err = repo.CreateOrder(ctx, largeOrder)
+	if !errors.Is(err, domain.ErrInsufficientStock) {
+		t.Errorf("expected ErrInsufficientStock for 5000 units order, got %v", err)
+	}
+
+	// 2. Set stock = 10 explicitly
+	_, err = db.ExecContext(ctx, "UPDATE me_supplies.products SET stock_quantity = 10 WHERE id = $1", p.ID)
+	if err != nil {
+		t.Fatalf("failed to set stock: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), "UPDATE me_supplies.products SET stock_quantity = 0 WHERE id = $1", p.ID)
+	}()
+
+	// 3. Order exceeding stock (15 > 10) must fail
+	exceedOrder := &domain.Order{
+		ID:           uuid.New(),
+		CustomerName: "Exceed Stock Test",
+		TotalAmount:  1000000,
+		Items: []domain.OrderItem{
+			{
+				ID:        uuid.New(),
+				ProductID: p.ID,
+				Quantity:  15,
+			},
+		},
+	}
+	err = repo.CreateOrder(ctx, exceedOrder)
+	if !errors.Is(err, domain.ErrInsufficientStock) {
+		t.Errorf("expected ErrInsufficientStock for quantity 15 vs 10, got %v", err)
+	}
+
+	// 4. Valid order (quantity 3 <= 10) must succeed
+	validOrder := &domain.Order{
+		ID:           uuid.New(),
+		CustomerName: "Valid Stock Test",
+		TotalAmount:  1000000,
+		PaymentMethod: func(s string) *string { return &s }("COD"),
+		Items: []domain.OrderItem{
+			{
+				ID:        uuid.New(),
+				ProductID: p.ID,
+				Quantity:  3,
+			},
+		},
+	}
+	err = repo.CreateOrder(ctx, validOrder)
+	if err != nil {
+		t.Fatalf("failed to create valid order: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.order_items WHERE order_id = $1", validOrder.ID)
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM me_supplies.orders WHERE id = $1", validOrder.ID)
+	}()
+
+	// 5. Approve to PACKING: stock should be deducted to 7
+	_, err = repo.UpdateOrderStatus(ctx, validOrder.ID, domain.OrderStatusPacking, 1, domain.RoleManager, uuid.Nil)
+	if err != nil {
+		t.Fatalf("failed to transition to PACKING: %v", err)
+	}
+
+	var currentStock int
+	err = db.QueryRowContext(ctx, "SELECT stock_quantity FROM me_supplies.products WHERE id = $1", p.ID).Scan(&currentStock)
+	if err != nil || currentStock != 7 {
+		t.Errorf("expected stock to be deducted from 10 to 7, got stock %d, err %v", currentStock, err)
+	}
+
+	// 6. Cancel order: stock should be restored from 7 to 10
+	reason := "Khach yeu cau huy vi dat nham"
+	req := &domain.UpdateOrderStatusRequest{
+		Status:             string(domain.OrderStatusCancelled),
+		Version:            2,
+		CancellationReason: &reason,
+	}
+	_, err = repo.UpdateOrderStatusWithDetails(ctx, validOrder.ID, *req, domain.RoleManager, uuid.Nil)
+	if err != nil {
+		t.Fatalf("failed to cancel order: %v", err)
+	}
+
+	err = db.QueryRowContext(ctx, "SELECT stock_quantity FROM me_supplies.products WHERE id = $1", p.ID).Scan(&currentStock)
+	if err != nil || currentStock != 10 {
+		t.Errorf("expected stock to be restored from 7 to 10 upon cancellation, got stock %d, err %v", currentStock, err)
 	}
 }

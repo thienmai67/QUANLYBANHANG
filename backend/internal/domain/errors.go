@@ -21,4 +21,7 @@ var (
 	ErrShipperRequired            = errors.New("shipper required")
 	ErrInvalidPodPhoto            = errors.New("invalid pod photo")
 	ErrQuantityExceedsLimit       = errors.New("quantity exceeds limit")
+	ErrShipperCapacityExceeded    = errors.New("shipper capacity exceeded (maximum 5 active shipping orders)")
+	ErrInvalidPaymentMethod       = errors.New("invalid payment method")
+	ErrInsufficientStock          = errors.New("insufficient stock")
 )

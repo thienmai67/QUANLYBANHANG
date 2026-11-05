@@ -1,0 +1,53 @@
+/* Shipper Portal Design System v2 — achromatic-ledger (light) */
+:root {
+  --shipper-bg: #f8f8f8;
+  --shipper-card: #ffffff;
+  --shipper-border: #e6e6e6;
+  --shipper-border-strong: #d0d0d0;
+  --shipper-text-primary: #0a0a0a;
+  --shipper-text-secondary: #6b6b6b;
+  --shipper-btn-primary-bg: #141414;
+  --shipper-btn-primary-text: #ffffff;
+  --shipper-accent: #1d5fbf;
+
+  --shipper-status-delivering-bg: #dcfae5;
+  --shipper-status-delivering-text: #04250e;
+  --shipper-status-warning-bg: #fffbeb;
+  --shipper-status-warning-text: #92400e;
+  --shipper-status-neutral-bg: #eeeeee;
+  --shipper-status-neutral-text: #3d3d3d;
+  --shipper-status-error-bg: #ffedea;
+  --shipper-status-error-text: #831c1e;
+
+  --shipper-radius-card: 8px;
+  --shipper-radius-control: 6px;
+}
+
+.shipper-dark-mode {
+  --shipper-bg: #121212;
+  --shipper-card: #1c1c1c;
+  --shipper-border: #2a2a2a;
+  --shipper-border-strong: #3d3d3d;
+  --shipper-text-primary: #f5f5f5;
+  --shipper-text-secondary: #a0a0a0;
+  --shipper-btn-primary-bg: #ffffff;
+  --shipper-btn-primary-text: #141414;
+  --shipper-accent: #4d8fe8;
+
+  --shipper-status-delivering-bg: #0d2818;
+  --shipper-status-delivering-text: #86efac;
+  --shipper-status-warning-bg: #2d2006;
+  --shipper-status-warning-text: #fde68a;
+  --shipper-status-neutral-bg: #262626;
+  --shipper-status-neutral-text: #d4d4d4;
+  --shipper-status-error-bg: #350b0d;
+  --shipper-status-error-text: #fca5a5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shipper-portal * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

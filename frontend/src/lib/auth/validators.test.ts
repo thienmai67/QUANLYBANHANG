@@ -78,12 +78,12 @@ describe("validateRegisterForm", () => {
     ]);
   });
 
-  it("returns error if password is less than 6 characters", () => {
-    const errors = validateRegisterForm({ ...validData, password: "123", confirmPassword: "123" });
+  it("returns error if password is less than 8 characters", () => {
+    const errors = validateRegisterForm({ ...validData, password: "1234567", confirmPassword: "1234567" });
     expect(errors).toEqual([
       {
         field: "password",
-        message: "Mật khẩu phải có độ dài ít nhất 6 ký tự.",
+        message: "Mật khẩu phải chứa ít nhất 8 ký tự.",
       },
     ]);
   });

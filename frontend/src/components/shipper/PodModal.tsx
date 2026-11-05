@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Order } from '@/types/manager';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useShipperUIStore } from '@/store/useShipperUIStore';
@@ -44,6 +44,16 @@ export default function PodModal({
   const [photos, setPhotos] = useState<Array<{ name: string; thumbnail: string }>>([]);
   const [codConfirmed, setCodConfirmed] = useState(false);
   const [processing, setProcessing] = useState(false);
+
+  // D2.6: Reset state completely on order change or when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setReceiverName('');
+      setPhotos([]);
+      setCodConfirmed(false);
+      setProcessing(false);
+    }
+  }, [isOpen, order?.id]);
 
   if (!isOpen || !order) return null;
 

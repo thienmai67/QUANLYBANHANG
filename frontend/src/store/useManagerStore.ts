@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/store/useAuthStore';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
@@ -148,6 +149,11 @@ export interface ManagerState {
     productData: Omit<Product, 'id'> | Product
   ) => Promise<{ success: boolean; product?: Product; error?: string }>;
 
+  updateProduct: (
+    id: string,
+    productData: Partial<Product>
+  ) => Promise<{ success: boolean; product?: Product; error?: string }>;
+
   resetToSeedData: () => void;
 
   // Pure Selectors
@@ -276,6 +282,11 @@ function deriveCustomersFromOrders(orders: Order[]): Customer[] {
   return Array.from(map.values());
 }
 
+const getManagerActorName = (name?: string) => {
+  if (name) return name;
+  return useAuthStore.getState().user?.name || useAuthStore.getState().user?.fullName || 'Quản lý';
+};
+
 export const useManagerStore = create<ManagerState>()(
   persist(
     (set, get) => ({
@@ -296,10 +307,10 @@ export const useManagerStore = create<ManagerState>()(
       fetchOrders: async () => {
         set({ ordersLoading: true, ordersError: null });
         try {
-          const data = await api.get<any[]>('/orders');
-          const rawList = Array.isArray(data) ? data : [];
+          const data = await api.get<any>('/orders');
+          const rawList = Array.isArray(data) ? data : (data as any)?.data || [];
           const enriched = await Promise.all(
-            rawList.map(async (rawOrder) => {
+            rawList.map(async (rawOrder: any) => {
               if (Array.isArray(rawOrder.items) && rawOrder.items.length > 0) {
                 return mapOrderFromApi(rawOrder);
               }
@@ -384,15 +395,23 @@ export const useManagerStore = create<ManagerState>()(
           const url = shipperId ? `/cod-settlements?shipper_id=${shipperId}` : '/cod-settlements';
           const res = await api.get<{ data: any[]; total: number }>(url);
           const rawList = res?.data || (Array.isArray(res) ? res : []);
-          const mapped = rawList.map(mapCODSettlement).map((s) => ({
-            id: s.id,
-            shipperId: s.shipperId,
-            orderIds: [],
-            totalAmount: s.totalAmount,
-            settledAt: s.createdAt,
-            createdAt: s.createdAt,
-            orderCount: s.orderCount,
-          }));
+          const mapped = rawList.map((raw: any) => {
+            const s = mapCODSettlement(raw);
+            const orderIds = Array.isArray(raw.order_ids)
+              ? raw.order_ids
+              : Array.isArray(raw.orderIds)
+              ? raw.orderIds
+              : [];
+            return {
+              id: s.id,
+              shipperId: s.shipperId,
+              orderIds,
+              totalAmount: s.totalAmount,
+              settledAt: s.createdAt,
+              createdAt: s.createdAt,
+              orderCount: s.orderCount || orderIds.length,
+            };
+          });
           set({ codSettlements: mapped });
         } catch (err) {
           if (process.env.NODE_ENV !== 'test') {
@@ -783,10 +802,11 @@ export const useManagerStore = create<ManagerState>()(
        * blocks if insufficient, deducts stock via deductStockForOrder,
        * transitions to PACKING, adds statusHistory and stock logs atomically.
        */
-      approveOrder: (orderId: string, managerName: string = 'Manager Hải Đăng') => {
+      approveOrder: (orderId: string, managerName?: string) => {
+        const resolvedManagerName = getManagerActorName(managerName);
         return get().updateOrderStatusWithActor(orderId, 'PACKING', {
           role: 'MANAGER',
-          name: managerName,
+          name: resolvedManagerName,
         });
       },
 
@@ -806,7 +826,7 @@ export const useManagerStore = create<ManagerState>()(
           return { success: false, error: `Đơn hàng ${orderId} không tồn tại` };
         }
 
-        if (order.status !== 'PACKING' && order.status !== 'SHIPPING') {
+        if (order.status !== 'PACKING' && (order.status as string) !== 'SHIPPING') {
           return {
             success: false,
             error: `Chỉ đơn hàng đang đóng gói hoặc đang giao mới có thể phân công shipper (hiện tại: ${order.status})`,
@@ -854,7 +874,7 @@ export const useManagerStore = create<ManagerState>()(
           now
         );
 
-        const previousShipperId = order.status === 'SHIPPING' ? order.shipperId : undefined;
+        const previousShipperId = (order.status as string) === 'SHIPPING' ? order.shipperId : undefined;
 
         set((prev) => ({
           orders: prev.orders.map((o) =>
@@ -1042,6 +1062,31 @@ export const useManagerStore = create<ManagerState>()(
           await get().fetchProducts();
           const newProd: Product = mapApiProductToManagerProduct(created || payload);
           return { success: true, product: newProd };
+        } catch (err: any) {
+          return { success: false, error: getFriendlyErrorMessage(err) };
+        }
+      },
+
+      updateProduct: async (id: string, productData: Partial<Product>) => {
+        if (!id) {
+          return { success: false, error: 'Thiếu ID sản phẩm' };
+        }
+        try {
+          const payload: any = {
+            sku: productData.code,
+            name: productData.name,
+            brand: productData.brand,
+            category: productData.category,
+            basePrice: productData.basePrice,
+            unit: productData.unit,
+            image: productData.imageUrl,
+            description: productData.description,
+            discountRate: productData.discountPercent,
+          };
+          const updated = await api.put<any>(`/products/${id}`, payload);
+          await get().fetchProducts();
+          const mapped = mapApiProductToManagerProduct(updated || payload);
+          return { success: true, product: mapped };
         } catch (err: any) {
           return { success: false, error: getFriendlyErrorMessage(err) };
         }

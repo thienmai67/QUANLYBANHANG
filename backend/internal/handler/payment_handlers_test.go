@@ -302,4 +302,118 @@ func TestPaymentHandlers_AllScenarios(t *testing.T) {
 			t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 		}
 	})
+
+	// Test 9: D1.2 (F09) - MarkPaid rejected for COD order
+	t.Run("MarkPaid_CodMethodRejected", func(t *testing.T) {
+		codMethod := "COD"
+		codOrderID := uuid.New()
+		mockRepo.orders = append(mockRepo.orders, domain.Order{
+			ID:            codOrderID,
+			OrderNumber:   "ORD-261018-COD-MARKPAID",
+			CustomerID:    &customerID,
+			SaleID:        &saleID,
+			CustomerName:  "Khách COD",
+			PaymentMethod: &codMethod,
+			TotalAmount:   200000,
+			Status:        domain.OrderStatusPending,
+			PaymentStatus: domain.PaymentStatusUnpaid,
+			Version:       1,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/orders/%s/mark-paid", codOrderID), nil)
+		req = req.WithContext(contextWithClaims(saleID, domain.RoleSale))
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for COD mark-paid, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	// Test 10: D1.2 (F09) - MarkPaid rejected for CANCELLED order
+	t.Run("MarkPaid_CancelledOrderRejected", func(t *testing.T) {
+		cancelledOrderID := uuid.New()
+		mockRepo.orders = append(mockRepo.orders, domain.Order{
+			ID:            cancelledOrderID,
+			OrderNumber:   "ORD-261018-CANCELLED-MARKPAID",
+			CustomerID:    &customerID,
+			SaleID:        &saleID,
+			PaymentMethod: &bankMethod,
+			TotalAmount:   200000,
+			Status:        domain.OrderStatusCancelled,
+			PaymentStatus: domain.PaymentStatusUnpaid,
+			Version:       1,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/orders/%s/mark-paid", cancelledOrderID), nil)
+		req = req.WithContext(contextWithClaims(saleID, domain.RoleSale))
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for cancelled order mark-paid, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	// Test 11: D1.2 (F09) - MarkPaid rejected for DELIVERED order
+	t.Run("MarkPaid_DeliveredOrderRejected", func(t *testing.T) {
+		deliveredOrderID := uuid.New()
+		mockRepo.orders = append(mockRepo.orders, domain.Order{
+			ID:            deliveredOrderID,
+			OrderNumber:   "ORD-261018-DELIVERED-MARKPAID",
+			CustomerID:    &customerID,
+			SaleID:        &saleID,
+			PaymentMethod: &bankMethod,
+			TotalAmount:   200000,
+			Status:        domain.OrderStatusDelivered,
+			PaymentStatus: domain.PaymentStatusUnpaid,
+			Version:       1,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/orders/%s/mark-paid", deliveredOrderID), nil)
+		req = req.WithContext(contextWithClaims(saleID, domain.RoleSale))
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for delivered order mark-paid, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	// Test 12: D1.5 - CreatePaymentLink rejected for COD order
+	t.Run("CreatePaymentLink_CodMethodRejected", func(t *testing.T) {
+		codMethod := "COD"
+		codOrderID := uuid.New()
+		mockRepo.orders = append(mockRepo.orders, domain.Order{
+			ID:            codOrderID,
+			OrderNumber:   "ORD-261018-COD-LINK",
+			CustomerID:    &customerID,
+			PaymentMethod: &codMethod,
+			TotalAmount:   200000,
+			Status:        domain.OrderStatusPending,
+			PaymentStatus: domain.PaymentStatusUnpaid,
+			Version:       1,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/orders/%s/payment-link", codOrderID), nil)
+		req = req.WithContext(contextWithClaims(customerID, domain.RoleCustomer))
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for COD payment-link, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	// Test 13: D1.5 - CreatePaymentLink forbidden for Shipper role
+	t.Run("CreatePaymentLink_ShipperForbidden", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/orders/%s/payment-link", order1ID), nil)
+		req = req.WithContext(contextWithClaims(uuid.New(), domain.RoleShipper))
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 for shipper payment-link, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
 }

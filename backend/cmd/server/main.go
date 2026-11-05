@@ -83,6 +83,8 @@ func main() {
 	ssoHandler := handler.NewSSOHandler(userRepo, jwtService)
 	authHandler := handler.NewAuthHandler(userRepo, jwtService)
 	chatHandler := handler.NewChatHandler(productRepo)
+	shipperRepo := repository.NewShipperRepository(db)
+	shipperHandler := handler.NewShipperHandler(shipperRepo)
 
 	r := chi.NewRouter()
 	r.Use(chi_middleware.Logger)
@@ -116,6 +118,15 @@ func main() {
 				r.Get("/callback", ssoHandler.HandleGoogleCallback)
 			})
 		})
+
+		// Public Shipper Application API (GĐ1): ai cũng nộp hồ sơ được, không cần đăng nhập
+		r.Post("/shipper-applications", shipperHandler.CreateApplication)
+		// Tra cứu trạng thái hồ sơ theo SĐT + mã tra cứu: public, không cần đăng nhập.
+		// Đường tĩnh "/lookup" được Chi ưu tiên hơn "/{id}" nên không bị nuốt
+		// vào route xem chi tiết của MANAGER.
+		r.Get("/shipper-applications/lookup", shipperHandler.LookupApplication)
+		// Shipper đã duyệt tự đặt mật khẩu bằng SĐT + mã tra cứu (public).
+		r.Post("/shipper-applications/set-password", shipperHandler.SetShipperPassword)
 
 		// Public Catalog APIs
 		r.Get("/products", productHandler.ListProducts)
@@ -160,6 +171,14 @@ func main() {
 			r.Use(middleware.RequireRole(domain.RoleManager))
 
 			r.Get("/shippers", productHandler.ListShippers)
+			r.Get("/shipper-applications", shipperHandler.ListApplications)
+			r.Get("/shipper-applications/{id}", shipperHandler.GetApplication)
+			r.Post("/shipper-applications/{id}/approve", shipperHandler.ApproveApplication)
+			r.Post("/shipper-applications/{id}/reject", shipperHandler.RejectApplication)
+			r.Post("/shipper-applications/{id}/reissue-code", shipperHandler.ReissueLookupCode)
+			r.Post("/shipper-applications/{id}/reset-password", shipperHandler.ResetShipperPassword)
+			r.Get("/shipper-email-pool", shipperHandler.ListEmailPool)
+			r.Post("/shipper-email-pool/{email}/reclaim", shipperHandler.ReclaimPoolEmail)
 			r.Get("/admin/orders", productHandler.ListOrders)
 			r.Post("/products", productHandler.CreateProduct)
 			r.Put("/products/{id}", productHandler.UpdateProduct)
@@ -307,6 +326,7 @@ CREATE TABLE IF NOT EXISTS products (
 
 ALTER TABLE products ADD COLUMN IF NOT EXISTS pressure_class VARCHAR(50);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_quantity INT NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -405,7 +425,60 @@ CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_shipper_id ON orders(shipper_id);
 CREATE INDEX IF NOT EXISTS idx_cod_settlements_shipper_id ON cod_settlements(shipper_id);
 CREATE INDEX IF NOT EXISTS idx_orders_cod_remitted ON orders(cod_remitted, status, payment_method);
+-- GĐ1: Hồ sơ đăng ký shipper + pool 20 email (chỉ lưu 4 số cuối giấy tờ).
+-- Đặt ở đây để luồng chạy bằng go run cũng tự có schema như migration 000010.
+ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
 
+CREATE TABLE IF NOT EXISTS me_supplies.shipper_applications (
+    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name              VARCHAR(200) NOT NULL,
+    phone                  VARCHAR(20) NOT NULL,
+    date_of_birth          DATE NOT NULL,
+    document_type          VARCHAR(50) NOT NULL,
+    document_number_masked VARCHAR(20) NOT NULL,
+    license_plate          VARCHAR(20),
+    driver_license         VARCHAR(50),
+    terms_accepted         BOOLEAN NOT NULL DEFAULT FALSE,
+    training_confirmed     BOOLEAN NOT NULL DEFAULT FALSE,
+    status                 VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+                           CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    rejection_reason       TEXT,
+    identity_checked       BOOLEAN NOT NULL DEFAULT FALSE,
+    vehicle_checked        BOOLEAN NOT NULL DEFAULT FALSE,
+    terms_checked          BOOLEAN NOT NULL DEFAULT FALSE,
+    training_checked       BOOLEAN NOT NULL DEFAULT FALSE,
+    reviewed_by            UUID REFERENCES me_supplies.users(id),
+    reviewed_at            TIMESTAMPTZ,
+    issued_user_id         UUID REFERENCES me_supplies.users(id),
+    issued_email           VARCHAR(255),
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shipper_applications_status ON me_supplies.shipper_applications(status);
+
+CREATE TABLE IF NOT EXISTS me_supplies.shipper_email_pool (
+    email            VARCHAR(255) PRIMARY KEY,
+    status           VARCHAR(20) NOT NULL DEFAULT 'FREE'
+                     CHECK (status IN ('FREE', 'USED')),
+    assigned_user_id UUID REFERENCES me_supplies.users(id),
+    assigned_at      TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO me_supplies.shipper_email_pool (email) VALUES
+    ('shipper01@gmail.com'), ('shipper02@gmail.com'), ('shipper03@gmail.com'), ('shipper04@gmail.com'), ('shipper05@gmail.com'),
+    ('shipper06@gmail.com'), ('shipper07@gmail.com'), ('shipper08@gmail.com'), ('shipper09@gmail.com'), ('shipper10@gmail.com'),
+    ('shipper11@gmail.com'), ('shipper12@gmail.com'), ('shipper13@gmail.com'), ('shipper14@gmail.com'), ('shipper15@gmail.com'),
+    ('shipper16@gmail.com'), ('shipper17@gmail.com'), ('shipper18@gmail.com'), ('shipper19@gmail.com'), ('shipper20@gmail.com')
+ON CONFLICT (email) DO NOTHING;
+
+-- Luồng mã tra cứu: mã chỉ lưu dạng băm, tài khoản bị thu hồi thì vô hiệu hóa.
+-- Đặt ở đây để luồng chạy bằng go run cũng tự có schema như migration 000011.
+ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE me_supplies.shipper_applications ADD COLUMN IF NOT EXISTS lookup_code_hash TEXT;
+ALTER TABLE me_supplies.shipper_applications ADD COLUMN IF NOT EXISTS password_set_at TIMESTAMPTZ;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS sale_id UUID REFERENCES users(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_sale_id ON orders(sale_id);
 
@@ -489,7 +562,6 @@ CREATE TABLE IF NOT EXISTS payment_notes (
     collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id);
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
@@ -500,7 +572,6 @@ CREATE INDEX IF NOT EXISTS idx_payment_notes_order ON payment_notes(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_notes_sale ON payment_notes(sale_id);
 CREATE INDEX IF NOT EXISTS idx_activities_customer ON customer_activities(customer_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_status_valid_until ON quotes(status, valid_until);
-
 INSERT INTO brands (code, name, discount_rate) VALUES
     ('BINHMINH', 'Bình Minh', 18.00),
     ('CADIVI',   'Cadivi', 22.00),
@@ -646,6 +717,3 @@ func runPayOSReconciliation(ctx context.Context, repo domain.ProductRepository, 
 		log.Printf("[PayOS Job] Lỗi hủy đơn quá hạn: %v", err)
 	}
 }
-
-
-

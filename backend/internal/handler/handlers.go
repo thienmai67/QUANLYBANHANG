@@ -515,6 +515,28 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 		order.ID = uuid.New()
 	}
 	order.Status = domain.OrderStatusPending
+	order.PaymentStatus = domain.PaymentStatusUnpaid
+	order.ShipperID = nil
+	order.DeliveredAt = nil
+	order.CancellationReason = nil
+	order.IncidentDetail = nil
+	order.IncidentReportedBy = nil
+	order.IncidentReportedAt = nil
+	order.PodPhotoURL = nil
+	order.PodRecipientName = nil
+	order.PodConfirmedAt = nil
+	order.CODCollected = 0
+	order.PayOSOrderCode = nil
+
+	if order.PaymentMethod != nil {
+		pm := strings.ToUpper(strings.TrimSpace(*order.PaymentMethod))
+		if pm != "COD" && pm != "BANK_TRANSFER" {
+			writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_METHOD", "Phương thức thanh toán không hợp lệ (chỉ chấp nhận COD hoặc BANK_TRANSFER)")
+			return
+		}
+		order.PaymentMethod = &pm
+	}
+
 	if order.OrderNumber == "" {
 		order.OrderNumber = fmt.Sprintf("ORD-%s-%s", time.Now().Format("060102"), uuid.New().String()[:6])
 	}
@@ -588,6 +610,10 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := h.productRepo.CreateOrder(req.Context(), &order); err != nil {
+		if errors.Is(err, domain.ErrInsufficientStock) {
+			writeAPIError(w, http.StatusBadRequest, "INSUFFICIENT_STOCK", "Số lượng tồn kho không đủ để đáp ứng đơn hàng")
+			return
+		}
 		if errors.Is(err, domain.ErrQuantityExceedsLimit) {
 			writeAPIError(w, http.StatusBadRequest, "INVALID_QUANTITY", "Số lượng vượt quá giới hạn đặt hàng trực tuyến (tối đa 10.000 đơn vị / sản phẩm). Vui lòng liên hệ phòng dự án để đặt số lượng lớn.")
 			return
@@ -647,6 +673,8 @@ func (h *Handler) UpdateOrderStatus(w http.ResponseWriter, req *http.Request) {
 	)
 	if err != nil {
 		switch {
+		case errors.Is(err, domain.ErrInsufficientStock):
+			writeAPIError(w, http.StatusBadRequest, "INSUFFICIENT_STOCK", "Số lượng tồn kho không đủ để đáp ứng đơn hàng khi duyệt đóng gói")
 		case errors.Is(err, domain.ErrPaymentNotConfirmed):
 			writeAPIError(w, http.StatusBadRequest, "PAYMENT_NOT_CONFIRMED", "Đơn hàng chuyển khoản chưa được thanh toán")
 		case errors.Is(err, domain.ErrVersionConflict):
@@ -663,6 +691,8 @@ func (h *Handler) UpdateOrderStatus(w http.ResponseWriter, req *http.Request) {
 			writeAPIError(w, http.StatusBadRequest, "SHIPPER_REQUIRED", "Cần gán shipper khi chuyển sang trạng thái đang giao")
 		case errors.Is(err, domain.ErrInvalidShipper):
 			writeAPIError(w, http.StatusBadRequest, "INVALID_SHIPPER", "Shipper được gán không hợp lệ")
+		case errors.Is(err, domain.ErrShipperCapacityExceeded):
+			writeAPIError(w, http.StatusBadRequest, "SHIPPER_CAPACITY_EXCEEDED", "Tài xế đã đạt giới hạn tối đa 5 đơn đang giao cùng lúc")
 		case errors.Is(err, domain.ErrCancelNotAllowedForShipper):
 			writeAPIError(w, http.StatusForbidden, "CANCEL_NOT_ALLOWED_FOR_SHIPPER", "Shipper không được tự hủy đơn — liên hệ quản lý xử lý.")
 		case errors.Is(err, domain.ErrForbidden):
@@ -904,7 +934,13 @@ func (h *Handler) CreatePaymentLink(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Verify authorization
+	// D1.5: Chỉ hỗ trợ BANK_TRANSFER
+	if order.PaymentMethod == nil || !strings.EqualFold(strings.TrimSpace(*order.PaymentMethod), "BANK_TRANSFER") {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_METHOD", "Chỉ hỗ trợ tạo link thanh toán PayOS cho đơn hàng chuyển khoản (BANK_TRANSFER)")
+		return
+	}
+
+	// Verify authorization: Chỉ chủ đơn (CUSTOMER) hoặc MANAGER
 	if claims.Role == domain.RoleCustomer {
 		if order.CustomerID == nil || order.CustomerID.String() != claims.UserID {
 			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền thanh toán đơn hàng này")
@@ -916,6 +952,9 @@ func (h *Handler) CreatePaymentLink(w http.ResponseWriter, req *http.Request) {
 			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
 			return
 		}
+	} else if claims.Role != domain.RoleManager {
+		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền tạo link thanh toán cho đơn hàng này")
+		return
 	}
 
 	if order.Status == domain.OrderStatusCancelled {
@@ -1141,17 +1180,30 @@ func (h *Handler) MarkPaid(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	if order.PaymentMethod != nil && *order.PaymentMethod == "COD" && order.Status != domain.OrderStatusDelivered {
-		writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_TRANSITION", "Đơn hàng COD chỉ có thể xác nhận đã thanh toán sau khi shipper đã giao hàng thành công (DELIVERED)")
+	// D1.2 (F09): Chỉ cho phép khi đủ cả 4 điều kiện
+	if order.PaymentMethod == nil || !strings.EqualFold(strings.TrimSpace(*order.PaymentMethod), "BANK_TRANSFER") {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_METHOD", "Chỉ áp dụng đánh dấu thanh toán cho đơn chuyển khoản (BANK_TRANSFER)")
 		return
 	}
 
+	if order.PaymentStatus == domain.PaymentStatusPaid {
+		writeAPIError(w, http.StatusBadRequest, "ALREADY_PAID", "Đơn hàng đã được thanh toán trước đó")
+		return
+	}
+
+	if order.Status == domain.OrderStatusCancelled {
+		writeAPIError(w, http.StatusBadRequest, "ORDER_CANCELLED", "Không thể đánh dấu thanh toán cho đơn hàng đã bị hủy")
+		return
+	}
+
+	if order.Status == domain.OrderStatusDelivered {
+		writeAPIError(w, http.StatusBadRequest, "ORDER_DELIVERED", "Không thể đánh dấu thanh toán cho đơn hàng đã giao thành công")
+		return
+	}
 	now := time.Now()
-	if order.PaymentStatus != domain.PaymentStatusPaid {
-		if err := h.productRepo.UpdateOrderPaymentStatus(req.Context(), orderID, domain.PaymentStatusPaid, &now); err != nil {
-			writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi cập nhật trạng thái thanh toán")
-			return
-		}
+	if err := h.productRepo.UpdateOrderPaymentStatus(req.Context(), orderID, domain.PaymentStatusPaid, &now); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi cập nhật trạng thái thanh toán")
+		return
 	}
 
 	updated, err := h.productRepo.GetOrderByID(req.Context(), orderID)

@@ -1,292 +1,170 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useManagerStore } from '@/store/useManagerStore';
-import { useShipperUIStore } from '@/store/useShipperUIStore';
-import { useToast } from '@/hooks/useToast';
-import { useNow } from '@/hooks/useNow';
-import {
-  calculateShipper2HOnTimeRate,
-  getShipperWorkload,
-  MAX_SHIPPER_ACTIVE_ORDERS,
-} from '@/lib/orderRules';
-import { formatCurrencyVND } from '@/lib/formatters';
-import {
-  Clock,
-  Wallet,
-  Zap,
-  CheckCircle,
-  AlertTriangle,
-  Power,
-  ChevronRight,
-} from 'lucide-react';
+import { Order } from '@/types/manager';
 
 interface ShipperWidgetsProps {
-  shipperId: string;
+  shipperId?: string;
+  orders?: Order[];
+  nextOrderId?: string;
 }
 
-export default function ShipperWidgets({ shipperId }: ShipperWidgetsProps) {
-  const toast = useToast();
-  const now = useNow(60000);
-  const { isHighContrast } = useShipperUIStore();
-  const {
-    shippers,
-    orders,
-    updateShipperShift,
-    getShipperUnsettledCod,
-  } = useManagerStore();
+export default function ShipperWidgets({
+  shipperId = '',
+  orders: propOrders,
+  nextOrderId,
+}: ShipperWidgetsProps) {
+  const { orders: storeOrders } = useManagerStore();
 
-  const [rateFilter, setRateFilter] = useState<'today' | '7days'>('today');
+  const myOrders =
+    propOrders ??
+    (shipperId
+      ? storeOrders.filter((o) => o.shipperId === shipperId)
+      : storeOrders);
 
-  const shipper = shippers.find((s) => s.id === shipperId) || {
-    id: shipperId,
-    name: 'Nhân viên giao hàng',
-    shiftStatus: 'available',
-    status: 'available',
-    activeOrders: 0,
-  };
-
-  const currentShift = shipper.shiftStatus || (shipper.status?.toLowerCase() === 'offline' ? 'offline' : shipper.status?.toLowerCase() === 'busy' ? 'busy' : 'available');
-  const workload = getShipperWorkload(orders, shipperId);
-  const unsettledCod = getShipperUnsettledCod(shipperId);
-  const onTimeStats = calculateShipper2HOnTimeRate(
-    orders,
-    shipperId,
-    rateFilter,
-    now
+  // Group into:
+  // 1. Delivered orders (chấm đen)
+  // 2. Next order (chấm xanh #1d5fbf)
+  // 3. Waiting / remaining orders (chấm xám)
+  const deliveredOrders = myOrders.filter((o) => o.status === 'DELIVERED');
+  const activeOrders = myOrders.filter(
+    (o) => o.status === 'SHIPPING' || o.status === 'PACKING'
   );
 
-  const handleShiftChange = (targetStatus: 'available' | 'busy' | 'offline') => {
-    if (targetStatus === currentShift) return;
+  const effectiveNextId =
+    nextOrderId ||
+    (activeOrders.find((o) => o.status === 'SHIPPING')?.id || activeOrders[0]?.id);
 
-    const res = updateShipperShift(shipperId, targetStatus);
-    if (res.success) {
-      toast.success(
-        targetStatus === 'available'
-          ? 'Đã bật ca: Sẵn sàng nhận đơn!'
-          : targetStatus === 'busy'
-          ? 'Đã chuyển trạng thái: Đang bận chở hàng!'
-          : 'Đã tắt ca: Nghỉ ca an toàn!'
-      );
-    } else {
-      toast.error(res.error || 'Không thể chuyển trạng thái ca');
+  const nextOrder = activeOrders.find((o) => o.id === effectiveNextId);
+  const waitingOrders = activeOrders.filter((o) => o.id !== effectiveNextId);
+
+  // Ordered list according to route spec
+  const routeList: Array<{
+    order: Order;
+    type: 'delivered' | 'next' | 'waiting';
+  }> = [];
+
+  deliveredOrders.forEach((o) => {
+    routeList.push({ order: o, type: 'delivered' });
+  });
+
+  if (nextOrder) {
+    routeList.push({ order: nextOrder, type: 'next' });
+  }
+
+  waitingOrders.forEach((o) => {
+    routeList.push({ order: o, type: 'waiting' });
+  });
+
+  const formatDeliveryTime = (order: Order): string => {
+    if (order.status === 'DELIVERED') {
+      const timeStr = order.deliveredAt || order.pod?.capturedAt;
+      if (timeStr) {
+        try {
+          const d = new Date(timeStr);
+          if (!isNaN(d.getTime())) {
+            return d.toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }
+        } catch {
+          return '-';
+        }
+      }
     }
+    return '-';
+  };
+
+  const getStatusBadge = (order: Order, type: 'delivered' | 'next' | 'waiting') => {
+    if (type === 'delivered') {
+      return (
+        <span className="text-[14px] px-2 py-0.5 rounded-[6px] bg-[#dcfae5] text-[#04250e] font-normal shrink-0">
+          Đã giao
+        </span>
+      );
+    }
+    if (order.status === 'SHIPPING') {
+      return (
+        <span className="text-[14px] px-2 py-0.5 rounded-[6px] bg-[#dcfae5] text-[#04250e] font-normal shrink-0">
+          Đang giao
+        </span>
+      );
+    }
+    return (
+      <span className="text-[14px] px-2 py-0.5 rounded-[6px] bg-[#fffbeb] text-[#92400e] font-normal shrink-0">
+        Chờ
+      </span>
+    );
   };
 
   return (
-    <div className="space-y-3 px-4 pt-3">
-      {/* 1. Quick Shift Status Selector (Large touch targets >= 48px) */}
-      <div
-        className={`p-3 rounded-2xl border transition-colors ${
-          isHighContrast
-            ? 'bg-white border-2 border-black'
-            : 'bg-slate-900/80 border-slate-800'
-        }`}
-      >
-        <div className="flex items-center justify-between mb-2">
-          <span
-            className={`text-xs font-bold flex items-center gap-1.5 ${
-              isHighContrast ? 'text-black' : 'text-slate-300'
-            }`}
-          >
-            <Power className="w-3.5 h-3.5 text-amber-500" />
-            Trạng thái ca làm việc:
-          </span>
-          <span
-            className={`text-[11px] font-mono font-bold ${
-              isHighContrast ? 'text-black' : 'text-slate-400'
-            }`}
-          >
-            Hôm nay
-          </span>
-        </div>
+    <div className="bg-white border border-[#e6e6e6] rounded-[8px] p-4">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-[16px] font-semibold text-[#0a0a0a]">
+          Lộ trình hôm nay
+        </h2>
+        <span className="text-[14px] text-[#6b6b6b] tabular-nums">
+          {routeList.length} điểm dừng
+        </span>
+      </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { id: 'available', label: 'Sẵn sàng', color: 'emerald' },
-            { id: 'busy', label: 'Đang bận', color: 'amber' },
-            { id: 'offline', label: 'Nghỉ ca', color: 'slate' },
-          ].map((item) => {
-            const isActive = currentShift === item.id;
+      {routeList.length === 0 ? (
+        <p className="text-[14px] text-[#6b6b6b] py-3">
+          Chưa có đơn hàng trên lộ trình hôm nay.
+        </p>
+      ) : (
+        <div className="divide-y divide-[#e6e6e6]">
+          {routeList.map(({ order, type }) => {
+            const timeDisplay = formatDeliveryTime(order);
+            const customerName =
+              order.siteContact?.name || order.customerName || 'Khách hàng';
+
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleShiftChange(item.id as any)}
-                className={`min-h-[48px] py-2 px-1 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center border active:scale-95 ${
-                  isActive
-                    ? isHighContrast
-                      ? 'bg-black text-white border-2 border-black shadow-md'
-                      : item.id === 'available'
-                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-600/30 font-black'
-                      : item.id === 'busy'
-                      ? 'bg-amber-600 text-white border-amber-500 shadow-lg shadow-amber-600/30 font-black'
-                      : 'bg-slate-700 text-white border-slate-600 shadow-lg shadow-slate-700/30 font-black'
-                    : isHighContrast
-                    ? 'bg-slate-100 text-black border-2 border-black hover:bg-slate-200'
-                    : 'bg-slate-800/80 text-slate-400 hover:text-white border-slate-700/60 hover:bg-slate-800'
-                }`}
+              <Link
+                key={order.id}
+                href={`/shipper/orders/${order.id}`}
+                className="min-h-[48px] py-2 flex items-center gap-3 transition-colors hover:bg-[#f8f8f8] -mx-2 px-2 rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d5fbf]"
               >
-                <span>{item.label}</span>
-                {isActive && (
-                  <span className="text-[9px] opacity-80 mt-0.5">• Đang chọn •</span>
+                {/* Route dot indicator */}
+                {type === 'delivered' && (
+                  <span
+                    aria-label="Điểm đã giao"
+                    className="w-2.5 h-2.5 rounded-full bg-[#0a0a0a] shrink-0"
+                  />
                 )}
-              </button>
+                {type === 'next' && (
+                  <span
+                    aria-label="Điểm tiếp theo"
+                    className="w-2.5 h-2.5 rounded-full bg-[#1d5fbf] shrink-0"
+                  />
+                )}
+                {type === 'waiting' && (
+                  <span
+                    aria-label="Điểm chờ"
+                    className="w-2.5 h-2.5 rounded-full bg-[#6b6b6b] shrink-0"
+                  />
+                )}
+
+                {/* Status pill */}
+                {getStatusBadge(order, type)}
+
+                {/* Customer name */}
+                <span className="text-[14px] text-[#0a0a0a] font-normal truncate flex-1">
+                  {customerName}
+                </span>
+
+                {/* Real time or dash */}
+                <span className="text-[14px] text-[#6b6b6b] tabular-nums shrink-0">
+                  {timeDisplay}
+                </span>
+              </Link>
             );
           })}
         </div>
-      </div>
-
-      {/* 2. Three Metric Cards Grid */}
-      <div className="grid grid-cols-3 gap-2">
-        {/* Workload Metric */}
-        <div
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-colors ${
-            isHighContrast
-              ? 'bg-white border-2 border-black text-black'
-              : 'bg-slate-900/80 border-slate-800'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400">
-              Tải đơn
-            </span>
-            <Zap
-              className={`w-3.5 h-3.5 ${
-                workload >= MAX_SHIPPER_ACTIVE_ORDERS
-                  ? 'text-rose-500'
-                  : workload >= 4
-                  ? 'text-amber-500'
-                  : 'text-emerald-500'
-              }`}
-            />
-          </div>
-          <div className="mt-2">
-            <div className="flex items-baseline gap-1">
-              <span
-                className={`text-xl font-black font-mono leading-none ${
-                  isHighContrast
-                    ? 'text-black'
-                    : workload >= MAX_SHIPPER_ACTIVE_ORDERS
-                    ? 'text-rose-400'
-                    : workload >= 4
-                    ? 'text-amber-400'
-                    : 'text-emerald-400'
-                }`}
-              >
-                {workload}
-              </span>
-              <span className="text-xs text-slate-400 font-bold">
-                /{MAX_SHIPPER_ACTIVE_ORDERS}
-              </span>
-            </div>
-            {/* Mini Progress Bar */}
-            <div className="w-full bg-slate-700/40 rounded-full h-1.5 mt-2 overflow-hidden border border-slate-700/50">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  workload >= MAX_SHIPPER_ACTIVE_ORDERS
-                    ? 'bg-rose-500'
-                    : workload >= 4
-                    ? 'bg-amber-500'
-                    : 'bg-emerald-500'
-                }`}
-                style={{
-                  width: `${Math.min(100, (workload / MAX_SHIPPER_ACTIVE_ORDERS) * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* COD Wallet Metric */}
-        <Link
-          href="/shipper/cod"
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-all active:scale-95 ${
-            isHighContrast
-              ? 'bg-white border-2 border-black text-black hover:bg-slate-50'
-              : 'bg-slate-900/80 border-slate-800 hover:border-emerald-500/50'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400">Ví COD</span>
-            <Wallet className="w-3.5 h-3.5 text-emerald-400" />
-          </div>
-          <div className="mt-2">
-            <p
-              className={`text-sm font-black font-mono truncate leading-tight ${
-                isHighContrast
-                  ? 'text-black'
-                  : unsettledCod.totalAmount > 0
-                  ? 'text-emerald-400'
-                  : 'text-slate-300'
-              }`}
-            >
-              {formatCurrencyVND(unsettledCod.totalAmount)}
-            </p>
-            <p className="text-[10px] text-slate-400 truncate mt-1">
-              Hôm nay: {formatCurrencyVND(unsettledCod.todayAmount)}
-            </p>
-          </div>
-        </Link>
-
-        {/* 2H On-Time Rate Metric */}
-        <div
-          className={`p-3 rounded-2xl border flex flex-col justify-between transition-colors ${
-            isHighContrast
-              ? 'bg-white border-2 border-black text-black'
-              : 'bg-slate-900/80 border-slate-800'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400">2H chuẩn</span>
-            <Clock className="w-3.5 h-3.5 text-cyan-400" />
-          </div>
-          <div className="mt-1">
-            <div className="flex items-baseline justify-between">
-              <span
-                className={`text-xl font-black font-mono leading-none ${
-                  isHighContrast ? 'text-black' : 'text-cyan-400'
-                }`}
-              >
-                {onTimeStats.rateFormatted}
-              </span>
-              <span className="text-[10px] text-slate-400">
-                {onTimeStats.onTime2H}/{onTimeStats.total2H}
-              </span>
-            </div>
-            {/* Filter Toggle Pill */}
-            <div className="flex items-center gap-1 mt-1.5">
-              <button
-                type="button"
-                onClick={() => setRateFilter('today')}
-                className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-all ${
-                  rateFilter === 'today'
-                    ? isHighContrast
-                      ? 'bg-black text-white'
-                      : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Nay
-              </button>
-              <button
-                type="button"
-                onClick={() => setRateFilter('7days')}
-                className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-all ${
-                  rateFilter === '7days'
-                    ? isHighContrast
-                      ? 'bg-black text-white'
-                      : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                7N
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

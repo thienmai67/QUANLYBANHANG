@@ -72,9 +72,6 @@ export default function CartDrawer() {
 
   React.useEffect(() => {
     const token = getAccessToken();
-    if (!token && !isAuthenticated && items.length > 0) {
-      clearCart();
-    }
     if (isOpen && openToCheckout) {
       setOpenToCheckout(false);
       if (!token && !isAuthenticated) {
@@ -95,7 +92,7 @@ export default function CartDrawer() {
       try {
         const res = await api.get<any>(`/orders/${orderId}/payment-status`);
         if (res.paymentStatus === 'PAID') {
-          toast.success('Thanh toán thành công! Đơn hàng đã chuyển sang trạng thái đóng gói.');
+          toast.success('Thanh toán thành công! Đơn hàng đang chờ quản lý duyệt đóng gói.');
           clearCart();
           setCheckoutStep('success');
           if (typeof window !== 'undefined') {
@@ -243,16 +240,17 @@ export default function CartDrawer() {
         shippingAddress: customerAddress || undefined,
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
         is2h: false,
-        items: items.map((i, idx) => {
+        items: items.map((i) => {
           let resolvedId = i.id;
           if (!uuidRegex.test(resolvedId)) {
             const matched = catalogProducts.find(
               (p) => p.sku && i.sku && p.sku.toLowerCase() === i.sku.toLowerCase()
             );
-            resolvedId =
-              matched?.id ||
-              catalogProducts[idx % Math.max(1, catalogProducts.length)]?.id ||
-              i.id;
+            if (matched && uuidRegex.test(matched.id)) {
+              resolvedId = matched.id;
+            } else {
+              throw new Error(`Sản phẩm "${i.name}" (mã: ${i.sku || i.id}) không còn đúng mã trong danh mục. Vui lòng chọn lại.`);
+            }
           }
           return {
             productId: resolvedId,
@@ -600,14 +598,21 @@ export default function CartDrawer() {
                         <span>{isRegeneratingQR ? 'Đang tạo mới...' : 'Tạo lại mã QR mới'}</span>
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast.info(`Đơn hàng #${paymentInfo.orderNumber} đã được ghi nhận. Bạn có thể mở mục Tài khoản / Đơn hàng để thanh toán lại bất kỳ lúc nào.`);
+                        handleClose();
+                      }}
+                      className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-colors"
+                    >
+                      <span>Thanh toán sau (Lưu đơn vào tài khoản)</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Hotline guidance */}
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 text-center flex items-center justify-center gap-1.5 pt-1">
-                  <PhoneCall className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Hỗ trợ gấp: Hotline <strong>1900 1234</strong> (0901 234 567)</span>
-                </div>
+                
               </div>
             )}
 
@@ -621,7 +626,7 @@ export default function CartDrawer() {
                 </h3>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
                   {paymentMethod === 'BANK'
-                    ? 'Đơn hàng đã được xác nhận thanh toán thành công và sẵn sàng đóng gói.'
+                    ? 'Đơn hàng đã được xác nhận thanh toán thành công và đang chờ duyệt đóng gói.'
                     : 'Đơn hàng của bạn đã được tiếp nhận thành công. Nhân viên TDT M&E sẽ liên hệ xác nhận giao hàng trong 15 phút.'}
                 </p>
                 <button

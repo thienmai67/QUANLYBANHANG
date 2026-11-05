@@ -7,6 +7,7 @@ import { calculateDiscountedPrice } from '@/lib/stock';
 import { formatCurrencyVND, formatNumberVND } from '@/lib/formatters';
 import { StockAdjustModal } from '@/components/manager/StockAdjustModal';
 import { AddMaterialModal } from '@/components/manager/AddMaterialModal';
+import { EditMaterialModal } from '@/components/manager/EditMaterialModal';
 import { useToast } from '@/hooks/useToast';
 import {
   Boxes,
@@ -14,6 +15,7 @@ import {
   PlusCircle,
   AlertTriangle,
   SlidersHorizontal,
+  Pencil,
   Package,
   Layers,
   CheckCircle2,
@@ -66,6 +68,8 @@ export default function ManagerProductsPage() {
   const [adjustTargetProduct, setAdjustTargetProduct] = useState<Product | null>(null);
   const [isAdjustOpen, setIsAdjustOpen] = useState<boolean>(false);
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
+  const [editTargetProduct, setEditTargetProduct] = useState<Product | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
 
   // Summary counts
   const totalProducts = products.length;
@@ -366,6 +370,18 @@ export default function ManagerProductsPage() {
                             <button
                               type="button"
                               onClick={() => {
+                                setEditTargetProduct(prod);
+                                setIsEditOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 transition-colors"
+                              title="Chỉnh sửa thông tin vật tư"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Sửa</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
                                 setAdjustTargetProduct(prod);
                                 setIsAdjustOpen(true);
                               }}
@@ -463,6 +479,17 @@ export default function ManagerProductsPage() {
                     <button
                       type="button"
                       onClick={() => {
+                        setEditTargetProduct(prod);
+                        setIsEditOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Sửa</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
                         setAdjustTargetProduct(prod);
                         setIsAdjustOpen(true);
                       }}
@@ -498,6 +525,16 @@ export default function ManagerProductsPage() {
       <AddMaterialModal
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
+      />
+
+      <EditMaterialModal
+        product={editTargetProduct}
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setEditTargetProduct(null);
+        }}
+        onSuccess={() => fetchProducts()}
       />
     </div>
   );

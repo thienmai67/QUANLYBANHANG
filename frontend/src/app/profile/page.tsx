@@ -32,6 +32,8 @@ import { resizeImageCanvas } from '@/lib/shipperHelpers';
 import { formatMax9DigitsAmount } from '@/lib/formatters';
 import ProfileDropdown, { ProfileDropdownOption } from '@/components/profile/ProfileDropdown';
 import InvoiceModal from '@/components/profile/InvoiceModal';
+import CancelOrderModal from '@/components/CancelOrderModal';
+import PayOSModal from '@/components/PayOSModal';
 import './profile.css';
 
 interface DBOrderItem {
@@ -190,6 +192,34 @@ export default function CustomerProfilePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<DBOrder | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState<boolean>(false);
+  const [cancellingOrder, setCancellingOrder] = useState<DBOrder | null>(null);
+  const [repayingOrder, setRepayingOrder] = useState<DBOrder | null>(null);
+
+  const handleCancelSuccess = (orderId: string, reason: string) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, status: 'CANCELLED', cancellationReason: reason }
+          : o
+      )
+    );
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder((prev) =>
+        prev ? { ...prev, status: 'CANCELLED', cancellationReason: reason } : null
+      );
+    }
+  };
+
+  const handleRepaySuccess = (orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: 'PAID' } : o))
+    );
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder((prev) =>
+        prev ? { ...prev, paymentStatus: 'PAID' } : null
+      );
+    }
+  };
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -1290,12 +1320,34 @@ export default function CustomerProfilePage() {
                         <div className="profile-total-val">{ord.totalAmount.toLocaleString('vi-VN')} đ</div>
                       </div>
 
-                      <button
-                        className="profile-btn-detail"
-                        onClick={() => setSelectedOrder(ord)}
-                      >
-                        Chi tiết đơn hàng &rarr;
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                        {ord.status === 'PENDING' && (
+                          <>
+                            {(ord.paymentMethod === 'BANK_TRANSFER' || ord.paymentMethod === 'BANK') && ord.paymentStatus !== 'PAID' && (
+                              <button
+                                type="button"
+                                className="profile-btn-repay"
+                                onClick={() => setRepayingOrder(ord)}
+                              >
+                                Quét QR thanh toán &rarr;
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="profile-btn-cancel"
+                              onClick={() => setCancellingOrder(ord)}
+                            >
+                              Hủy đơn hàng
+                            </button>
+                          </>
+                        )}
+                        <button
+                          className="profile-btn-detail"
+                          onClick={() => setSelectedOrder(ord)}
+                        >
+                          Chi tiết đơn hàng &rarr;
+                        </button>
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -1867,6 +1919,28 @@ export default function CustomerProfilePage() {
 
             <div className="profile-modal-footer">
               <div className="profile-modal-footer-actions">
+                {selectedOrder.status === 'PENDING' && (
+                  <>
+                    {(selectedOrder.paymentMethod === 'BANK_TRANSFER' || selectedOrder.paymentMethod === 'BANK') && selectedOrder.paymentStatus !== 'PAID' && (
+                      <button
+                        type="button"
+                        className="profile-btn-repay"
+                        style={{ width: 'auto', padding: '8px 16px' }}
+                        onClick={() => setRepayingOrder(selectedOrder)}
+                      >
+                        Thanh toán lại (QR)
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="profile-btn-cancel"
+                      style={{ width: 'auto', padding: '8px 16px' }}
+                      onClick={() => setCancellingOrder(selectedOrder)}
+                    >
+                      Hủy đơn hàng
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="profile-btn-invoice"
@@ -1889,6 +1963,24 @@ export default function CustomerProfilePage() {
           </div>
         </div>
       )}
+
+      {/* POPUP HỦY ĐƠN HÀNG */}
+      <CancelOrderModal
+        isOpen={Boolean(cancellingOrder)}
+        order={cancellingOrder}
+        onClose={() => setCancellingOrder(null)}
+        onCancelSuccess={(id, reason) => handleCancelSuccess(id, reason)}
+      />
+
+      {/* POPUP THANH TOÁN QR PAYOS */}
+      <PayOSModal
+        isOpen={Boolean(repayingOrder)}
+        order={repayingOrder}
+        onClose={() => setRepayingOrder(null)}
+        onPaymentSuccess={() => {
+          if (repayingOrder) handleRepaySuccess(repayingOrder.id);
+        }}
+      />
 
       {/* POPUP HÓA ĐƠN ĐIỆN TỬ */}
       <InvoiceModal
