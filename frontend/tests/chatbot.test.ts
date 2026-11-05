@@ -86,6 +86,30 @@ describe('ChatBot Widget & Cart Integration', () => {
       expect(state.items[0].quantity).toBe(2);
       expect(state.getTotalItems()).toBe(2);
     });
+
+    it('sets quantity directly and removes item if qty <= 0', () => {
+      const prod = {
+        id: 'prod-cad-set',
+        sku: 'CAD-SET-1',
+        name: 'Dây điện Cadivi test',
+        price: '10.000 ₫',
+        unitPrice: 10000,
+        image: '',
+        quantity: 1,
+      };
+
+      useCartStore.getState().addItem(prod, false);
+      expect(useCartStore.getState().items[0].quantity).toBe(1);
+
+      // set to 15
+      useCartStore.getState().setQuantity('prod-cad-set', 15);
+      expect(useCartStore.getState().items[0].quantity).toBe(15);
+      expect(useCartStore.getState().getTotalPrice()).toBe(150000);
+
+      // set to 0 -> removes
+      useCartStore.getState().setQuantity('prod-cad-set', 0);
+      expect(useCartStore.getState().items).toHaveLength(0);
+    });
   });
 
   describe('2. Pathname Visibility Logic', () => {

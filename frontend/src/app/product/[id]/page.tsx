@@ -200,8 +200,7 @@ export default function ProductDetailPage() {
       false
     );
 
-    setOpenToCheckout(true);
-    useCartStore.getState().setIsOpen(true);
+    router.push('/checkout');
   };
 
   return (

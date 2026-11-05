@@ -21,6 +21,7 @@ interface CartState {
   addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }, openDrawer?: boolean) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
+  setQuantity: (id: string, qty: number) => void;
   clearCart: () => void;
   getTotalPrice: () => number;
   getTotalItems: () => number;
@@ -82,6 +83,21 @@ export const useCartStore = create<CartState>()(
           })
           .filter(Boolean) as CartItem[];
 
+        set({ items: updated });
+      },
+
+      setQuantity: (id, qty) => {
+        const intQty = Math.floor(qty);
+        if (intQty <= 0) {
+          set({ items: get().items.filter((i) => i.id !== id) });
+          return;
+        }
+        const updated = get().items.map((item) => {
+          if (item.id === id) {
+            return { ...item, quantity: intQty };
+          }
+          return item;
+        });
         set({ items: updated });
       },
 

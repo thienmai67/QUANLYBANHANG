@@ -27,6 +27,7 @@ test.describe('02. Customer Flow — Catalog, Cart & Checkout', () => {
   });
 
   test('should add product to cart, adjust quantity, and complete checkout', async ({ page }) => {
+    await injectAuthState(page, 'CUSTOMER');
     await page.goto('/shop');
 
     // Click "Thêm Vào Giỏ" on the first product card
@@ -37,16 +38,16 @@ test.describe('02. Customer Flow — Catalog, Cart & Checkout', () => {
     const drawerHeader = page.getByRole('heading', { name: /Giỏ Hàng Mua Lẻ/i });
     await expect(drawerHeader).toBeVisible();
 
-    // Verify item in drawer and total price displayed
-    await expect(page.getByText('TỔNG THÀNH TIỀN:')).toBeVisible();
+    // Click "Xem giỏ hàng" to go to /cart
+    const viewCartBtn = page.getByRole('button', { name: /Xem giỏ hàng/i });
+    await viewCartBtn.click();
+    await expect(page).toHaveURL(/\/cart/);
 
-    // Advance to checkout form step
-    const checkoutStepButton = page.getByRole('button', { name: /Tiến Hành Đặt Hàng/i });
-    await checkoutStepButton.click();
-
-    // Checkout form should be displayed
-    const checkoutForm = page.locator('#checkout-form');
-    await expect(checkoutForm).toBeVisible();
+    // On /cart page, verify table and advance to /checkout
+    await expect(page.getByRole('heading', { name: /Giỏ Hàng Mua Lẻ/i })).toBeVisible();
+    const proceedCheckoutBtn = page.getByRole('button', { name: /Tiến hành đặt hàng/i }).first();
+    await proceedCheckoutBtn.click();
+    await expect(page).toHaveURL(/\/checkout/);
 
     // Fill delivery information
     await page.fill('input[placeholder="Nguyễn Văn A"]', 'Nguyễn Văn An');
@@ -54,15 +55,16 @@ test.describe('02. Customer Flow — Catalog, Cart & Checkout', () => {
     await page.fill('input[placeholder*="Số nhà, Tên đường"]', '123 Xa Lộ Hà Nội, TP. Thủ Đức, TP.HCM');
 
     // Select COD payment method
-    const codButton = page.getByRole('button', { name: /Thanh toán COD/i });
-    await codButton.click();
+    const codRadio = page.locator('input[type="radio"]').nth(1);
+    await codRadio.click();
 
     // Submit checkout
-    const confirmButton = page.locator('button[type="submit"][form="checkout-form"]');
+    const confirmButton = page.getByRole('button', { name: /Xác Nhận Đặt Hàng \(COD\)/i });
     await confirmButton.click();
 
     // Verify order placement success screen
-    const successHeading = page.getByRole('heading', { name: /Cảm Ơn Bạn Đã Đặt Hàng!/i });
+    await expect(page).toHaveURL(/\/order-success/);
+    const successHeading = page.getByRole('heading', { name: /Đặt Hàng Thành Công!/i });
     await expect(successHeading).toBeVisible();
   });
 

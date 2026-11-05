@@ -201,4 +201,38 @@ export async function mockApiRoutes(page: Page): Promise<void> {
     }
     return route.continue();
   });
+
+  // Handle /api/v1/orders/*
+  await page.route('**/api/v1/orders/*', async (route) => {
+    if (route.request().method() === 'GET') {
+      const url = route.request().url();
+      if (url.includes('/payment-status')) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            paymentStatus: 'UNPAID',
+            payosStatus: 'PENDING',
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'ord-test-uuid',
+          orderNumber: 'ORD-999999',
+          customerName: 'Nguyễn Văn An',
+          customerPhone: '0908123456',
+          shippingAddress: '123 Xa Lộ Hà Nội, TP. Thủ Đức, TP.HCM',
+          paymentMethod: 'COD',
+          paymentStatus: 'UNPAID',
+          status: 'Pending',
+          totalAmount: 100000,
+          items: [],
+        }),
+      });
+    }
+    return route.continue();
+  });
 }
