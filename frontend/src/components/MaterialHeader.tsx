@@ -269,6 +269,12 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
               >
                 <ShoppingCart className="w-4 h-4 text-blue-500" /> Giỏ Hàng
               </Link>
+              <Link
+                href="/tra-cuu-don-hang"
+                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+              >
+                <Truck className="w-4 h-4 text-emerald-600" /> Tra Cứu Đơn
+              </Link>
               <button
                 type="button"
                 onClick={() => {
@@ -314,6 +320,13 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                 className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center gap-2"
               >
                 <ShoppingCart className="w-4 h-4 text-blue-500" /> Giỏ Hàng
+              </Link>
+              <Link
+                href="/tra-cuu-don-hang"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400"
+              >
+                <Truck className="w-4 h-4" /> Tra Cứu Đơn
               </Link>
               <button
                 type="button"

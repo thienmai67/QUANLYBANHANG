@@ -135,6 +135,7 @@ func main() {
 		r.Get("/units", productHandler.ListUnits)
 		r.Get("/brands", productHandler.ListBrands)
 		r.Get("/categories", productHandler.ListCategories)
+		r.Get("/public/orders/lookup", productHandler.PublicLookupOrder)
 		r.Post("/chat", chatHandler.HandleChat)
 		r.Post("/payment/payos-webhook", productHandler.HandlePayOSWebhook)
 		r.Post("/payos/webhook", productHandler.HandlePayOSWebhook)

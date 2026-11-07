@@ -278,7 +278,7 @@ export default function CheckoutPage() {
       }
 
       const payload = {
-        customerName: customerName || 'Khách Mua Lẻ',
+        customerName: customerPhone ? `${customerName.trim()} (${customerPhone.trim()})` : (customerName || 'Khách Mua Lẻ'),
         customerPhone: customerPhone || undefined,
         shippingAddress: customerAddress || undefined,
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',

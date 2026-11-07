@@ -1302,3 +1302,47 @@ func (h *Handler) HandlePayOSWebhook(w http.ResponseWriter, req *http.Request) {
 		"message": "Webhook processed successfully",
 	})
 }
+
+
+type orderLookupRepository interface {
+	LookupOrderByNumberOrPhone(ctx context.Context, orderNumber, phone string) ([]domain.Order, error)
+}
+
+func (h *Handler) PublicLookupOrder(w http.ResponseWriter, req *http.Request) {
+	orderNumber := strings.TrimSpace(req.URL.Query().Get("orderNumber"))
+	phone := strings.TrimSpace(req.URL.Query().Get("phone"))
+
+	if orderNumber == "" && phone == "" {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_INPUT", "Vui lòng cung cấp mã đơn hàng hoặc số điện thoại để tra cứu")
+		return
+	}
+
+	if phone != "" && len(phone) < 8 {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_INPUT", "Số điện thoại tra cứu phải có ít nhất 8 chữ số")
+		return
+	}
+
+	if orderNumber != "" && len(orderNumber) < 4 {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_INPUT", "Mã đơn hàng tra cứu phải có ít nhất 4 ký tự")
+		return
+	}
+
+	lookupRepo, ok := h.productRepo.(orderLookupRepository)
+	if !ok {
+		writeAPIError(w, http.StatusNotImplemented, "NOT_IMPLEMENTED", "Chức năng tra cứu đơn hàng chưa được hỗ trợ trên kho lưu trữ hiện tại")
+		return
+	}
+
+	orders, err := lookupRepo.LookupOrderByNumberOrPhone(req.Context(), orderNumber, phone)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi tra cứu đơn hàng: "+err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"data":  orders,
+		"total": len(orders),
+	})
+}

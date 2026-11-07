@@ -869,6 +869,69 @@ func (r *productRepository) GetOrderByID(ctx context.Context, orderID uuid.UUID)
 	return o, nil
 }
 
+const orderAliasedSelectColumns = `
+    o.id, o.order_number, o.customer_id, o.customer_name, o.shipper_id, o.payment_method,
+    o.is_2h, o.deadline_2h, o.delivered_at, o.cancellation_reason, o.total_amount, o.status,
+    o.version, o.pod_photo_url, o.pod_recipient_name, o.pod_confirmed_at, o.cod_collected,
+    o.cod_remitted, o.cod_remitted_at, o.incident_detail, o.incident_reported_by, o.incident_reported_at,
+    o.payment_status, o.payos_order_code, o.paid_at, o.payment_receipt_url, o.refund_tx_code, o.refunded_at,
+    o.created_at, o.updated_at, o.sale_id
+`
+
+func (r *productRepository) LookupOrderByNumberOrPhone(ctx context.Context, orderNumber, phone string) ([]domain.Order, error) {
+	orderNumber = strings.TrimSpace(orderNumber)
+	phone = strings.TrimSpace(phone)
+	if orderNumber == "" && phone == "" {
+		return nil, errors.New("orderNumber or phone must be provided")
+	}
+
+	var conditions []string
+	var args []any
+	idx := 1
+
+	if orderNumber != "" {
+		conditions = append(conditions, fmt.Sprintf("(o.order_number ILIKE $%d OR o.id::text ILIKE $%d)", idx, idx))
+		args = append(args, "%"+orderNumber+"%")
+		idx++
+	}
+
+	if phone != "" {
+		conditions = append(conditions, fmt.Sprintf("(u.phone ILIKE $%d OR o.customer_name ILIKE $%d)", idx, idx))
+		args = append(args, "%"+phone+"%")
+		idx++
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
+	query := fmt.Sprintf(`
+		SELECT %s
+		FROM me_supplies.orders o
+		LEFT JOIN me_supplies.users u ON o.customer_id = u.id
+		WHERE %s
+		ORDER BY o.created_at DESC
+		LIMIT 10
+	`, orderAliasedSelectColumns, whereClause)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("lookup orders: %w", err)
+	}
+	defer rows.Close()
+
+	var orders []domain.Order
+	for rows.Next() {
+		o, err := scanOrderRow(rows)
+		if err != nil {
+			continue
+		}
+		o.Items = r.loadOrderItems(ctx, o.ID)
+		orders = append(orders, *o)
+	}
+	if orders == nil {
+		orders = []domain.Order{}
+	}
+	return orders, nil
+}
+
 func (r *productRepository) CreateOrder(ctx context.Context, order *domain.Order) error {
 	if len(order.Items) == 0 {
 		return errors.New("order must contain at least one item")
