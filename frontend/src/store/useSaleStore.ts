@@ -34,7 +34,7 @@ interface SaleStoreState {
   // Actions
   fetchDashboard: () => Promise<void>;
   fetchOrders: (params?: { status?: string; paymentStatus?: string; customerId?: string; q?: string }) => Promise<void>;
-  createOrder: (payload: { customerId: string; customerName: string; paymentMethod: string; is2h?: boolean; items: Array<{ productId: string; quantity: number; unitPrice: number; unit?: string }> }) => Promise<Order>;
+  createOrder: (payload: { customerId?: string; customerName: string; paymentMethod: string; is2h?: boolean; items: Array<{ productId: string; quantity: number; unitPrice: number; unit?: string }> }) => Promise<Order>;
   markPaid: (orderId: string) => Promise<void>;
   fetchCustomers: (query?: string) => Promise<void>;
   createCustomer: (payload: { fullName: string; email: string; phone?: string; companyName?: string; siteAddress?: string; tier?: string; creditLimit?: number; notes?: string }) => Promise<SaleCustomerSummary>;

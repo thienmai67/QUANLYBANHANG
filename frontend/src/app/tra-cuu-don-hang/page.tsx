@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import { useCartStore } from '@/store/useCartStore';
+import { ThermalReceiptModal, ThermalOrderData } from '@/components/ThermalReceiptModal';
 import { useToast } from '@/hooks/useToast';
 import { api, getFriendlyErrorMessage } from '@/lib/api';
 import {
@@ -25,6 +26,7 @@ import {
   ChevronRight,
   Check,
   XCircle,
+  Printer,
 } from 'lucide-react';
 
 interface LookupOrderItem {
@@ -71,6 +73,10 @@ function OrderLookupContent() {
   const [hasSearched, setHasSearched] = useState(false);
   const [orders, setOrders] = useState<LookupOrder[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Thermal Receipt Print State
+  const [selectedOrderForReceipt, setSelectedOrderForReceipt] = useState<ThermalOrderData | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   // Auto search on mount if url query params present
   useEffect(() => {
@@ -558,6 +564,33 @@ function OrderLookupContent() {
 
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => {
+                          setSelectedOrderForReceipt({
+                            orderNumber: order.orderNumber,
+                            createdAt: order.createdAt,
+                            customerName: order.customerName,
+                            customerPhone: phone || undefined,
+                            shippingAddress: order.is2h ? 'Giao hỏa tốc 2H tận nơi' : 'Giao tiêu chuẩn / Nhận tại tiệm',
+                            paymentMethod: order.paymentMethod,
+                            paymentStatus: order.paymentStatus,
+                            totalAmount: order.totalAmount,
+                            items: (order.items || []).map((it) => ({
+                              productName: it.productName || it.name,
+                              sku: it.sku,
+                              quantity: it.quantity,
+                              unitPrice: it.unitPrice,
+                              unit: it.unit,
+                            })),
+                          });
+                          setShowReceiptModal(true);
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-slate-500" />
+                        <span>In Phiếu K80</span>
+                      </button>
+
+                      <button
                         onClick={() => handleReorder(order)}
                         className="px-4 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/50 dark:hover:bg-orange-900/50 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                       >
@@ -593,6 +626,13 @@ function OrderLookupContent() {
           </div>
         </div>
       </main>
+
+      {/* Thermal Receipt Modal */}
+      <ThermalReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        order={selectedOrderForReceipt}
+      />
 
       <MaterialFooter />
     </div>

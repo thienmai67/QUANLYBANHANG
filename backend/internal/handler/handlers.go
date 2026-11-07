@@ -542,8 +542,8 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 
 	if order.PaymentMethod != nil {
 		pm := strings.ToUpper(strings.TrimSpace(*order.PaymentMethod))
-		if pm != "COD" && pm != "BANK_TRANSFER" {
-			writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_METHOD", "Phương thức thanh toán không hợp lệ (chỉ chấp nhận COD hoặc BANK_TRANSFER)")
+		if pm != "COD" && pm != "BANK_TRANSFER" && pm != "CASH" {
+			writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_METHOD", "Phương thức thanh toán không hợp lệ (chấp nhận COD, BANK_TRANSFER hoặc CASH)")
 			return
 		}
 		order.PaymentMethod = &pm
@@ -581,20 +581,23 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 		}
 		order.SaleID = &parsedSaleID
 
-		if order.CustomerID == nil || *order.CustomerID == uuid.Nil {
-			writeAPIError(w, http.StatusBadRequest, "INVALID_CUSTOMER", "Cần chọn khách hàng phụ trách để tạo đơn")
-			return
-		}
-
-		if h.saleRepo == nil {
-			writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Dịch vụ quản trị bán hàng chưa được khởi tạo")
-			return
-		}
-
-		inScope, err := h.saleRepo.IsCustomerInSaleScope(req.Context(), parsedSaleID, *order.CustomerID)
-		if err != nil || !inScope {
-			writeAPIError(w, http.StatusNotFound, "CUSTOMER_NOT_FOUND", "Khách hàng không thuộc phạm vi phụ trách của bạn")
-			return
+		// Hỗ trợ cả 2 chế độ: Khách có tài khoản quản lý & Khách lẻ vãng lai tại quầy (Retail POS)
+		if order.CustomerID != nil && *order.CustomerID != uuid.Nil {
+			if h.saleRepo == nil {
+				writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Dịch vụ quản trị bán hàng chưa được khởi tạo")
+				return
+			}
+			inScope, err := h.saleRepo.IsCustomerInSaleScope(req.Context(), parsedSaleID, *order.CustomerID)
+			if err != nil || !inScope {
+				writeAPIError(w, http.StatusNotFound, "CUSTOMER_NOT_FOUND", "Khách hàng không thuộc phạm vi phụ trách của bạn")
+				return
+			}
+		} else {
+			// Khách vãng lai mua trực tiếp tại quầy
+			order.CustomerID = nil
+			if strings.TrimSpace(order.CustomerName) == "" {
+				order.CustomerName = "Khách lẻ tại quầy"
+			}
 		}
 
 	case domain.RoleManager:

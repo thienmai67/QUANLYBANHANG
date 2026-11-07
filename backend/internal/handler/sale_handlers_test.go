@@ -622,6 +622,69 @@ func TestSale_CreateOrder_Assisted_PreservesCustomerIDAndSetsSaleID(t *testing.T
 	}
 }
 
+// Test 2b: SALE retail walk-in POS order creation -> customerId omitted/nil, sale_id set, customerName set, paymentMethod CASH
+func TestSale_CreateOrder_WalkInPOS_Success(t *testing.T) {
+	jwtService := auth.NewJWTService("test-secret-key-1234567890123456")
+	prodRepo := newMockProductRepo()
+	saleRepo := newMockSaleRepo()
+
+	h := New(prodRepo)
+	h.SetSaleRepo(saleRepo)
+	sh := NewSaleHandler(saleRepo, prodRepo)
+	r := setupSaleTestRouter(jwtService, h, sh)
+
+	saleID := uuid.New()
+	prodID := uuid.New()
+	prodRepo.products[prodID] = domain.Product{
+		ID:        prodID,
+		SKU:       "PIPE-PVC-21",
+		Name:      "Ống nhựa PVC Phi 21",
+		BasePrice: 28000,
+	}
+
+	tokenSale := generateTestToken(t, jwtService, saleID, "sale@tdt.vn", domain.RoleSale)
+
+	payload := map[string]any{
+		"customerName":  "Khách Vãng Lai A. Tùng",
+		"paymentMethod": "CASH",
+		"items": []map[string]any{
+			{
+				"productId": prodID.String(),
+				"quantity":  3,
+				"unitPrice": 28000,
+			},
+		},
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/orders", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+tokenSale)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for walk-in POS order, got %d (body: %s)", w.Code, w.Body.String())
+	}
+
+	if len(prodRepo.orders) != 1 {
+		t.Fatalf("expected 1 order in repo, got %d", len(prodRepo.orders))
+	}
+	created := prodRepo.orders[0]
+	if created.CustomerID != nil {
+		t.Errorf("expected customer_id to be nil for walk-in POS, got %v", created.CustomerID)
+	}
+	if created.SaleID == nil || *created.SaleID != saleID {
+		t.Errorf("expected sale_id to be %s, got %v", saleID, created.SaleID)
+	}
+	if created.CustomerName != "Khách Vãng Lai A. Tùng" {
+		t.Errorf("expected customerName to be 'Khách Vãng Lai A. Tùng', got %q", created.CustomerName)
+	}
+	if created.PaymentMethod == nil || *created.PaymentMethod != "CASH" {
+		t.Errorf("expected paymentMethod to be 'CASH', got %v", created.PaymentMethod)
+	}
+}
+
 // Test 3: CUSTOMER cannot spoof customer_id -> always forced to claims.UserID
 func TestCustomer_CreateOrder_CannotSpoofCustomerID(t *testing.T) {
 	jwtService := auth.NewJWTService("test-secret-key-1234567890123456")

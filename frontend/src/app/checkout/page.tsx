@@ -29,6 +29,7 @@ import {
   User,
   Phone,
   FileText,
+  Store,
 } from 'lucide-react';
 
 interface PaymentInfo {
@@ -56,6 +57,10 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [is2h, setIs2h] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'BANK'>('COD');
+
+  // Delivery Method: Giao tận nơi (DELIVERY) vs Ghé tiệm lấy (PICKUP)
+  const [deliveryMethod, setDeliveryMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
+  const [pickupStore, setPickupStore] = useState<'HOC_MON' | 'GO_VAP'>('HOC_MON');
 
   // Submit & Order State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -235,9 +240,17 @@ export default function CheckoutPage() {
       );
       return;
     }
-    if (!customerAddress || customerAddress.trim().length < 5) {
-      toast.error('Vui lòng nhập địa chỉ giao hàng chi tiết (tối thiểu 5 ký tự)');
-      return;
+    let finalShippingAddress = customerAddress;
+    if (deliveryMethod === 'PICKUP') {
+      finalShippingAddress =
+        pickupStore === 'HOC_MON'
+          ? '[Nhận tại tiệm] Chi Nhánh 1: 120/4 Lý Thường Kiệt, TT. Hóc Môn, TP.HCM'
+          : '[Nhận tại tiệm] Chi Nhánh 2: 45 Lê Đức Thọ, P.7, Q. Gò Vấp, TP.HCM';
+    } else {
+      if (!customerAddress || customerAddress.trim().length < 5) {
+        toast.error('Vui lòng nhập địa chỉ giao hàng chi tiết (tối thiểu 5 ký tự)');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -260,7 +273,7 @@ export default function CheckoutPage() {
       discountAmount: 0,
       finalAmount: total,
       status: 'Pending' as const,
-      deliveryAddress: customerAddress || 'Chưa cung cấp',
+      deliveryAddress: finalShippingAddress,
       items: orderItems,
     };
 
@@ -280,9 +293,9 @@ export default function CheckoutPage() {
       const payload = {
         customerName: customerPhone ? `${customerName.trim()} (${customerPhone.trim()})` : (customerName || 'Khách Mua Lẻ'),
         customerPhone: customerPhone || undefined,
-        shippingAddress: customerAddress || undefined,
+        shippingAddress: finalShippingAddress,
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
-        is2h: is2h,
+        is2h: deliveryMethod === 'DELIVERY' ? is2h : false,
         items: items.map((i) => {
           let resolvedId = i.id;
           if (!uuidRegex.test(resolvedId)) {
@@ -503,25 +516,138 @@ export default function CheckoutPage() {
                       </p>
                     </div>
 
-                    {/* Customer Address */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Địa chỉ giao hàng / Công trình <span className="text-rose-500">*</span>
+                    {/* Delivery Method Choice */}
+                    <div className="space-y-2 pt-1">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        Hình thức nhận hàng <span className="text-rose-500">*</span>
                       </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                          <MapPin className="w-4 h-4" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div
+                          onClick={() => setDeliveryMethod('DELIVERY')}
+                          className={`p-3.5 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
+                            deliveryMethod === 'DELIVERY'
+                              ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/30 text-orange-950 dark:text-orange-100 ring-2 ring-orange-500/20'
+                              : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="deliveryMethod"
+                            checked={deliveryMethod === 'DELIVERY'}
+                            onChange={() => setDeliveryMethod('DELIVERY')}
+                            className="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5 font-bold text-xs md:text-sm text-slate-900 dark:text-white">
+                              <Truck className="w-4 h-4 text-orange-500" />
+                              <span>Giao Tận Nơi</span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              Giao nhanh trong ngày • Hỗ trợ Grab gấp
+                            </p>
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          required
-                          value={customerAddress}
-                          onChange={(e) => setCustomerAddress(e.target.value)}
-                          placeholder="Số nhà, Tên đường, Phường/Xã, Quận/Huyện..."
-                          className="w-full pl-10 pr-3.5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-orange-500 rounded-xl text-xs md:text-sm text-slate-900 dark:text-white outline-none transition-colors"
-                        />
+
+                        <div
+                          onClick={() => setDeliveryMethod('PICKUP')}
+                          className={`p-3.5 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
+                            deliveryMethod === 'PICKUP'
+                              ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-950 dark:text-emerald-100 ring-2 ring-emerald-500/20'
+                              : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="deliveryMethod"
+                            checked={deliveryMethod === 'PICKUP'}
+                            onChange={() => setDeliveryMethod('PICKUP')}
+                            className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5 font-bold text-xs md:text-sm text-slate-900 dark:text-white">
+                              <Store className="w-4 h-4 text-emerald-600" />
+                              <span>Ghé Tiệm Lấy (Free 0đ)</span>
+                            </div>
+                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                              Chuẩn bị sẵn trong 15p • Không chờ đợi
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Conditional Delivery / Pickup Branch View */}
+                    {deliveryMethod === 'PICKUP' ? (
+                      <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                            <Store className="w-4 h-4 text-emerald-600" />
+                            <span>Chọn chi nhánh ghé lấy hàng:</span>
+                          </div>
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-0.5 rounded-full">
+                            Miễn phí ship 0đ
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div
+                            onClick={() => setPickupStore('HOC_MON')}
+                            className={`p-3 rounded-lg border text-xs cursor-pointer transition-all ${
+                              pickupStore === 'HOC_MON'
+                                ? 'border-emerald-500 bg-white dark:bg-slate-900 shadow-sm text-slate-900 dark:text-white font-medium ring-1 ring-emerald-500'
+                                : 'border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400'
+                            }`}
+                          >
+                            <div className="font-bold flex items-center justify-between text-slate-900 dark:text-white mb-1">
+                              <span>📍 CN1: Hóc Môn (Kho Tổng)</span>
+                              {pickupStore === 'HOC_MON' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                            </div>
+                            <p className="text-[11px] text-slate-500">120/4 Lý Thường Kiệt, TT. Hóc Môn</p>
+                            <p className="text-[10px] text-slate-400 mt-1">Mở cửa: 7h30 - 20h00 hàng ngày</p>
+                          </div>
+
+                          <div
+                            onClick={() => setPickupStore('GO_VAP')}
+                            className={`p-3 rounded-lg border text-xs cursor-pointer transition-all ${
+                              pickupStore === 'GO_VAP'
+                                ? 'border-emerald-500 bg-white dark:bg-slate-900 shadow-sm text-slate-900 dark:text-white font-medium ring-1 ring-emerald-500'
+                                : 'border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400'
+                            }`}
+                          >
+                            <div className="font-bold flex items-center justify-between text-slate-900 dark:text-white mb-1">
+                              <span>📍 CN2: Gò Vấp (Cửa Hàng)</span>
+                              {pickupStore === 'GO_VAP' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                            </div>
+                            <p className="text-[11px] text-slate-500">45 Lê Đức Thọ, P.7, Q. Gò Vấp</p>
+                            <p className="text-[10px] text-slate-400 mt-1">Mở cửa: 7h30 - 20h30 hàng ngày</p>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-emerald-100 dark:border-emerald-900/40">
+                          ⚡ <strong>Tiện ích cho bà con:</strong> Nhân viên tiệm sẽ gom sẵn các món vào bọc. Quý khách chỉ cần ghé đọc Số Điện Thoại là nhận hàng ngay mà không phải xếp hàng chờ đợi!
+                        </p>
+                      </div>
+                    ) : (
+                      /* Customer Address for Delivery */
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Địa chỉ giao hàng tận nhà / Công trình <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <MapPin className="w-4 h-4" />
+                          </div>
+                          <input
+                            type="text"
+                            required
+                            value={customerAddress}
+                            onChange={(e) => setCustomerAddress(e.target.value)}
+                            placeholder="Số nhà, Tên đường, Phường/Xã, Quận/Huyện..."
+                            className="w-full pl-10 pr-3.5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-orange-500 rounded-xl text-xs md:text-sm text-slate-900 dark:text-white outline-none transition-colors"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     {/* Notes for Driver/Warehouse */}
                     <div>
@@ -542,7 +668,8 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    {/* Express 2H Option */}
+                    {/* Express 2H Option (Delivery Only) */}
+                    {deliveryMethod === 'DELIVERY' && (
                     <div className="pt-2">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
                         Tùy chọn vận chuyển
@@ -581,6 +708,7 @@ export default function CheckoutPage() {
                         </span>
                       </div>
                     </div>
+                    )}
 
                     {/* Payment Method Selection */}
                     <div className="pt-2">
@@ -856,9 +984,15 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                    <span>Hình thức nhận:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {deliveryMethod === 'PICKUP' ? '🏬 Ghé tiệm lấy' : '🚚 Giao tận nơi'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                     <span>Phí vận chuyển:</span>
                     <span className="font-mono font-semibold text-emerald-600">
-                      {is2h ? 'Hỗ trợ 2H' : 'Miễn phí'}
+                      {deliveryMethod === 'PICKUP' ? '0 VND (Miễn phí)' : is2h ? 'Hỗ trợ 2H' : 'Miễn phí'}
                     </span>
                   </div>
 
