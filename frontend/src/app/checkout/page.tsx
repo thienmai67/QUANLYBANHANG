@@ -255,7 +255,7 @@ export default function CheckoutPage() {
 
     const newOrder = {
       contractorName: customerName || 'Khách Mua Lẻ',
-      contractorTier: 'Khách công trình' as const,
+      contractorTier: 'Khách mua lẻ' as const,
       totalAmount: total,
       discountAmount: 0,
       finalAmount: total,

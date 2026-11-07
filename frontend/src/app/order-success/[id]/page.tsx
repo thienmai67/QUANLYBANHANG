@@ -407,10 +407,10 @@ export default function OrderSuccessPage() {
             {/* Bottom Actions */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
               <Link
-                href="/account"
+                href="/profile"
                 className="w-full sm:w-auto px-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all text-xs flex items-center justify-center gap-2"
               >
-                <span>Theo dõi tiến độ đơn hàng</span>
+                <span>Theo dõi tiến độ đơn hàng tại Hồ Sơ</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link

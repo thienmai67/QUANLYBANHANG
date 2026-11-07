@@ -805,7 +805,7 @@ func (h *ChatHandler) handleBasicLookup(query string, allProducts []domain.Produ
 	// 4. Tra cứu bảng giá & chiết khấu từ kho dữ liệu thật (Prompt 2 & sản phẩm thông thường)
 	reply.WriteString("[Dữ liệu thật từ kho]\n")
 	if len(matched) == 0 {
-		reply.WriteString("Không tìm thấy sản phẩm nào khớp với từ khóa trong kho. Quý khách vui lòng kiểm tra lại tên thương hiệu (Cadivi, Bình Minh, Schneider, Panasonic) hoặc mã SKU cần tra cứu.")
+		reply.WriteString("Dạ hiện tại ở chế độ tra cứu nhanh, hệ thống chưa tìm thấy sản phẩm khớp với nội dung **\"' + query + '\"** trong kho.\n\n💡 *Gợi ý*: Bác có thể tra cứu theo tên thiết bị (ví dụ: *dây Cadivi 2.5*, *ống Bình Minh 90*, *CB chống giật*, *ổ cắm Sino*) hoặc chọn các câu hỏi mẫu bên dưới để được tư vấn ngay nhé!")
 		return &ChatResponse{
 			Reply:        reply.String(),
 			Products:     []ChatProductDTO{},
