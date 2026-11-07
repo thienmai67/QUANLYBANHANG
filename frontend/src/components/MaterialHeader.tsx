@@ -10,6 +10,7 @@ import {
   Package,
   Wrench,
   ShieldCheck,
+  Phone,
   Newspaper,
   User,
   Truck,
@@ -163,6 +164,21 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
           <div className="flex items-center gap-3 shrink-0">
             <ThemeToggle />
 
+            {/* Direct Technician Hotline (Minh Ly pattern) */}
+            <a
+              href="tel:0988248524"
+              className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 text-xs hover:border-blue-400 transition-all"
+              title="Gọi tư vấn kỹ thuật trực tiếp"
+            >
+              <Phone className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+              <div>
+                <span className="text-[10px] text-slate-400 block leading-none">Hỗ trợ kỹ thuật tại quầy</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                  0988.248.524 <span className="text-blue-600 font-sans font-semibold">(A. Tuấn)</span>
+                </span>
+              </div>
+            </a>
+
             {/* User Auth Pill Header */}
             {mounted && isAuthenticated ? (
               <div className="flex items-center gap-2">
@@ -291,7 +307,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
             {/* Right Trust Pill */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 text-green-700 dark:text-green-400 text-[11px] font-bold">
               <Truck className="w-3.5 h-3.5" />
-              Giao Hàng Tận Nơi • Nhận Hàng Thanh Toán (COD)
+              Giao Hàng Tận Nơi • Nhận Hàng Thanh Toán (COD) • Có Hỏa Tốc Grab
             </div>
           </div>
         </div>

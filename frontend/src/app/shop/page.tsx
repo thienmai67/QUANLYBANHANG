@@ -212,13 +212,13 @@ export default function ShopPage() {
             </span>
             <h1 className="text-3xl font-black mt-3">Tất Cả Sản Phẩm &amp; Vật Tư M&E</h1>
             <p className="text-sm text-slate-300 mt-1 max-w-xl">
-              Giá bán lẻ minh bạch từng mét/cái, sẵn kho giao hỏa tốc 2H tận nhà (COD toàn quốc).
+              Giá bán lẻ minh bạch từng mét/cái, sẵn kho giao nhanh trong ngày tận nhà (COD toàn quốc).
             </p>
           </div>
           <div className="flex items-center gap-3">
             <span className="px-3.5 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400 fill-amber-400/20" />
-              Sẵn Kho Giao Siêu Tốc 2H
+              Sẵn Kho Giao Nhanh • Có Hỏa Tốc Grab
             </span>
           </div>
         </div>
@@ -347,7 +347,7 @@ export default function ShopPage() {
                       {prod.brand}
                     </span>
                     <span className="px-2 py-0.5 bg-amber-500/90 text-white font-bold text-[9px] rounded-md shadow-sm flex items-center gap-1">
-                      ⚡ Giao 2H
+                      🚚 Giao Nhanh
                     </span>
                   </div>
                   <span className="absolute top-3 right-3 px-2 py-0.5 bg-emerald-600/90 text-white font-bold text-[9px] rounded-md shadow-sm">

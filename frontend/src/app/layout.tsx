@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "./providers";
 import ChatBotWidget from "@/components/chat/ChatBotWidget";
+import FloatingContactDock from "@/components/FloatingContactDock";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-sans" });
@@ -16,8 +17,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "TDT M&E | Tổng Kho Vật Tư Điện Nước M&E Chính Hãng",
-  description: "Tổng kho phân phối vật tư điện nước M&E: ống uPVC/PPR Bình Minh, dây cáp Cadivi, aptomat Panasonic, đèn LED Rạng Đông chính hãng chuẩn TCVN.",
+  title: "TDT M&E | Cửa Hàng Vật Tư Điện Nước M&E Chính Hãng",
+  description: "Cửa hàng vật tư điện nước M&E chính hãng: ống uPVC/PPR Bình Minh, dây cáp Cadivi, aptomat Panasonic, Schneider chuẩn TCVN.",
 };
 
 export default function RootLayout({
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased min-h-screen bg-background text-foreground font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
+          <FloatingContactDock />
           <ChatBotWidget />
         </ThemeProvider>
       </body>

@@ -23,6 +23,10 @@ import {
   Minus,
   Plus,
   PackageCheck,
+  Store,
+  Phone,
+  MessageCircle,
+  Wrench,
 } from 'lucide-react';
 
 interface ProductDetailData {
@@ -169,6 +173,49 @@ function getRecommendedAccessories(product: ProductDetailData): AccessoryItem[] 
       image: '/images/products/schneider-mcb-1.jpg',
     },
   ];
+}
+
+
+function getInstallationAdvice(product: ProductDetailData): { title: string; tips: string[] } {
+  const text = `${product.name} ${product.category} ${product.sku}`.toLowerCase();
+  if (text.includes('ống') || text.includes('upvc') || text.includes('ppr') || text.includes('bình minh') || text.includes('tiền phong')) {
+    return {
+      title: '💡 Mẹo Dán Ống Nước & Thi Công Tại Nhà',
+      tips: [
+        'Cắt vuông góc miệng ống, mài vát nhẹ đầu ống và lau khô tuyệt đối bụi bẩn trước khi quét keo.',
+        'Quét đều keo dán PVC lên cả đầu ống và mặt trong phụ kiện, ấn sâu dứt khoát và giữ chặt 15 giây (không xoay).',
+        'Với mối nối ren đồng / nhựa: Quấn băng tan xuôi theo chiều kim đồng hồ 12 - 15 vòng để chống rò rỉ nước ngầm.',
+      ],
+    };
+  }
+  if (text.includes('dây') || text.includes('cáp') || text.includes('cadivi') || text.includes('điện')) {
+    return {
+      title: '💡 Mẹo Đấu Nối Cáp Điện An Toàn',
+      tips: [
+        'Luôn dập cầu dao / ngắt aptomat tổng và dùng bút thử điện kiểm tra trước khi tiến hành đấu nối.',
+        'Tuốt vỏ vừa vặn khoảng 10 - 12mm, tránh cắt cứa vào lõi đồng làm giảm tiết diện dẫn điện sinh nhiệt.',
+        'Băng keo cách điện nano cần quấn chồng nửa lớp tối thiểu 3 vòng để đảm bảo chống ẩm và chập cháy.',
+      ],
+    };
+  }
+  if (text.includes('mcb') || text.includes('aptomat') || text.includes('công tắc') || text.includes('ổ cắm') || text.includes('schneider') || text.includes('panasonic')) {
+    return {
+      title: '💡 Hướng Dẫn Lắp Đặt Aptomat / Ổ Cắm Gia Đình',
+      tips: [
+        'Nguồn điện vào bắt buộc đấu ở cực trên (LINE / TOP), tải ra thiết bị đấu ở cực dưới (LOAD / BOTTOM).',
+        'Dùng tua-vít đúng cỡ siết chặt chân ốc để tránh bị đánh tia lửa điện và sinh nhiệt move tiếp điểm.',
+        'Với bình nóng lạnh hoặc khu vực ẩm ướt phòng tắm, ưu tiên dùng Aptomat chống giật (RCBO độ nhạy 30mA).',
+      ],
+    };
+  }
+  return {
+    title: '💡 Hướng Dẫn Thi Công & Lưu Ý Kỹ Thuật',
+    tips: [
+      'Kiểm tra kỹ quy cách ren và kích cỡ thiết bị trước khi tháo lắp để tránh mua nhầm quy chuẩn.',
+      'Trang bị găng tay bảo hộ và dụng cụ chuyên dụng khi lắp đặt để đảm bảo an toàn tuyệt đối.',
+      'Cần hỗ trợ gấp? Bấm nút Chat Zalo hoặc gọi ngay Kỹ thuật viên tại quầy để được hướng dẫn trực tiếp.',
+    ],
+  };
 }
 
 export default function ProductDetailPage() {
@@ -486,6 +533,28 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
+                  {/* Installation Advice Box (Minh Lý pattern) */}
+                  {(() => {
+                    const advice = getInstallationAdvice(product);
+                    return (
+                      <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 space-y-2.5">
+                        <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold text-xs uppercase tracking-wider">
+                          <Wrench className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>{advice.title}</span>
+                        </div>
+                        <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                          {advice.tips.map((tip, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <span className="text-blue-500 font-bold shrink-0">•</span>
+                              <span className="leading-relaxed">{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+
+
                 {/* Frequently Bought Together Accessories */}
                 {(() => {
                   const accessories = getRecommendedAccessories(product);
@@ -629,9 +698,42 @@ export default function ProductDetailPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-blue-500 shrink-0" />
-                      <span>Giao nhanh 2H chân công trình — Hỗ trợ thanh toán COD</span>
+                      <span>Giao nhanh trong ngày tận nhà — Hỗ trợ ship hỏa tốc Grab/Ahamove khi cần gấp</span>
                     </div>
                   </div>
+
+                  {/* Physical Store & Technician Support Box (Minh Lý pattern) */}
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-2.5 mt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <Store className="w-4 h-4 text-blue-600" /> Cửa Hàng Vật Tư M&E TDT (Có sẵn hàng tại chỗ)
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Mở cửa: 7h30 - 20h00
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      📍 <strong>CN1:</strong> 80/3A Đường Thới Tam Thôn, Hóc Môn • <strong>CN2:</strong> 315 Nguyễn Oanh, Gò Vấp, TP.HCM
+                    </p>
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs text-slate-600 dark:text-slate-300">
+                        <span>Kỹ thuật viên tại quầy: </span>
+                        <a href="tel:0988248524" className="font-mono font-bold text-blue-600 hover:underline">0988.248.524</a>
+                        <span className="text-slate-400 ml-1">(Anh Tuấn)</span>
+                      </div>
+                      <a
+                        href="https://zalo.me/0988248524"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>Chat Zalo Gửi Ảnh</span>
+                      </a>
+                    </div>
+                  </div>
+
                 </div>
               </div>
             </div>
