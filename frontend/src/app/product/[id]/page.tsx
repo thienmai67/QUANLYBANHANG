@@ -237,12 +237,6 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    const token = getAccessToken();
-    if (!token && !isAuthenticated) {
-      toast.warning('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng');
-      router.push(`/login?redirect=/product/${encodeURIComponent(product.id)}`);
-      return;
-    }
     const priceFormatted = `${product.basePrice.toLocaleString('vi-VN')} ₫`;
     addItem(
       {
@@ -275,19 +269,13 @@ export default function ProductDetailPage() {
       }
     });
 
+    toast.success(`Đã thêm ${quantity}x "${product.name}" vào giỏ hàng`);
     setAddedFeedback(true);
     setTimeout(() => setAddedFeedback(false), 2000);
   };
 
   const handleBuyNow = () => {
     if (!product) return;
-    const token = getAccessToken();
-
-    if (!token && !isAuthenticated) {
-      toast.warning('Vui lòng đăng nhập để đặt hàng');
-      router.push(`/login?redirect=/product/${encodeURIComponent(product.id)}`);
-      return;
-    }
 
     const priceFormatted = `${product.basePrice.toLocaleString('vi-VN')} ₫`;
     addItem(

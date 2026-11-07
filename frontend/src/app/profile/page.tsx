@@ -26,6 +26,8 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCartStore } from '@/store/useCartStore';
+import { useToast } from '@/hooks/useToast';
 import { getAccessToken, clearTokens } from '@/lib/auth';
 import { api, getFriendlyErrorMessage } from '@/lib/api';
 import { resizeImageCanvas } from '@/lib/shipperHelpers';
@@ -155,6 +157,39 @@ export default function CustomerProfilePage() {
   const router = useRouter();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const { user, isAuthenticated, setAuth } = useAuthStore();
+  const toast = useToast();
+  const { addItem } = useCartStore();
+
+  const handleReorder = (order: DBOrder) => {
+    const itemsList = Array.isArray(order.items) ? order.items : [];
+    if (itemsList.length === 0) {
+      toast.warning('Đơn hàng không có danh sách sản phẩm để mua lại');
+      return;
+    }
+
+    let addedCount = 0;
+    itemsList.forEach((item) => {
+      const rawPrice = Number(item.unitPrice) || 0;
+      const prodName = item.name || `Sản phẩm ${item.sku || ''}`;
+      const prodSku = item.sku || 'SKU-STD';
+      addItem(
+        {
+          id: item.id || `reorder-${item.sku}`,
+          sku: prodSku,
+          name: prodName,
+          price: `${rawPrice.toLocaleString('vi-VN')} ₫`,
+          unitPrice: rawPrice,
+          image: '/images/products/day-cap-don-1.jpg',
+          quantity: Number(item.quantity) || 1,
+        },
+        false
+      );
+      addedCount += Number(item.quantity) || 1;
+    });
+
+    toast.success(`Đã thêm ${addedCount} sản phẩm từ đơn #${order.orderNumber} vào giỏ hàng!`);
+    router.push('/cart');
+  };
 
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'account'>('overview');

@@ -16,7 +16,10 @@ import {
   Zap,
   Package,
   RefreshCw,
+  RotateCcw,
 } from 'lucide-react';
+import { useCartStore } from '@/store/useCartStore';
+import { useToast } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
   getCurrentUser,
@@ -112,6 +115,39 @@ export default function AccountPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const { user, isAuthenticated, setAuth, logout } = useAuthStore();
+  const toast = useToast();
+  const { addItem } = useCartStore();
+
+  const handleReorder = (order: AccountOrder) => {
+    const itemsList = Array.isArray(order.items) ? order.items : [];
+    if (itemsList.length === 0) {
+      toast.warning('Đơn hàng không có danh sách sản phẩm để mua lại');
+      return;
+    }
+
+    let addedCount = 0;
+    itemsList.forEach((item) => {
+      const rawPrice = Number(item.unitPrice) || 0;
+      const prodName = item.productName || item.product?.name || 'Sản phẩm M&E';
+      const prodSku = item.sku || item.product?.sku || 'SKU-STD';
+      addItem(
+        {
+          id: item.productId,
+          sku: prodSku,
+          name: prodName,
+          price: `${rawPrice.toLocaleString('vi-VN')} ₫`,
+          unitPrice: rawPrice,
+          image: '/images/products/day-cap-don-1.jpg',
+          quantity: Number(item.quantity) || 1,
+        },
+        false
+      );
+      addedCount += Number(item.quantity) || 1;
+    });
+
+    toast.success(`Đã thêm ${addedCount} sản phẩm từ đơn #${order.orderNumber} vào giỏ hàng!`);
+    router.push('/cart');
+  };
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -660,7 +696,18 @@ export default function AccountPage() {
                             Hình thức: {formatPaymentMethod(order.paymentMethod)}
                           </span>
 
-                          {order.status === 'PENDING' && (
+                          
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleReorder(order)}
+                              className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors flex items-center gap-1.5 shadow-sm"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Mua lại đơn này</span>
+                            </button>
+                          </div>
+ {order.status === 'PENDING' && (
                             <div className="flex flex-wrap items-center gap-2 pt-1">
                               {(order.paymentMethod === 'BANK_TRANSFER' || order.paymentMethod === 'BANK') && order.paymentStatus !== 'PAID' && (
                                 <button

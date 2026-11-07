@@ -8,17 +8,30 @@ import MaterialFooter from '@/components/MaterialFooter';
 import { MaterialProduct } from '@/data/materialData';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useCartStore } from '@/store/useCartStore';
-import { useAuthStore } from '@/store/useAuthStore';
-import { getAccessToken } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
-import { Search, Filter, ShoppingBag, Check } from 'lucide-react';
+import { Search, Filter, ShoppingBag, Check, Zap, Sparkles } from 'lucide-react';
+
+type DiyCategory = 'ALL' | 'PLUMBING' | 'AIR_COND' | 'LIGHTING' | 'PANEL';
+
+const DIY_CHIPS: Array<{
+  id: DiyCategory;
+  label: string;
+  sub: string;
+  icon: string;
+}> = [
+  { id: 'ALL', label: 'Tất Cả Sản Phẩm', sub: 'Toàn bộ vật tư M&E', icon: '🏷️' },
+  { id: 'PLUMBING', label: 'Sửa Nước & Thoát Sàn', sub: 'Ống Bình Minh, Co, Lơ, Tê', icon: '🚿' },
+  { id: 'AIR_COND', label: 'Máy Lạnh & Nóng Lạnh', sub: 'Dây Cadivi, CB Schneider', icon: '❄️' },
+  { id: 'LIGHTING', label: 'Chiếu Sáng & Ổ Cắm', sub: 'Ổ cắm đôi, công tắc Sino / Pana', icon: '💡' },
+  { id: 'PANEL', label: 'Tủ Điện & CB An Toàn', sub: 'Aptomat tổng, Hộp tủ âm tường', icon: '⚡' },
+];
 
 export default function ShopPage() {
   const router = useRouter();
   const toast = useToast();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [selectedCat, setSelectedCat] = useState<string>('ALL');
+  const [selectedDiy, setSelectedDiy] = useState<DiyCategory>('ALL');
   const [search, setSearch] = useState<string>('');
   const [addedItemMap, setAddedItemMap] = useState<Record<string, boolean>>({});
 
@@ -32,8 +45,12 @@ export default function ShopPage() {
       const params = new URLSearchParams(window.location.search);
       const catParam = params.get('cat');
       const brandParam = params.get('brand');
+      const diyParam = params.get('diy');
       if (catParam) setSelectedCat(catParam);
       if (brandParam) setSelectedBrand(brandParam);
+      if (diyParam && ['ALL', 'PLUMBING', 'AIR_COND', 'LIGHTING', 'PANEL'].includes(diyParam)) {
+        setSelectedDiy(diyParam as DiyCategory);
+      }
     }
   }, [fetchProducts]);
 
@@ -92,27 +109,78 @@ export default function ShopPage() {
 
   const filteredProducts = useMemo(() => {
     return allProducts.filter((p) => {
+      const pNameLower = p.name.toLowerCase();
+      const pSkuLower = p.sku.toLowerCase();
+      const pCatLower = (p.categoryName || String(p.category) || '').toLowerCase();
+      const pDescLower = (p.description || '').toLowerCase();
+      const fullText = `${pNameLower} ${pSkuLower} ${pCatLower} ${pDescLower}`;
+
       const matchesSearch =
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.sku.toLowerCase().includes(search.toLowerCase());
+        pNameLower.includes(search.toLowerCase()) ||
+        pSkuLower.includes(search.toLowerCase());
       const matchesBrand = selectedBrand === 'ALL' || p.brand === selectedBrand;
       const matchesCat =
         selectedCat === 'ALL' ||
         p.category === selectedCat ||
         p.categoryName === selectedCat;
-      return matchesSearch && matchesBrand && matchesCat;
+
+      let matchesDiy = true;
+      if (selectedDiy === 'PLUMBING') {
+        matchesDiy =
+          fullText.includes('ống') ||
+          fullText.includes('ong') ||
+          fullText.includes('nước') ||
+          fullText.includes('nuoc') ||
+          fullText.includes('bình minh') ||
+          fullText.includes('binh minh') ||
+          fullText.includes('pvc') ||
+          fullText.includes('ppr') ||
+          fullText.includes('co ') ||
+          fullText.includes('tê') ||
+          fullText.includes('lơ') ||
+          fullText.includes('fittings') ||
+          fullText.includes('phụ kiện ống');
+      } else if (selectedDiy === 'AIR_COND') {
+        matchesDiy =
+          fullText.includes('cadivi') ||
+          fullText.includes('dây') ||
+          fullText.includes('cáp') ||
+          fullText.includes('2.5') ||
+          fullText.includes('4.0') ||
+          fullText.includes('rcbo') ||
+          fullText.includes('mcb') ||
+          fullText.includes('16a') ||
+          fullText.includes('20a') ||
+          fullText.includes('32a') ||
+          fullText.includes('chống giật');
+      } else if (selectedDiy === 'LIGHTING') {
+        matchesDiy =
+          fullText.includes('ổ cắm') ||
+          fullText.includes('o cam') ||
+          fullText.includes('công tắc') ||
+          fullText.includes('cong tac') ||
+          fullText.includes('đèn') ||
+          fullText.includes('led') ||
+          fullText.includes('sino') ||
+          fullText.includes('panasonic') ||
+          fullText.includes('đế âm');
+      } else if (selectedDiy === 'PANEL') {
+        matchesDiy =
+          fullText.includes('mccb') ||
+          fullText.includes('tủ điện') ||
+          fullText.includes('tu dien') ||
+          fullText.includes('schneider') ||
+          fullText.includes('easypact') ||
+          fullText.includes('đóng cắt') ||
+          fullText.includes('tổng');
+      }
+
+      return matchesSearch && matchesBrand && matchesCat && matchesDiy;
     });
-  }, [allProducts, search, selectedBrand, selectedCat]);
+  }, [allProducts, search, selectedBrand, selectedCat, selectedDiy]);
 
   const handleAddToCart = (prod: MaterialProduct) => {
-    const token = getAccessToken();
-    if (!token && !isAuthenticated) {
-      toast.warning('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng');
-      router.push('/login?redirect=/shop');
-      return;
-    }
-
-    const rawPrice = parseInt(prod.price.replace(/[^\d]/g, ''), 10) || 100000;
+    const rawPrice = prod.rawPrice || parseInt(prod.price.replace(/[^\d]/g, ''), 10) || 100000;
 
     addItem({
       id: prod.id,
@@ -122,6 +190,8 @@ export default function ShopPage() {
       unitPrice: rawPrice,
       image: prod.image,
     });
+
+    toast.success(`Đã thêm "${prod.name}" vào giỏ hàng`);
 
     setAddedItemMap((prev) => ({ ...prev, [prod.id]: true }));
     setTimeout(() => {
@@ -138,12 +208,74 @@ export default function ShopPage() {
         <div className="p-8 bg-gradient-to-r from-blue-900 via-cyan-900 to-slate-900 text-white rounded-3xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 border border-cyan-800">
           <div>
             <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-full text-xs font-bold border border-cyan-500/30 uppercase tracking-wider">
-              Cửa Hàng Vật Tư M&E — Mua Lẻ & Mua Công Trình
+              Cửa Hàng Vật Tư M&E — Bán Lẻ Cho Gia Đình &amp; Thợ Sửa Chữa
             </span>
             <h1 className="text-3xl font-black mt-3">Tất Cả Sản Phẩm &amp; Vật Tư M&E</h1>
             <p className="text-sm text-slate-300 mt-1 max-w-xl">
-              Phục vụ mua hàng bán lẻ giao tận nơi (COD) và cung ứng vật tư chính hãng cho công trình.
+              Giá bán lẻ minh bạch từng mét/cái, sẵn kho giao hỏa tốc 2H tận nhà (COD toàn quốc).
             </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="px-3.5 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400 fill-amber-400/20" />
+              Sẵn Kho Giao Siêu Tốc 2H
+            </span>
+          </div>
+        </div>
+
+        {/* DIY Need-Based Quick Filter Chips */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                Chọn Nhanh Theo Nhu Cầu Sửa Chữa Gia Đình:
+              </span>
+            </div>
+            {selectedDiy !== 'ALL' && (
+              <button
+                type="button"
+                onClick={() => setSelectedDiy('ALL')}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+              >
+                Xóa lọc ({filteredProducts.length} sản phẩm)
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {DIY_CHIPS.map((chip) => {
+              const active = selectedDiy === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => setSelectedDiy(chip.id)}
+                  className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col gap-1 cursor-pointer ${
+                    active
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20 scale-[1.02]'
+                      : 'bg-white dark:bg-[#0c1322] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-700 shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{chip.icon}</span>
+                    <span
+                      className={`text-xs font-black ${
+                        active ? 'text-white' : 'text-slate-900 dark:text-white'
+                      }`}
+                    >
+                      {chip.label}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-[10px] font-medium line-clamp-1 ${
+                      active ? 'text-blue-100' : 'text-slate-400'
+                    }`}
+                  >
+                    {chip.sub}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -210,8 +342,16 @@ export default function ShopPage() {
                     alt={prod.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <span className="absolute top-3 left-3 px-2.5 py-1 bg-slate-900/80 backdrop-blur-md text-white font-bold text-[10px] rounded-lg">
-                    {prod.brand}
+                  <div className="absolute top-3 left-3 flex flex-col gap-1 items-start">
+                    <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-md text-white font-bold text-[10px] rounded-lg">
+                      {prod.brand}
+                    </span>
+                    <span className="px-2 py-0.5 bg-amber-500/90 text-white font-bold text-[9px] rounded-md shadow-sm flex items-center gap-1">
+                      ⚡ Giao 2H
+                    </span>
+                  </div>
+                  <span className="absolute top-3 right-3 px-2 py-0.5 bg-emerald-600/90 text-white font-bold text-[9px] rounded-md shadow-sm">
+                    Chính hãng
                   </span>
                 </div>
 
