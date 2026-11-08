@@ -24,6 +24,7 @@ export function SaleBottomNav() {
 
   const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
   const speedDialRef = useRef<HTMLDivElement>(null);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
 
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
 
@@ -32,18 +33,26 @@ export function SaleBottomNav() {
     setIsSpeedDialOpen(false);
   }, [pathname]);
 
-  // Close speed dial when clicking outside
+  // Close speed dial when clicking outside (excluding the toggle button)
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (speedDialRef.current && !speedDialRef.current.contains(e.target as Node)) {
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        speedDialRef.current &&
+        !speedDialRef.current.contains(target) &&
+        toggleButtonRef.current &&
+        !toggleButtonRef.current.contains(target)
+      ) {
         setIsSpeedDialOpen(false);
       }
     };
     if (isSpeedDialOpen) {
       document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('touchstart', handleOutsideClick);
     }
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
     };
   }, [isSpeedDialOpen]);
 
@@ -56,7 +65,7 @@ export function SaleBottomNav() {
       {/* Backdrop overlay when speed dial is open */}
       {isSpeedDialOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity lg:hidden animate-fade-in-overlay"
           onClick={() => setIsSpeedDialOpen(false)}
           aria-hidden="true"
         />
@@ -66,7 +75,7 @@ export function SaleBottomNav() {
       {isSpeedDialOpen && (
         <div
           ref={speedDialRef}
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200 lg:hidden space-y-1.5"
+          className="fixed bottom-20 left-4 right-4 mx-auto max-w-xs z-50 w-auto bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-2xl border border-slate-200 dark:border-slate-800 animate-slide-up-desktop lg:hidden space-y-1.5 will-change-transform"
         >
           <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -178,21 +187,18 @@ export function SaleBottomNav() {
           {/* 3. Center Speed Dial (+) Action Button */}
           <div className="flex items-center justify-center">
             <button
+              ref={toggleButtonRef}
               type="button"
               onClick={() => setIsSpeedDialOpen((prev) => !prev)}
               aria-label="Tác vụ nhanh"
               aria-expanded={isSpeedDialOpen}
-              className={`w-12 h-12 -mt-5 rounded-full flex items-center justify-center shadow-lg transition-transform duration-200 active:scale-95 ${
+              className={`w-12 h-12 -mt-5 rounded-full flex items-center justify-center shadow-lg transition-transform duration-200 active:scale-95 z-50 ${
                 isSpeedDialOpen
                   ? 'bg-slate-800 text-white rotate-45 shadow-slate-900/30'
                   : 'bg-gradient-to-tr from-purple-700 to-indigo-600 text-white shadow-purple-600/40 ring-4 ring-white dark:ring-slate-900'
               }`}
             >
-              {isSpeedDialOpen ? (
-                <Plus className="w-6 h-6 transition-transform" />
-              ) : (
-                <Plus className="w-6 h-6" />
-              )}
+              <Plus className="w-6 h-6 transition-transform" />
             </button>
           </div>
 

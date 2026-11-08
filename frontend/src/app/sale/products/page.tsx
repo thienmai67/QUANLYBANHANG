@@ -5,7 +5,6 @@ import {
   Search,
   Calculator,
   Layers,
-  ShieldAlert,
   X,
   Copy,
   Check,
@@ -15,6 +14,7 @@ import { useSaleStore } from '@/store/useSaleStore';
 import { Product } from '@/types/manager';
 import { formatCurrencyVND } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
+import SearchableSelect, { SearchableOption } from '@/components/sale/SearchableSelect';
 
 function getBrandDisplay(b: any): string {
   if (!b) return 'Chưa cập nhật';
@@ -56,6 +56,13 @@ export default function SaleProductsPage() {
     });
     return Array.from(set);
   }, [products]);
+
+  const brandOptions = useMemo(() => {
+    return [
+      { value: 'ALL', label: 'Tất cả thương hiệu' },
+      ...brands.map((b) => ({ value: b, label: b })),
+    ];
+  }, [brands]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -112,6 +119,23 @@ export default function SaleProductsPage() {
     };
   }, [calcProduct, calcQuantity, selectedUnit, customDiscount]);
 
+  const calcUnitOptions = useMemo(() => {
+    if (!calcProduct) return [];
+    const list: SearchableOption[] = [
+      { value: calcProduct.unit || 'Đơn vị', label: `${calcProduct.unit || 'Đơn vị'} (Chuẩn)` },
+    ];
+    if (calcProduct.conversions) {
+      calcProduct.conversions.forEach((c) => {
+        list.push({
+          value: c.unit,
+          label: c.unit,
+          sublabel: `Quy đổi: x${c.factor} ${calcProduct.unit}`,
+        });
+      });
+    }
+    return list;
+  }, [calcProduct]);
+
   const handleCopyQuote = () => {
     if (!calcProduct || !calcResult) return;
     const text = `Báo giá sản phẩm:
@@ -145,10 +169,6 @@ export default function SaleProductsPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 px-3 py-1.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-          <ShieldAlert className="w-4 h-4 text-amber-500" />
-          <span>Quyền hạn: Xem giá & Chiết khấu</span>
-        </div>
       </div>
 
       {/* Filters & Search */}
@@ -178,24 +198,16 @@ export default function SaleProductsPage() {
           </div>
 
           {/* Brand select */}
-          <div className="sm:w-52 shrink-0">
-            <div className="relative">
-              <select
-                value={selectedBrand}
-                onChange={(e) => setSelectedBrand(e.target.value)}
-                className="w-full appearance-none pl-3.5 pr-9 py-2.5 text-xs sm:text-sm font-medium rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 shadow-xs transition-colors"
-              >
-                <option value="ALL">Tất cả thương hiệu</option>
-                {brands.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                <ChevronDown className="w-4 h-4" />
-              </div>
-            </div>
+          <div className="sm:w-56 shrink-0">
+            <SearchableSelect
+              options={brandOptions}
+              value={selectedBrand}
+              onChange={setSelectedBrand}
+              placeholder="Tất cả thương hiệu"
+              searchPlaceholder="Tìm kiếm thương hiệu..."
+              title="Lọc theo thương hiệu"
+              triggerClassName="!rounded-2xl !py-2.5"
+            />
           </div>
         </div>
 
@@ -539,23 +551,14 @@ export default function SaleProductsPage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Đơn vị tính
                 </label>
-                <div className="relative">
-                  <select
-                    value={selectedUnit}
-                    onChange={(e) => setSelectedUnit(e.target.value)}
-                    className="w-full appearance-none pl-3 pr-9 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors shadow-xs"
-                  >
-                    <option value={calcProduct.unit}>{calcProduct.unit} (Chuẩn)</option>
-                    {calcProduct.conversions?.map((c) => (
-                      <option key={c.unit} value={c.unit}>
-                        {c.unit} (x{c.factor} {calcProduct.unit})
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
-                </div>
+                <SearchableSelect
+                  options={calcUnitOptions}
+                  value={selectedUnit}
+                  onChange={setSelectedUnit}
+                  placeholder="Chọn đơn vị tính..."
+                  searchPlaceholder="Tìm đơn vị..."
+                  title="Đơn vị tính"
+                />
               </div>
 
               {/* Quantity */}

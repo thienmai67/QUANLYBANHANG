@@ -24,6 +24,7 @@ import { useSaleStore } from '@/store/useSaleStore';
 import { SalePaymentItem, PaymentNote, OVERDUE_DEBT_DAYS } from '@/types/sale';
 import { formatCurrencyVND, formatDateTime } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
+import SearchableSelect from '@/components/sale/SearchableSelect';
 
 export default function SalePaymentsPage() {
   const { payments, fetchPayments, addPaymentNote, markPaid, isLoading } = useSaleStore();
@@ -584,20 +585,18 @@ export default function SalePaymentsPage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Hình thức thanh toán
                 </label>
-                <div className="relative">
-                  <select
-                    value={noteMethod}
-                    onChange={(e) => setNoteMethod(e.target.value)}
-                    className="w-full appearance-none pl-3 pr-9 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors shadow-xs"
-                  >
-                    <option value="BANK_TRANSFER">Chuyển khoản</option>
-                    <option value="CASH">Tiền mặt</option>
-                    <option value="OTHER">Hẹn ngày thanh toán</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
-                </div>
+                <SearchableSelect
+                  options={[
+                    { value: 'BANK_TRANSFER', label: 'Chuyển khoản ngân hàng', badge: 'Ngân hàng' },
+                    { value: 'CASH', label: 'Tiền mặt', badge: 'Trực tiếp' },
+                    { value: 'OTHER', label: 'Hẹn ngày thanh toán', badge: 'Hẹn trả' },
+                  ]}
+                  value={noteMethod}
+                  onChange={setNoteMethod}
+                  placeholder="Chọn hình thức..."
+                  searchPlaceholder="Tìm hình thức thanh toán..."
+                  title="Hình thức thanh toán"
+                />
               </div>
 
               <div>

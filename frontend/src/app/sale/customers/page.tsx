@@ -25,6 +25,7 @@ import { SaleCustomerSummary, CustomerTier } from '@/types/sale';
 import { formatCurrencyVND } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
 import CustomerDetailModal from '@/components/sale/CustomerDetailModal';
+import SearchableSelect from '@/components/sale/SearchableSelect';
 
 export default function SaleCustomersPage() {
   const { customers, fetchCustomers, createCustomer, isLoading } = useSaleStore();
@@ -616,21 +617,19 @@ export default function SaleCustomersPage() {
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     Phân hạng Tier
                   </label>
-                  <div className="relative">
-                    <select
-                      value={tier}
-                      onChange={(e) => setTier(e.target.value as CustomerTier)}
-                      className="w-full appearance-none pl-3 pr-9 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors shadow-xs"
-                    >
-                      <option value="Retail">Retail</option>
-                      <option value="Bronze">Bronze</option>
-                      <option value="Silver">Silver</option>
-                      <option value="Gold">Gold</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
-                  </div>
+                  <SearchableSelect
+                    options={[
+                      { value: 'Retail', label: 'Retail (Khách lẻ)' },
+                      { value: 'Bronze', label: 'Bronze (Nhà thầu phụ)' },
+                      { value: 'Silver', label: 'Silver (Tổng thầu)' },
+                      { value: 'Gold', label: 'Gold (VIP)', badge: 'VIP' },
+                    ]}
+                    value={tier}
+                    onChange={(val) => setTier(val as CustomerTier)}
+                    placeholder="Chọn phân hạng..."
+                    searchPlaceholder="Tìm phân hạng..."
+                    title="Phân hạng khách hàng"
+                  />
                 </div>
               </div>
 

@@ -17,6 +17,7 @@ import { useSaleStore } from '@/store/useSaleStore';
 import { formatCurrencyVND } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
 import { SALE_MAX_ADDITIONAL_DISCOUNT } from '@/types/sale';
+import SearchableSelect from '@/components/sale/SearchableSelect';
 
 interface QuoteItemRow {
   productId: string;
@@ -276,6 +277,27 @@ export function QuoteForm() {
     }
   };
 
+  const customerOptions = useMemo(() => {
+    return customers.map((c) => ({
+      value: c.id,
+      label: c.fullName,
+      sublabel: `${c.companyName ? c.companyName + ' • ' : ''}${c.phone || c.email}`,
+      badge: c.profile?.tier,
+    }));
+  }, [customers]);
+
+  const productOptions = useMemo(() => {
+    return products.map((p) => {
+      const brandName = typeof p.brand === 'object' && p.brand !== null ? (p.brand as any).name : p.brand;
+      return {
+        value: p.id,
+        label: p.name,
+        sublabel: `SKU: ${p.sku || p.code || 'N/A'} • ${formatCurrencyVND(p.basePrice)}/${p.unit}`,
+        badge: brandName ? String(brandName) : undefined,
+      };
+    });
+  }, [products]);
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
       {/* Header */}
@@ -319,24 +341,15 @@ export function QuoteForm() {
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
                 Khách hàng B2B phụ trách <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <select
-                  value={selectedCustomerId}
-                  onChange={(e) => setSelectedCustomerId(e.target.value)}
-                  required
-                  className="w-full appearance-none pl-3.5 pr-10 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors shadow-xs"
-                >
-                  <option value="">-- Chọn khách hàng --</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.fullName} - {c.phone} {c.companyName ? `(${c.companyName})` : ''}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                  <ChevronDown className="w-4 h-4" />
-                </div>
-              </div>
+              <SearchableSelect
+                options={customerOptions}
+                value={selectedCustomerId}
+                onChange={setSelectedCustomerId}
+                placeholder="-- Chọn khách hàng --"
+                searchPlaceholder="Tìm theo tên, SĐT, công ty..."
+                title="Khách hàng B2B"
+                required
+              />
             </div>
 
             <div>
@@ -429,25 +442,14 @@ export function QuoteForm() {
                         <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
                           Sản phẩm
                         </label>
-                        <div className="relative">
-                          <select
-                            value={item.productId}
-                            onChange={(e) => handleProductChange(index, e.target.value)}
-                            className="w-full appearance-none pl-3 pr-9 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                          >
-                            {products.map((p) => {
-                              const brandName = typeof p.brand === 'object' && p.brand !== null ? (p.brand as any).name : p.brand;
-                              return (
-                                <option key={p.id} value={p.id}>
-                                  [{brandName || 'TDT'}] {p.name} ({p.sku || p.code || ''})
-                                </option>
-                              );
-                            })}
-                          </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            <ChevronDown className="w-4 h-4" />
-                          </div>
-                        </div>
+                        <SearchableSelect
+                          options={productOptions}
+                          value={item.productId}
+                          onChange={(val) => handleProductChange(index, val)}
+                          placeholder="Chọn sản phẩm..."
+                          searchPlaceholder="Tìm sản phẩm, SKU..."
+                          title="Chọn sản phẩm"
+                        />
                       </div>
 
                       {/* Unit & Quantity */}
@@ -456,22 +458,17 @@ export function QuoteForm() {
                           <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
                             Đơn vị
                           </label>
-                          <div className="relative">
-                            <select
-                              value={item.unit}
-                              onChange={(e) => handleUnitChange(index, e.target.value)}
-                              className="w-full appearance-none pl-3 pr-8 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                            >
-                              {item.availableUnits.map((u) => (
-                                <option key={u.unit} value={u.unit}>
-                                  {u.unit} {u.factor !== 1 ? `(x${u.factor})` : ''}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            </div>
-                          </div>
+                          <SearchableSelect
+                            options={item.availableUnits.map((u) => ({
+                              value: u.unit,
+                              label: u.unit,
+                              sublabel: u.factor !== 1 ? `x${u.factor}` : 'Đơn vị chuẩn',
+                            }))}
+                            value={item.unit}
+                            onChange={(val) => handleUnitChange(index, val)}
+                            placeholder="ĐVT"
+                            title="Đơn vị tính"
+                          />
                         </div>
 
                         <div>
@@ -616,45 +613,31 @@ export function QuoteForm() {
                         <tr key={index} className="hover:bg-slate-50/50">
                           {/* Product selection */}
                           <td className="py-2 px-3">
-                            <div className="relative">
-                              <select
-                                value={item.productId}
-                                onChange={(e) => handleProductChange(index, e.target.value)}
-                                className="w-full appearance-none pl-2.5 pr-8 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              >
-                                {products.map((p) => {
-                                  const brandName = typeof p.brand === 'object' && p.brand !== null ? (p.brand as any).name : p.brand;
-                                  return (
-                                    <option key={p.id} value={p.id}>
-                                      [{brandName || 'TDT'}] {p.name} ({p.sku || p.code || ''})
-                                    </option>
-                                  );
-                                })}
-                              </select>
-                              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <ChevronDown className="w-3.5 h-3.5" />
-                              </div>
-                            </div>
+                            <SearchableSelect
+                              options={productOptions}
+                              value={item.productId}
+                              onChange={(val) => handleProductChange(index, val)}
+                              placeholder="Chọn sản phẩm..."
+                              searchPlaceholder="Tìm sản phẩm, SKU..."
+                              title="Chọn sản phẩm"
+                              triggerClassName="!py-1.5 !text-xs !rounded-lg"
+                            />
                           </td>
 
                           {/* Unit selection */}
                           <td className="py-2 px-3">
-                            <div className="relative">
-                              <select
-                                value={item.unit}
-                                onChange={(e) => handleUnitChange(index, e.target.value)}
-                                className="w-full appearance-none pl-2.5 pr-7 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              >
-                                {item.availableUnits.map((u) => (
-                                  <option key={u.unit} value={u.unit}>
-                                    {u.unit} {u.factor !== 1 ? `(x${u.factor})` : ''}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <ChevronDown className="w-3 h-3" />
-                              </div>
-                            </div>
+                            <SearchableSelect
+                              options={item.availableUnits.map((u) => ({
+                                value: u.unit,
+                                label: u.unit,
+                                sublabel: u.factor !== 1 ? `x${u.factor}` : undefined,
+                              }))}
+                              value={item.unit}
+                              onChange={(val) => handleUnitChange(index, val)}
+                              placeholder="ĐVT"
+                              title="Đơn vị tính"
+                              triggerClassName="!py-1.5 !text-xs !rounded-lg"
+                            />
                           </td>
 
                           {/* Quantity */}
