@@ -19,7 +19,7 @@ import { useSaleStore } from '@/store/useSaleStore';
 
 export function SaleBottomNav() {
   const pathname = usePathname();
-  const { toggleMobileDrawer } = useSaleShellStore();
+  const { toggleMobileDrawer, mobileDrawerOpen } = useSaleShellStore();
   const { orders } = useSaleStore();
 
   const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
@@ -216,11 +216,19 @@ export function SaleBottomNav() {
           <button
             type="button"
             onClick={toggleMobileDrawer}
-            className="flex flex-col items-center justify-center py-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+            className={`flex flex-col items-center justify-center py-1 transition-colors relative active:scale-95 touch-manipulation ${
+              mobileDrawerOpen
+                ? 'text-purple-600 dark:text-purple-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
             aria-label="Mở tất cả menu"
+            aria-expanded={mobileDrawerOpen}
           >
             <Menu className="w-5 h-5 mb-0.5" />
             <span className="text-[10px] leading-tight">Menu</span>
+            {mobileDrawerOpen && (
+              <span className="absolute bottom-1 w-1 h-1 rounded-full bg-purple-600 dark:bg-purple-400" />
+            )}
           </button>
         </div>
       </nav>

@@ -143,11 +143,11 @@ export default function SaleQuotesPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Top action header */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">
             Quản lý Báo giá B2B (Quotes Lifecycle)
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -157,7 +157,7 @@ export default function SaleQuotesPage() {
 
         <Link
           href="/sale/quotes/new"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors whitespace-nowrap"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 active:scale-98 rounded-2xl shadow-md shadow-blue-600/20 transition-all whitespace-nowrap shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Tạo báo giá mới</span>
@@ -165,39 +165,168 @@ export default function SaleQuotesPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-        {/* Status Tabs */}
-        <div className="flex flex-wrap gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+      <div className="space-y-2.5">
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Tìm theo số báo giá (BG-...), khách hàng, SĐT..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 shadow-xs"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+              aria-label="Xóa tìm kiếm"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Status Category Pills (Lướt ngang không thanh cuộn) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
           {statusTabs.map((tab) => (
             <button
               key={tab.key}
+              type="button"
               onClick={() => setStatusFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all active:scale-95 ${
                 statusFilter === tab.key
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
               }`}
             >
               {tab.label}
             </button>
           ))}
         </div>
-
-        {/* Search Input */}
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Tìm theo số báo giá (BG-...), tên khách hàng, số điện thoại..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
       </div>
 
-      {/* Quotes Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      {/* Mobile Quotes Card View (< md) */}
+      <div className="space-y-3 md:hidden">
+        {isLoading ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-400">
+            <Clock className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
+            <p className="text-xs">Đang tải danh sách báo giá...</p>
+          </div>
+        ) : quotes.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-400 space-y-2">
+            <FileText className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700" />
+            <p className="text-xs">Chưa có báo giá nào trong mục này.</p>
+          </div>
+        ) : (
+          quotes.map((q) => {
+            const isExpired = new Date(q.validUntil) < new Date();
+            return (
+              <div
+                key={q.id}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3 transition-shadow hover:shadow-md"
+              >
+                {/* Header: Quote Number + Status */}
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                  <Link
+                    href={`/sale/quotes/${q.id}`}
+                    className="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm hover:underline"
+                  >
+                    {q.quoteNumber}
+                  </Link>
+                  <div className="shrink-0">{getStatusBadge(q.status)}</div>
+                </div>
+
+                {/* Customer & Project info */}
+                <div className="space-y-1">
+                  <div className="font-bold text-slate-900 dark:text-white text-sm">
+                    {q.customerName || 'Khách hàng B2B'}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                    {q.customerPhone && <span>{q.customerPhone}</span>}
+                    {q.customerPhone && <span>•</span>}
+                    <span>Tạo: {formatDateTime(q.createdAt)}</span>
+                  </div>
+                  <div className="text-xs">
+                    <span className="text-slate-400">Hiệu lực đến: </span>
+                    <span
+                      className={`font-medium ${
+                        isExpired && q.status !== 'CONVERTED'
+                          ? 'text-rose-600 dark:text-rose-400 font-bold'
+                          : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {new Date(q.validUntil).toLocaleDateString('vi-VN')}
+                      {isExpired && q.status !== 'CONVERTED' && ' (Hết hạn)'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Financial Breakdown */}
+                <div className="grid grid-cols-3 gap-2 bg-slate-50/80 dark:bg-slate-800/40 rounded-xl p-2.5 text-center">
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-medium">Tổng hàng</div>
+                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-0.5 truncate">
+                      {formatCurrencyVND(q.subtotal)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-medium">Chiết khấu</div>
+                    <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 truncate">
+                      -{formatCurrencyVND(q.discountTotal)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-medium">Thực thu</div>
+                    <div className="text-xs font-black text-blue-600 dark:text-blue-400 mt-0.5 truncate">
+                      {formatCurrencyVND(q.totalAmount)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer Actions */}
+                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {q.status === 'DRAFT' && (
+                      <button
+                        type="button"
+                        onClick={() => handleSend(q)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 active:scale-95 transition-all"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Gửi khách</span>
+                      </button>
+                    )}
+
+                    {(q.status === 'ACCEPTED' || q.status === 'SENT') && (
+                      <button
+                        type="button"
+                        onClick={() => setConvertingQuote(q)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs active:scale-95 transition-all"
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                        <span>Lên đơn</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <Link
+                    href={`/sale/quotes/${q.id}`}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 active:scale-95 transition-all ml-auto"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Xem/In</span>
+                  </Link>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Quotes Table (Desktop >= md) */}
+      <div className="hidden md:block bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>

@@ -19,6 +19,7 @@ import {
   Save,
   MessageSquare,
   AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { SaleCustomerSummary, CustomerTier } from '@/types/sale';
 import { useSaleStore } from '@/store/useSaleStore';
@@ -247,19 +248,24 @@ export default function CustomerDetailModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     Phân hạng khách hàng (Tier)
                   </label>
-                  <select
-                    value={tier}
-                    onChange={(e) => setTier(e.target.value as CustomerTier)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Retail">Retail (Khách lẻ)</option>
-                    <option value="Bronze">Bronze (Nhà thầu phụ)</option>
-                    <option value="Silver">Silver (Tổng thầu / Đơn vị lớn)</option>
-                    <option value="Gold">Gold (Đối tác chiến lược VIP)</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={tier}
+                      onChange={(e) => setTier(e.target.value as CustomerTier)}
+                      className="w-full appearance-none pl-3.5 pr-9 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors shadow-xs"
+                    >
+                      <option value="Retail">Retail (Khách lẻ)</option>
+                      <option value="Bronze">Bronze (Nhà thầu phụ)</option>
+                      <option value="Silver">Silver (Tổng thầu / Đơn vị lớn)</option>
+                      <option value="Gold">Gold (Đối tác chiến lược VIP)</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
