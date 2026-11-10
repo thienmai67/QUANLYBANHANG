@@ -149,7 +149,7 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
             </div>
 
             <div className="divide-y divide-slate-100 py-1">
-              {order.items.map((item, idx) => {
+              {(order.items || []).map((item, idx) => {
                 const lineTotal = (item.unitPrice || 0) * (item.quantity || 1);
                 const title = item.productName || item.name || `Sản phẩm ${item.sku || idx + 1}`;
                 return (
