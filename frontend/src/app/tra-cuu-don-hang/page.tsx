@@ -89,7 +89,8 @@ function OrderLookupContent() {
   }, []);
 
   const handleSearch = async (overridePhone?: string, overrideOrder?: string) => {
-    const p = (overridePhone !== undefined ? overridePhone : phone).trim();
+    const rawP = (overridePhone !== undefined ? overridePhone : phone).trim();
+    const p = rawP.replace(/\D/g, '');
     const o = (overrideOrder !== undefined ? overrideOrder : orderNumber).trim();
 
     if (!p && !o) {
@@ -97,8 +98,8 @@ function OrderLookupContent() {
       return;
     }
 
-    if (p && p.length < 8) {
-      toast.warning('Số điện thoại phải có ít nhất 8 chữ số');
+    if (rawP && (p.length !== 10 || !/^0[35789]\d{8}$/.test(p))) {
+      toast.warning('Số điện thoại tra cứu phải là số điện thoại Việt Nam gồm đúng 10 chữ số (ví dụ: 0901234567)');
       return;
     }
 
@@ -260,7 +261,7 @@ function OrderLookupContent() {
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                     placeholder="Ví dụ: 0901234567"
                     className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
                   />
@@ -565,11 +566,13 @@ function OrderLookupContent() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
+                          const phoneMatch = order.customerName ? order.customerName.match(/\((0\d{9})\)/) : null;
+                          const extractedPhone = phone || (phoneMatch ? phoneMatch[1] : undefined);
                           setSelectedOrderForReceipt({
                             orderNumber: order.orderNumber,
                             createdAt: order.createdAt,
                             customerName: order.customerName,
-                            customerPhone: phone || undefined,
+                            customerPhone: extractedPhone,
                             shippingAddress: order.is2h ? 'Giao hỏa tốc 2H tận nơi' : 'Giao tiêu chuẩn / Nhận tại tiệm',
                             paymentMethod: order.paymentMethod,
                             paymentStatus: order.paymentStatus,

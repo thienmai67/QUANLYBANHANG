@@ -6,6 +6,7 @@ import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/useAuthStore';
 import { formatNumberVND } from '@/lib/formatters';
+import { getFriendlyErrorMessage } from '@/lib/api';
 import {
   X,
   Boxes,
@@ -32,13 +33,16 @@ export function StockAdjustModal({
   const toast = useToast();
 
   const [newQuantity, setNewQuantity] = useState<number>(0);
+  const [newQuantityStr, setNewQuantityStr] = useState<string>('0');
   const [reason, setReason] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen && product) {
-      setNewQuantity(product.stockQuantity || 0);
+      const initialStock = product.stockQuantity || 0;
+      setNewQuantity(initialStock);
+      setNewQuantityStr(String(initialStock));
       setReason('');
       setError('');
     }
@@ -67,13 +71,18 @@ export function StockAdjustModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isNaN(newQuantity) || newQuantity < 0) {
+    const parsedQty = parseInt(newQuantityStr, 10);
+    const finalQuantity = Number.isNaN(parsedQty) ? newQuantity : parsedQty;
+
+    if (Number.isNaN(finalQuantity) || finalQuantity < 0) {
       setError('Số lượng tồn kho mới phải là số nguyên không âm');
+      toast.warning('Số lượng tồn kho mới phải là số nguyên không âm');
       return;
     }
 
     if (!reason.trim()) {
       setError('Vui lòng nhập lý do điều chỉnh tồn kho');
+      toast.warning('Vui lòng nhập lý do điều chỉnh tồn kho');
       return;
     }
 
@@ -81,24 +90,26 @@ export function StockAdjustModal({
     try {
       const res = adjustStock(
         product.id,
-        Math.floor(newQuantity),
+        Math.floor(finalQuantity),
         reason.trim(),
         useAuthStore.getState().user?.name || useAuthStore.getState().user?.fullName || 'Quản lý'
       );
 
       if (res.success) {
         toast.success(
-          `Đã điều chỉnh tồn kho ${product.name}: ${currentStock} -> ${newQuantity} ${product.unit}`
+          `Đã điều chỉnh tồn kho ${product.name}: ${currentStock} -> ${finalQuantity} ${product.unit}`
         );
         onClose();
         if (onSuccess) onSuccess();
       } else {
-        setError(res.error || 'Điều chỉnh tồn kho thất bại');
-        toast.error(res.error || 'Điều chỉnh tồn kho thất bại');
+        const errorMsg = res.error || 'Điều chỉnh tồn kho thất bại';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi điều chỉnh tồn kho');
-      toast.error(err.message || 'Lỗi khi điều chỉnh tồn kho');
+      const msg = getFriendlyErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -206,10 +217,22 @@ export function StockAdjustModal({
                 type="number"
                 min="0"
                 step="1"
-                value={newQuantity}
+                value={newQuantityStr}
                 onChange={(e) => {
-                  setNewQuantity(Number(e.target.value));
+                  const val = e.target.value;
+                  setNewQuantityStr(val);
                   if (error) setError('');
+                  if (val === '') return;
+                  const parsed = parseInt(val, 10);
+                  if (!Number.isNaN(parsed)) {
+                    setNewQuantity(Math.max(0, parsed));
+                  }
+                }}
+                onBlur={() => {
+                  const parsed = parseInt(newQuantityStr, 10);
+                  const finalVal = Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
+                  setNewQuantity(finalVal);
+                  setNewQuantityStr(String(finalVal));
                 }}
                 className="w-full px-3 py-2 text-sm font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                 required

@@ -228,6 +228,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [notFoundError, setNotFoundError] = useState<boolean>(false);
   const [quantity, setQuantity] = useState<number>(1);
+  const [qtyInput, setQtyInput] = useState<string>('1');
   const [addedFeedback, setAddedFeedback] = useState<boolean>(false);
   const [selectedAccs, setSelectedAccs] = useState<Record<string, boolean>>({});
 
@@ -284,6 +285,12 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
+    const maxStock = product.stock > 0 ? product.stock : 9999;
+    const parsed = parseInt(qtyInput, 10);
+    const effectiveQty = Number.isNaN(parsed) ? quantity : Math.max(1, Math.min(maxStock, parsed));
+    setQuantity(effectiveQty);
+    setQtyInput(String(effectiveQty));
+
     const priceFormatted = `${product.basePrice.toLocaleString('vi-VN')} ₫`;
     addItem(
       {
@@ -293,7 +300,7 @@ export default function ProductDetailPage() {
         price: priceFormatted,
         unitPrice: product.basePrice,
         image: product.image,
-        quantity,
+        quantity: effectiveQty,
       },
       true
     );
@@ -316,13 +323,18 @@ export default function ProductDetailPage() {
       }
     });
 
-    toast.success(`Đã thêm ${quantity}x "${product.name}" vào giỏ hàng`);
+    toast.success(`Đã thêm ${effectiveQty}x "${product.name}" vào giỏ hàng`);
     setAddedFeedback(true);
     setTimeout(() => setAddedFeedback(false), 2000);
   };
 
   const handleBuyNow = () => {
     if (!product) return;
+    const maxStock = product.stock > 0 ? product.stock : 9999;
+    const parsed = parseInt(qtyInput, 10);
+    const effectiveQty = Number.isNaN(parsed) ? quantity : Math.max(1, Math.min(maxStock, parsed));
+    setQuantity(effectiveQty);
+    setQtyInput(String(effectiveQty));
 
     const priceFormatted = `${product.basePrice.toLocaleString('vi-VN')} ₫`;
     addItem(
@@ -333,7 +345,7 @@ export default function ProductDetailPage() {
         price: priceFormatted,
         unitPrice: product.basePrice,
         image: product.image,
-        quantity,
+        quantity: effectiveQty,
       },
       false
     );
@@ -635,18 +647,67 @@ export default function ProductDetailPage() {
                     <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                       <button
                         type="button"
-                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        onClick={() => {
+                          const maxStock = product && product.stock > 0 ? product.stock : 9999;
+                          setQuantity((q) => {
+                            const next = Math.max(1, q - 1);
+                            setQtyInput(String(next));
+                            return next;
+                          });
+                        }}
                         className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
                         aria-label="Giảm số lượng"
                       >
                         <Minus className="w-4 h-4" />
                       </button>
-                      <span className="px-4 font-mono font-bold text-sm text-slate-900 dark:text-white">
-                        {quantity}
-                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={product && product.stock > 0 ? product.stock : 9999}
+                        value={qtyInput}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setQtyInput(val);
+                          if (val === '') {
+                            return;
+                          }
+                          const parsed = parseInt(val, 10);
+                          if (!isNaN(parsed)) {
+                            const maxStock = product && product.stock > 0 ? product.stock : 9999;
+                            const clamped = Math.max(1, Math.min(maxStock, parsed));
+                            setQuantity(clamped);
+                          }
+                        }}
+                        onBlur={() => {
+                          const maxStock = product && product.stock > 0 ? product.stock : 9999;
+                          const parsed = parseInt(qtyInput, 10);
+                          const finalQty = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(maxStock, parsed));
+                          setQuantity(finalQty);
+                          setQtyInput(String(finalQty));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const maxStock = product && product.stock > 0 ? product.stock : 9999;
+                            const parsed = parseInt(qtyInput, 10);
+                            const finalQty = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(maxStock, parsed));
+                            setQuantity(finalQty);
+                            setQtyInput(String(finalQty));
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        className="w-14 h-9 text-center font-mono font-bold text-sm bg-transparent border-x border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:bg-blue-50 dark:focus:bg-blue-950/40"
+                        aria-label="Nhập số lượng sản phẩm"
+                      />
                       <button
                         type="button"
-                        onClick={() => setQuantity((q) => q + 1)}
+                        onClick={() => {
+                          const maxStock = product && product.stock > 0 ? product.stock : 9999;
+                          setQuantity((q) => {
+                            const next = Math.min(maxStock, q + 1);
+                            setQtyInput(String(next));
+                            return next;
+                          });
+                        }}
                         className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
                         aria-label="Tăng số lượng"
                       >

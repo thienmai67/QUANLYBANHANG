@@ -58,6 +58,20 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
 
   const address = order.shippingAddress || order.deliveryAddress || 'Mua trực tiếp tại quầy';
 
+  // Extract customer phone if not explicitly provided but embedded in customerName (e.g. "Nguyễn Văn A (0901234567)")
+  const effectivePhone = (() => {
+    if (order.customerPhone && order.customerPhone.trim()) {
+      return order.customerPhone.trim();
+    }
+    if (order.customerName) {
+      const match = order.customerName.match(/\((0\d{9})\)|\b(0[35789]\d{8})\b/);
+      if (match) {
+        return match[1] || match[2];
+      }
+    }
+    return undefined;
+  })();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm print:p-0 print:bg-transparent">
       {/* Modal Card */}
@@ -114,10 +128,10 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
               <span className="text-slate-500">Khách hàng:</span>
               <span className="font-bold text-slate-900">{order.customerName || 'Khách lẻ tại quầy'}</span>
             </div>
-            {order.customerPhone && (
+            {effectivePhone && (
               <div className="flex justify-between">
                 <span className="text-slate-500">Số ĐT:</span>
-                <span className="font-mono font-semibold">{order.customerPhone}</span>
+                <span className="font-mono font-semibold">{effectivePhone}</span>
               </div>
             )}
             <div className="flex justify-between items-start gap-2">

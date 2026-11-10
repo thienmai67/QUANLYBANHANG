@@ -6,6 +6,7 @@ import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
 import { calculateDiscountedPrice } from '@/lib/stock';
 import { formatCurrencyVND } from '@/lib/formatters';
+import { getFriendlyErrorMessage } from '@/lib/api';
 import {
   X,
   PlusCircle,
@@ -93,22 +94,37 @@ export function AddMaterialModal({
 
     if (!code.trim()) {
       setError('Vui lòng nhập mã định danh vật tư');
+      toast.warning('Vui lòng nhập mã định danh vật tư');
       return;
     }
     if (!name.trim()) {
       setError('Vui lòng nhập tên vật tư');
+      toast.warning('Vui lòng nhập tên vật tư');
       return;
     }
-    if (basePrice <= 0) {
+    if (!unit.trim()) {
+      setError('Vui lòng nhập đơn vị tính vật tư');
+      toast.warning('Vui lòng nhập đơn vị tính vật tư');
+      return;
+    }
+    if (Number.isNaN(basePrice) || basePrice <= 0) {
       setError('Đơn giá niêm yết phải lớn hơn 0');
+      toast.warning('Đơn giá niêm yết phải lớn hơn 0');
       return;
     }
-    if (discountPercent < 0 || discountPercent > 100) {
+    if (Number.isNaN(discountPercent) || discountPercent < 0 || discountPercent > 100) {
       setError('Chiết khấu phải trong khoảng từ 0% đến 100%');
+      toast.warning('Chiết khấu phải trong khoảng từ 0% đến 100%');
       return;
     }
-    if (stockQuantity < 0) {
+    if (Number.isNaN(stockQuantity) || stockQuantity < 0) {
       setError('Số lượng nhập kho ban đầu không thể âm');
+      toast.warning('Số lượng nhập kho ban đầu không thể âm');
+      return;
+    }
+    if (minStockLevel !== undefined && (Number.isNaN(minStockLevel) || minStockLevel < 0)) {
+      setError('Mức tồn kho tối thiểu không hợp lệ');
+      toast.warning('Mức tồn kho tối thiểu không hợp lệ');
       return;
     }
 
@@ -119,7 +135,7 @@ export function AddMaterialModal({
         name: name.trim(),
         brand,
         category,
-        unit: unit.trim() || 'cái',
+        unit: unit.trim(),
         basePrice: Math.round(basePrice),
         discountPercent: Math.round(discountPercent),
         stockQuantity: Math.floor(stockQuantity),
@@ -132,12 +148,14 @@ export function AddMaterialModal({
         onClose();
         if (onSuccess) onSuccess(res.product);
       } else {
-        setError(res.error || 'Thêm vật tư thất bại');
-        toast.error(res.error || 'Thêm vật tư thất bại');
+        const errorMsg = res.error || 'Thêm vật tư thất bại';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (err: any) {
-      setError(err.message || 'Lỗi hệ thống khi thêm vật tư');
-      toast.error(err.message || 'Lỗi hệ thống khi thêm vật tư');
+      const msg = getFriendlyErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

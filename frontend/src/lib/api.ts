@@ -28,35 +28,144 @@ export class ApiError extends Error {
   }
 }
 
+const DEFAULT_FALLBACK_ERROR = "Đã xảy ra lỗi không xác định. Vui lòng thử lại sau.";
+const NETWORK_ERROR_MESSAGE = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
+
+function isNetworkError(text?: string, code?: string): boolean {
+  if (code && ["ERR_NETWORK", "ECONNABORTED", "ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND"].includes(code)) {
+    return true;
+  }
+  if (!text) return false;
+  return /network\s*error|failed to fetch|fetch failed|load failed|net::err|connection refused|timeout/i.test(text);
+}
+
+function cleanMessage(val: unknown): string | null {
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed && trimmed !== "[object Object]") {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
 export function getFriendlyErrorMessage(err: unknown): string {
+  if (err === null || err === undefined) {
+    return DEFAULT_FALLBACK_ERROR;
+  }
+
+  // Raw string input
+  if (typeof err === "string") {
+    const cleaned = cleanMessage(err);
+    if (!cleaned) {
+      return DEFAULT_FALLBACK_ERROR;
+    }
+    if (isNetworkError(cleaned)) {
+      return NETWORK_ERROR_MESSAGE;
+    }
+    return cleaned;
+  }
+
+  // ApiError instance
   if (err instanceof ApiError) {
     switch (err.status) {
       case 400:
         if (err.code === "PAYMENT_NOT_CONFIRMED") {
           return "Đơn hàng chuyển khoản ngân hàng phải được xác nhận thanh toán (PAID) trước khi đóng gói.";
         }
-        return err.message || "Dữ liệu yêu cầu không hợp lệ";
+        return cleanMessage(err.message) || "Dữ liệu yêu cầu không hợp lệ";
       case 401:
         return "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại";
       case 403:
         return "Bạn không có quyền thực hiện thao tác này";
+      case 404:
+        return cleanMessage(err.message) || "Không tìm thấy dữ liệu yêu cầu";
       case 409:
         if (err.code === "DUPLICATE_SKU") {
-          return err.message || "Mã SKU đã tồn tại trong hệ thống";
+          return cleanMessage(err.message) || "Mã SKU đã tồn tại trong hệ thống";
         }
         return "Đơn hàng vừa được cập nhật bởi người khác, đã tải lại dữ liệu mới";
-      case 404:
-        return err.message || "Không tìm thấy dữ liệu yêu cầu";
       case 500:
         return "Lỗi hệ thống máy chủ, vui lòng thử lại sau";
+      case 502:
+      case 503:
+      case 504:
+        return "Hệ thống máy chủ đang bận hoặc bảo trì. Vui lòng thử lại sau.";
       default:
-        return err.message || "Đã xảy ra lỗi, vui lòng thử lại";
+        return cleanMessage(err.message) || "Đã xảy ra lỗi, vui lòng thử lại";
     }
   }
-  if (err instanceof Error) {
-    return err.message;
+
+  // Axios or standard Error or Plain object extraction
+  const errorObj = err as Record<string, any>;
+  const statusCode =
+    typeof errorObj.status === "number"
+      ? errorObj.status
+      : typeof errorObj.statusCode === "number"
+      ? errorObj.statusCode
+      : typeof errorObj.response?.status === "number"
+      ? errorObj.response.status
+      : undefined;
+
+  const errorCode =
+    typeof errorObj.code === "string"
+      ? errorObj.code
+      : typeof errorObj.response?.data?.code === "string"
+      ? errorObj.response.data.code
+      : undefined;
+
+  // Candidate messages from nested locations
+  const candidate =
+    cleanMessage(errorObj.response?.data?.message) ||
+    cleanMessage(errorObj.response?.data?.error) ||
+    cleanMessage(errorObj.response?.data?.detail) ||
+    cleanMessage(errorObj.response?.data?.msg) ||
+    cleanMessage(errorObj.message) ||
+    cleanMessage(errorObj.error) ||
+    cleanMessage(errorObj.detail) ||
+    cleanMessage(errorObj.msg);
+
+  // Check network error first
+  if (isNetworkError(candidate || "", errorCode)) {
+    return NETWORK_ERROR_MESSAGE;
   }
-  return "Đã xảy ra lỗi không xác định";
+
+  // Known status codes
+  if (statusCode !== undefined) {
+    switch (statusCode) {
+      case 400:
+        if (errorCode === "PAYMENT_NOT_CONFIRMED") {
+          return "Đơn hàng chuyển khoản ngân hàng phải được xác nhận thanh toán (PAID) trước khi đóng gói.";
+        }
+        return candidate || "Dữ liệu yêu cầu không hợp lệ";
+      case 401:
+        return "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại";
+      case 403:
+        return "Bạn không có quyền thực hiện thao tác này";
+      case 404:
+        return candidate || "Không tìm thấy dữ liệu yêu cầu";
+      case 409:
+        if (errorCode === "DUPLICATE_SKU") {
+          return candidate || "Mã SKU đã tồn tại trong hệ thống";
+        }
+        return "Đơn hàng vừa được cập nhật bởi người khác, đã tải lại dữ liệu mới";
+      case 500:
+        return "Lỗi hệ thống máy chủ, vui lòng thử lại sau";
+      case 502:
+      case 503:
+      case 504:
+        return "Hệ thống máy chủ đang bận hoặc bảo trì. Vui lòng thử lại sau.";
+      default:
+        if (candidate) return candidate;
+        return "Đã xảy ra lỗi, vui lòng thử lại";
+    }
+  }
+
+  if (candidate) {
+    return candidate;
+  }
+
+  return DEFAULT_FALLBACK_ERROR;
 }
 
 let isRefreshing = false;

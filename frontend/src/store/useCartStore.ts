@@ -38,7 +38,11 @@ export const useCartStore = create<CartState>()(
       setOpenToCheckout: (openToCheckout) => set({ openToCheckout }),
 
       addItem: (newItem, openDrawer = true) => {
-        const addQty = newItem.quantity && newItem.quantity > 0 ? newItem.quantity : 1;
+        const rawQty = newItem.quantity;
+        const addQty =
+          typeof rawQty === 'number' && !isNaN(rawQty) && isFinite(rawQty) && rawQty > 0
+            ? Math.floor(rawQty)
+            : 1;
         const currentItems = get().items;
         const existingIndex = currentItems.findIndex((i) => i.id === newItem.id);
 
@@ -73,6 +77,9 @@ export const useCartStore = create<CartState>()(
       },
 
       updateQuantity: (id, delta) => {
+        if (typeof delta !== 'number' || isNaN(delta) || !isFinite(delta)) {
+          return;
+        }
         const updated = get()
           .items.map((item) => {
             if (item.id === id) {
@@ -87,6 +94,9 @@ export const useCartStore = create<CartState>()(
       },
 
       setQuantity: (id, qty) => {
+        if (typeof qty !== 'number' || isNaN(qty) || !isFinite(qty)) {
+          return;
+        }
         const intQty = Math.floor(qty);
         if (intQty <= 0) {
           set({ items: get().items.filter((i) => i.id !== id) });
@@ -104,11 +114,18 @@ export const useCartStore = create<CartState>()(
       clearCart: () => set({ items: [], openToCheckout: false }),
 
       getTotalPrice: () => {
-        return get().items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+        return get().items.reduce((sum, item) => {
+          const qty = typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0 ? item.quantity : 0;
+          const price = typeof item.unitPrice === 'number' && !isNaN(item.unitPrice) ? item.unitPrice : 0;
+          return sum + price * qty;
+        }, 0);
       },
 
       getTotalItems: () => {
-        return get().items.reduce((sum, item) => sum + item.quantity, 0);
+        return get().items.reduce((sum, item) => {
+          const qty = typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0 ? item.quantity : 0;
+          return sum + qty;
+        }, 0);
       },
     }),
     {

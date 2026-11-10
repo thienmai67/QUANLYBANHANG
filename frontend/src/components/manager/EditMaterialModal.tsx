@@ -6,6 +6,7 @@ import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
 import { calculateDiscountedPrice } from '@/lib/stock';
 import { formatCurrencyVND } from '@/lib/formatters';
+import { getFriendlyErrorMessage } from '@/lib/api';
 import {
   X,
   Pencil,
@@ -46,7 +47,9 @@ export function EditMaterialModal({
   const [category, setCategory] = useState<string>(DEFAULT_CATEGORIES[0]);
   const [unit, setUnit] = useState<string>('cái');
   const [basePrice, setBasePrice] = useState<number>(100000);
+  const [basePriceStr, setBasePriceStr] = useState<string>('100000');
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountPercentStr, setDiscountPercentStr] = useState<string>('0');
   const [description, setDescription] = useState<string>('');
 
   const [error, setError] = useState<string>('');
@@ -60,7 +63,9 @@ export function EditMaterialModal({
       setCategory(product.category || DEFAULT_CATEGORIES[0]);
       setUnit(product.unit || 'cái');
       setBasePrice(product.basePrice || 0);
+      setBasePriceStr(String(product.basePrice || 0));
       setDiscountPercent(product.discountPercent || 0);
+      setDiscountPercentStr(String(product.discountPercent || 0));
       setDescription(product.description || '');
       setError('');
     }
@@ -76,16 +81,31 @@ export function EditMaterialModal({
 
     if (!code.trim()) {
       setError('Mã vật tư (SKU) không được để trống');
+      toast.warning('Mã vật tư (SKU) không được để trống');
       return;
     }
     if (!name.trim()) {
       setError('Tên vật tư không được để trống');
+      toast.warning('Tên vật tư không được để trống');
       return;
     }
-    if (basePrice <= 0) {
+
+    if (!unit.trim()) {
+      setError('Vui lòng nhập đơn vị tính vật tư');
+      toast.warning('Vui lòng nhập đơn vị tính vật tư');
+      return;
+    }
+
+    const parsedPrice = parseInt(basePriceStr, 10);
+    const finalBasePrice = Number.isNaN(parsedPrice) ? basePrice : Math.max(0, parsedPrice);
+    if (Number.isNaN(finalBasePrice) || finalBasePrice <= 0) {
       setError('Đơn giá niêm yết phải lớn hơn 0');
+      toast.warning('Đơn giá niêm yết phải lớn hơn 0');
       return;
     }
+
+    const parsedDiscount = parseInt(discountPercentStr, 10);
+    const finalDiscount = Number.isNaN(parsedDiscount) ? discountPercent : Math.min(100, Math.max(0, parsedDiscount));
 
     setSubmitting(true);
     try {
@@ -95,8 +115,8 @@ export function EditMaterialModal({
         brand,
         category,
         unit: unit.trim(),
-        basePrice,
-        discountPercent,
+        basePrice: finalBasePrice,
+        discountPercent: finalDiscount,
         description: description.trim(),
       });
 
@@ -105,10 +125,14 @@ export function EditMaterialModal({
         if (onSuccess) onSuccess(res.product);
         onClose();
       } else {
-        setError(res.error || 'Cập nhật sản phẩm thất bại');
+        const errorMsg = res.error || 'Cập nhật sản phẩm thất bại';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (err: any) {
-      setError(err?.message || 'Lỗi kết nối khi cập nhật sản phẩm');
+      const msg = getFriendlyErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -249,10 +273,24 @@ export function EditMaterialModal({
               </label>
               <input
                 type="number"
-                min="1000"
+                min="0"
                 step="500"
-                value={basePrice}
-                onChange={(e) => setBasePrice(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                value={basePriceStr}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setBasePriceStr(val);
+                  if (val === '') return;
+                  const parsed = parseInt(val, 10);
+                  if (!Number.isNaN(parsed)) {
+                    setBasePrice(Math.max(0, parsed));
+                  }
+                }}
+                onBlur={() => {
+                  const parsed = parseInt(basePriceStr, 10);
+                  const finalVal = Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
+                  setBasePrice(finalVal);
+                  setBasePriceStr(String(finalVal));
+                }}
                 disabled={submitting}
                 className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 font-mono font-bold"
               />
@@ -267,8 +305,22 @@ export function EditMaterialModal({
                 type="number"
                 min="0"
                 max="100"
-                value={discountPercent}
-                onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                value={discountPercentStr}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDiscountPercentStr(val);
+                  if (val === '') return;
+                  const parsed = parseInt(val, 10);
+                  if (!Number.isNaN(parsed)) {
+                    setDiscountPercent(Math.min(100, Math.max(0, parsed)));
+                  }
+                }}
+                onBlur={() => {
+                  const parsed = parseInt(discountPercentStr, 10);
+                  const finalVal = Number.isNaN(parsed) ? 0 : Math.min(100, Math.max(0, parsed));
+                  setDiscountPercent(finalVal);
+                  setDiscountPercentStr(String(finalVal));
+                }}
                 disabled={submitting}
                 className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 font-mono font-bold"
               />

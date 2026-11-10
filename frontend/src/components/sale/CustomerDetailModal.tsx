@@ -25,6 +25,8 @@ import { useSaleStore } from '@/store/useSaleStore';
 import { formatCurrencyVND, formatDateTime } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
 import Link from 'next/link';
+import { isValidVietnamesePhone, sanitizePhone } from '@/lib/validation';
+import { getFriendlyErrorMessage } from '@/lib/api';
 
 interface CustomerDetailModalProps {
   customer: SaleCustomerSummary | null;
@@ -44,6 +46,7 @@ export default function CustomerDetailModal({
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'quotes' | 'activities'>('profile');
 
   // Form states for profile editing
+  const [phone, setPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [siteAddress, setSiteAddress] = useState('');
   const [tier, setTier] = useState<CustomerTier>('Retail');
@@ -53,6 +56,7 @@ export default function CustomerDetailModal({
 
   useEffect(() => {
     if (customer) {
+      setPhone(customer.phone || '');
       setCompanyName(customer.profile?.companyName || '');
       setSiteAddress(customer.profile?.siteAddress || '');
       setTier(customer.profile?.tier || 'Retail');
@@ -70,11 +74,19 @@ export default function CustomerDetailModal({
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone && !isValidVietnamesePhone(trimmedPhone)) {
+      toast.error(
+        'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam gồm 10 chữ số (bắt đầu bằng 03, 05, 07, 08, 09).'
+      );
+      return;
+    }
+
     try {
       setIsSaving(true);
       await updateCustomer(customer.id, {
         fullName: customer.fullName,
-        phone: customer.phone,
+        phone: trimmedPhone ? sanitizePhone(trimmedPhone) : undefined,
         companyName,
         siteAddress,
         tier,
@@ -84,7 +96,7 @@ export default function CustomerDetailModal({
       toast.success('Đã cập nhật hồ sơ khách hàng thành công');
       onRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi cập nhật hồ sơ khách hàng');
+      toast.error(getFriendlyErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -233,7 +245,19 @@ export default function CustomerDetailModal({
         <div className="flex-1 overflow-y-auto p-5">
           {activeTab === 'profile' && (
             <form onSubmit={handleSaveProfile} className="space-y-4 max-w-2xl">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="0912..."
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Tên công ty / Doanh nghiệp
@@ -246,21 +270,22 @@ export default function CustomerDetailModal({
                     className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Phân hạng khách hàng (Tier)
-                  </label>
-                  <select
-                    value={tier}
-                    onChange={(e) => setTier(e.target.value as CustomerTier)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Retail">Retail (Khách lẻ)</option>
-                    <option value="Bronze">Bronze (Nhà thầu phụ)</option>
-                    <option value="Silver">Silver (Tổng thầu / Đơn vị lớn)</option>
-                    <option value="Gold">Gold (Đối tác chiến lược VIP)</option>
-                  </select>
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Phân hạng khách hàng (Tier)
+                </label>
+                <select
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value as CustomerTier)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Retail">Retail (Khách lẻ)</option>
+                  <option value="Bronze">Bronze (Nhà thầu phụ)</option>
+                  <option value="Silver">Silver (Tổng thầu / Đơn vị lớn)</option>
+                  <option value="Gold">Gold (Đối tác chiến lược VIP)</option>
+                </select>
               </div>
 
               <div>

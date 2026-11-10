@@ -20,6 +20,8 @@ import { useSaleStore } from '@/store/useSaleStore';
 import { formatCurrencyVND } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
 import { ThermalReceiptModal, ThermalOrderData } from '@/components/ThermalReceiptModal';
+import { isValidVietnamesePhone, sanitizePhone } from '@/lib/validation';
+import { getFriendlyErrorMessage } from '@/lib/api';
 
 interface OrderItemRow {
   productId: string;
@@ -31,7 +33,7 @@ interface OrderItemRow {
   basePrice: number;
   unitPrice: number;
   discountRate: number;
-  quantity: number;
+  quantity: number | string;
 }
 
 export function OrderCreateForm() {
@@ -39,7 +41,7 @@ export function OrderCreateForm() {
   const searchParams = useSearchParams();
   const initialCustomerId = searchParams.get('customerId') || '';
 
-  const { customers, products, fetchCustomers, fetchProducts, createOrder } = useSaleStore();
+  const { customers, products, fetchCustomers, fetchProducts, createOrder, markPaid } = useSaleStore();
   const toast = useToast();
 
   // Mode: Bán tại quầy (Khách vãng lai POS) vs Khách hàng có hồ sơ quản lý
@@ -52,6 +54,7 @@ export function OrderCreateForm() {
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [deliveryAddress, setDeliveryAddress] = useState<string>('Mua trực tiếp tại quầy');
   const [paymentMethod, setPaymentMethod] = useState<string>('CASH');
+  const [cashTendered, setCashTendered] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [items, setItems] = useState<OrderItemRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -172,10 +175,22 @@ export function OrderCreateForm() {
     );
   };
 
-  const handleQuantityChange = (index: number, qty: number) => {
-    const safeQty = Math.max(1, qty || 1);
+  const handleQuantityChange = (index: number, val: string) => {
     setItems((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, quantity: safeQty } : item))
+      prev.map((item, idx) => (idx === index ? { ...item, quantity: val } : item))
+    );
+  };
+
+  const handleQuantityBlur = (index: number) => {
+    setItems((prev) =>
+      prev.map((item, idx) => {
+        if (idx !== index) return item;
+        const parsed = parseFloat(String(item.quantity));
+        const safeQty = Number.isFinite(parsed)
+          ? Math.max(1, Math.min(10000, parsed))
+          : 1;
+        return { ...item, quantity: safeQty };
+      })
     );
   };
 
@@ -195,7 +210,11 @@ export function OrderCreateForm() {
     let sub = 0;
     let disc = 0;
     items.forEach((item) => {
-      const lineSub = item.unitPrice * item.quantity;
+      const qtyNum =
+        typeof item.quantity === 'number'
+          ? item.quantity
+          : parseFloat(String(item.quantity)) || 0;
+      const lineSub = item.unitPrice * qtyNum;
       const lineDisc = (lineSub * item.discountRate) / 100;
       sub += lineSub;
       disc += lineDisc;
@@ -206,6 +225,14 @@ export function OrderCreateForm() {
       totalAmount: Math.max(0, sub - disc),
     };
   }, [items]);
+
+  // Cash tendered & change calculation
+  const changeAmount = useMemo(() => {
+    if (paymentMethod !== 'CASH') return 0;
+    const tendered =
+      cashTendered === '' ? totalAmount : parseFloat(cashTendered) || 0;
+    return Math.max(0, tendered - totalAmount);
+  }, [cashTendered, totalAmount, paymentMethod]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,22 +246,59 @@ export function OrderCreateForm() {
       return;
     }
 
+    const trimmedPhone = customerPhone.trim();
+    if (trimmedPhone) {
+      if (!isValidVietnamesePhone(trimmedPhone)) {
+        toast.error(
+          'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam gồm 10 chữ số (bắt đầu bằng 03, 05, 07, 08, 09).'
+        );
+        return;
+      }
+    }
+
+    if (paymentMethod === 'CASH') {
+      const effectiveCashTendered =
+        cashTendered === '' ? totalAmount : parseFloat(cashTendered);
+      if (Number.isNaN(effectiveCashTendered) || effectiveCashTendered < totalAmount) {
+        toast.error(
+          `Số tiền khách đưa (${formatCurrencyVND(effectiveCashTendered || 0)}) chưa đủ thanh toán đơn hàng (${formatCurrencyVND(totalAmount)})`
+        );
+        return;
+      }
+    }
+
     try {
       setIsSubmitting(true);
+      const sanitizedPhone = trimmedPhone ? sanitizePhone(trimmedPhone) : undefined;
       const payload = {
         customerId: orderMode === 'ASSIGNED' ? selectedCustomerId : undefined,
-        customerName: customerName.trim() || (orderMode === 'WALK_IN' ? 'Khách lẻ tại quầy' : 'Khách hàng'),
-        customerPhone: customerPhone.trim() || undefined,
+        customerName:
+          customerName.trim() ||
+          (orderMode === 'WALK_IN' ? 'Khách lẻ tại quầy' : 'Khách hàng'),
+        customerPhone: sanitizedPhone,
         paymentMethod,
-        items: items.map((i) => ({
-          productId: i.productId,
-          quantity: i.quantity,
-          unitPrice: Math.round(i.unitPrice * (1 - i.discountRate / 100)),
-          unit: i.unit,
-        })),
+        items: items.map((i) => {
+          const qty = Math.max(1, Math.min(10000, parseFloat(String(i.quantity)) || 1));
+          return {
+            productId: i.productId,
+            quantity: qty,
+            unitPrice: Math.round(i.unitPrice * (1 - i.discountRate / 100)),
+            unit: i.unit,
+          };
+        }),
       };
 
       const newOrder = await createOrder(payload);
+
+      // Upon creating a CASH order successfully, call markPaid(newOrder.id) to sync order status to PAID
+      if (paymentMethod === 'CASH') {
+        try {
+          await markPaid(newOrder.id);
+        } catch (markErr) {
+          console.error('Không thể cập nhật trạng thái đã thanh toán:', markErr);
+        }
+      }
+
       toast.success(`Tạo đơn ${newOrder.orderNumber} thành công!`);
 
       // Prepare receipt for instant printing
@@ -242,23 +306,26 @@ export function OrderCreateForm() {
         orderNumber: newOrder.orderNumber,
         createdAt: new Date(),
         customerName: payload.customerName,
-        customerPhone: customerPhone.trim() || undefined,
+        customerPhone: sanitizedPhone,
         shippingAddress: deliveryAddress,
         paymentMethod: paymentMethod,
         paymentStatus: paymentMethod === 'CASH' ? 'PAID' : 'UNPAID',
         totalAmount: totalAmount,
-        items: items.map((i) => ({
-          productName: i.productName,
-          sku: i.sku,
-          quantity: i.quantity,
-          unitPrice: Math.round(i.unitPrice * (1 - i.discountRate / 100)),
-          unit: i.unit,
-        })),
+        items: items.map((i) => {
+          const qty = Math.max(1, Math.min(10000, parseFloat(String(i.quantity)) || 1));
+          return {
+            productName: i.productName,
+            sku: i.sku,
+            quantity: qty,
+            unitPrice: Math.round(i.unitPrice * (1 - i.discountRate / 100)),
+            unit: i.unit,
+          };
+        }),
       });
 
       setShowReceiptModal(true);
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi tạo đơn hàng');
+      toast.error(getFriendlyErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -435,7 +502,11 @@ export function OrderCreateForm() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {items.map((item, index) => {
-                    const lineSub = item.unitPrice * item.quantity;
+                    const qtyNum =
+                      typeof item.quantity === 'number'
+                        ? item.quantity
+                        : parseFloat(String(item.quantity)) || 0;
+                    const lineSub = item.unitPrice * qtyNum;
                     const lineTotal = lineSub * (1 - item.discountRate / 100);
 
                     return (
@@ -471,9 +542,12 @@ export function OrderCreateForm() {
                         <td className="py-2.5 px-3">
                           <input
                             type="number"
+                            step="any"
                             min="1"
+                            max="10000"
                             value={item.quantity}
-                            onChange={(e) => handleQuantityChange(index, parseInt(e.target.value, 10))}
+                            onChange={(e) => handleQuantityChange(index, e.target.value)}
+                            onBlur={() => handleQuantityBlur(index)}
                             className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-orange-500 text-center font-mono font-bold"
                           />
                         </td>
@@ -539,6 +613,49 @@ export function OrderCreateForm() {
                 <option value="COD">🚚 Thu hộ COD (Khi giao hàng tận nơi)</option>
               </select>
             </div>
+
+            {paymentMethod === 'CASH' && (
+              <div className="p-4 rounded-xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-orange-900 dark:text-orange-200">
+                      Tiền khách đưa (VND)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setCashTendered(totalAmount > 0 ? totalAmount.toString() : '')}
+                      className="text-[11px] text-orange-700 dark:text-orange-300 font-semibold underline hover:text-orange-900 cursor-pointer"
+                    >
+                      Đúng số tiền ({formatCurrencyVND(totalAmount)})
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={cashTendered}
+                    onChange={(e) => setCashTendered(e.target.value)}
+                    placeholder={`Mặc định: ${formatCurrencyVND(totalAmount)}`}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono font-bold"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-orange-200/80 dark:border-orange-800">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Tiền thối lại khách:
+                  </span>
+                  <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                    {formatCurrencyVND(changeAmount)}
+                  </span>
+                </div>
+
+                {cashTendered !== '' && (parseFloat(cashTendered) || 0) < totalAmount && (
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                    ⚠️ Tiền khách đưa còn thiếu {formatCurrencyVND(totalAmount - (parseFloat(cashTendered) || 0))}
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">

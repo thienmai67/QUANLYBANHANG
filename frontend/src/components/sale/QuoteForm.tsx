@@ -16,6 +16,7 @@ import { useSaleStore } from '@/store/useSaleStore';
 import { formatCurrencyVND } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
 import { SALE_MAX_ADDITIONAL_DISCOUNT } from '@/types/sale';
+import { getFriendlyErrorMessage } from '@/lib/api';
 
 interface QuoteItemRow {
   productId: string;
@@ -28,7 +29,7 @@ interface QuoteItemRow {
   brandDiscountRate: number;
   additionalDiscountRate: number;
   discountRate: number;
-  quantity: number;
+  quantity: number | string;
 }
 
 export function QuoteForm() {
@@ -187,19 +188,63 @@ export function QuoteForm() {
   const handleItemFieldChange = (
     index: number,
     field: 'quantity' | 'unitPrice' | 'additionalDiscountRate',
-    value: number
+    value: number | string
   ) => {
     setItems((prev) =>
       prev.map((item, idx) => {
         if (idx !== index) return item;
         const updated = {
           ...item,
-          [field]: value,
         };
-        if (field === 'additionalDiscountRate') {
-          updated.discountRate = updated.brandDiscountRate + value;
+        if (field === 'quantity') {
+          updated.quantity = value;
+        } else if (field === 'unitPrice') {
+          const num = typeof value === 'number' ? value : parseFloat(String(value));
+          updated.unitPrice = Number.isFinite(num) ? Math.max(0, num) : 0;
+        } else if (field === 'additionalDiscountRate') {
+          const num = typeof value === 'number' ? value : parseFloat(String(value));
+          const safeDiscount = Number.isFinite(num) ? Math.max(0, Math.min(50, num)) : 0;
+          updated.additionalDiscountRate = safeDiscount;
+          updated.discountRate = updated.brandDiscountRate + safeDiscount;
         }
         return updated;
+      })
+    );
+  };
+
+  const handleQuantityBlur = (index: number) => {
+    setItems((prev) =>
+      prev.map((item, idx) => {
+        if (idx !== index) return item;
+        const parsed = parseFloat(String(item.quantity));
+        const safeQty = Number.isFinite(parsed) ? Math.max(1, Math.min(10000, parsed)) : 1;
+        return { ...item, quantity: safeQty };
+      })
+    );
+  };
+
+  const handlePriceBlur = (index: number) => {
+    setItems((prev) =>
+      prev.map((item, idx) => {
+        if (idx !== index) return item;
+        const parsed = parseFloat(String(item.unitPrice));
+        const safePrice = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+        return { ...item, unitPrice: safePrice };
+      })
+    );
+  };
+
+  const handleDiscountBlur = (index: number) => {
+    setItems((prev) =>
+      prev.map((item, idx) => {
+        if (idx !== index) return item;
+        const parsed = parseFloat(String(item.additionalDiscountRate));
+        const safeDiscount = Number.isFinite(parsed) ? Math.max(0, Math.min(50, parsed)) : 0;
+        return {
+          ...item,
+          additionalDiscountRate: safeDiscount,
+          discountRate: item.brandDiscountRate + safeDiscount,
+        };
       })
     );
   };
@@ -214,7 +259,11 @@ export function QuoteForm() {
     let disc = 0;
     let highDisc = false;
     items.forEach((item) => {
-      const lineSub = item.unitPrice * item.quantity;
+      const qtyNum =
+        typeof item.quantity === 'number'
+          ? item.quantity
+          : parseFloat(String(item.quantity)) || 0;
+      const lineSub = item.unitPrice * qtyNum;
       const effectiveRate = Math.min(100, item.brandDiscountRate + item.additionalDiscountRate);
       const lineDisc = (lineSub * effectiveRate) / 100;
       sub += lineSub;
@@ -248,15 +297,20 @@ export function QuoteForm() {
         customerId: selectedCustomerId,
         validUntil: new Date(validUntil).toISOString(),
         notes,
-        items: items.map((i) => ({
-          productId: i.productId,
-          quantity: i.quantity,
-          unit: i.unit,
-          unitPrice: i.unitPrice,
-          brandDiscountRate: i.brandDiscountRate,
-          additionalDiscountRate: i.additionalDiscountRate,
-          discountRate: Math.min(100, i.brandDiscountRate + i.additionalDiscountRate),
-        })),
+        items: items.map((i) => {
+          const qty = Math.max(1, Math.min(10000, parseFloat(String(i.quantity)) || 1));
+          const price = Math.max(0, Number(i.unitPrice) || 0);
+          const addDisc = Math.max(0, Math.min(50, Number(i.additionalDiscountRate) || 0));
+          return {
+            productId: i.productId,
+            quantity: qty,
+            unit: i.unit,
+            unitPrice: price,
+            brandDiscountRate: i.brandDiscountRate,
+            additionalDiscountRate: addDisc,
+            discountRate: Math.min(100, i.brandDiscountRate + addDisc),
+          };
+        }),
       };
 
       const newQuote = await createQuote(payload);
@@ -269,7 +323,7 @@ export function QuoteForm() {
       }
       router.push(`/sale/quotes/${newQuote.id}`);
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi tạo báo giá');
+      toast.error(getFriendlyErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -404,7 +458,11 @@ export function QuoteForm() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {items.map((item, index) => {
-                    const lineSub = item.unitPrice * item.quantity;
+                    const qtyNum =
+                      typeof item.quantity === 'number'
+                        ? item.quantity
+                        : parseFloat(String(item.quantity)) || 0;
+                    const lineSub = item.unitPrice * qtyNum;
                     const totalRate = Math.min(100, item.brandDiscountRate + item.additionalDiscountRate);
                     const lineTotal = lineSub * (1 - totalRate / 100);
                     const isOverLimit = item.additionalDiscountRate > SALE_MAX_ADDITIONAL_DISCOUNT;
@@ -448,16 +506,15 @@ export function QuoteForm() {
                         <td className="py-2 px-3">
                           <input
                             type="number"
+                            step="any"
                             min="1"
+                            max="10000"
                             value={item.quantity}
                             onChange={(e) =>
-                              handleItemFieldChange(
-                                index,
-                                'quantity',
-                                Math.max(1, Number(e.target.value) || 1)
-                              )
+                              handleItemFieldChange(index, 'quantity', e.target.value)
                             }
-                            className="w-full px-2 py-1.5 text-xs text-center rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            onBlur={() => handleQuantityBlur(index)}
+                            className="w-full px-2 py-1.5 text-xs text-center rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono font-bold"
                           />
                         </td>
 
@@ -465,16 +522,21 @@ export function QuoteForm() {
                         <td className="py-2 px-3 text-right">
                           <input
                             type="number"
-                            step="1000"
+                            min="0"
+                            step="any"
                             value={item.unitPrice}
-                            onChange={(e) =>
-                              handleItemFieldChange(
-                                index,
-                                'unitPrice',
-                                Number(e.target.value) || 0
-                              )
-                            }
-                            className="w-full px-2 py-1.5 text-xs text-right font-medium rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            onChange={(e) => {
+                              const rawVal = e.target.value;
+                              if (rawVal === '') {
+                                handleItemFieldChange(index, 'unitPrice', 0);
+                              } else {
+                                const val = parseFloat(rawVal);
+                                const clamped = Math.max(0, Number.isNaN(val) ? 0 : val);
+                                handleItemFieldChange(index, 'unitPrice', clamped);
+                              }
+                            }}
+                            onBlur={() => handlePriceBlur(index)}
+                            className="w-full px-2 py-1.5 text-xs text-right font-medium rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
                           />
                         </td>
 
@@ -494,18 +556,22 @@ export function QuoteForm() {
                               max="50"
                               step="0.5"
                               value={item.additionalDiscountRate}
-                              onChange={(e) =>
-                                handleItemFieldChange(
-                                  index,
-                                  'additionalDiscountRate',
-                                  Number(e.target.value) || 0
-                                )
-                              }
+                              onChange={(e) => {
+                                const rawVal = e.target.value;
+                                if (rawVal === '') {
+                                  handleItemFieldChange(index, 'additionalDiscountRate', 0);
+                                } else {
+                                  const val = parseFloat(rawVal);
+                                  const clamped = Math.max(0, Math.min(50, Number.isNaN(val) ? 0 : val));
+                                  handleItemFieldChange(index, 'additionalDiscountRate', clamped);
+                                }
+                              }}
+                              onBlur={() => handleDiscountBlur(index)}
                               className={`w-full px-2 py-1.5 text-xs text-center font-bold rounded border ${
                                 isOverLimit
                                   ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
                                   : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400'
-                              } focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                              } focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono`}
                             />
                             {isOverLimit && (
                               <span

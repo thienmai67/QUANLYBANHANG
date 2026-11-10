@@ -11,6 +11,7 @@ import { useAdminStore } from '@/store/useAdminStore';
 import { api, getFriendlyErrorMessage } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
+import { isValidVietnamesePhone, sanitizePhone, isNonEmptyText } from '@/lib/validation';
 import {
   CreditCard,
   Banknote,
@@ -229,28 +230,34 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!customerName || customerName.trim().length < 2) {
+    if (!isNonEmptyText(customerName) || customerName.trim().length < 2) {
       toast.error('Vui lòng nhập họ và tên người nhận hợp lệ (tối thiểu 2 ký tự)');
       return;
     }
-    const phoneRegex = /^0\d{9}$/;
-    if (!customerPhone || !phoneRegex.test(customerPhone.trim())) {
+
+    const sanitizedPhone = sanitizePhone(customerPhone);
+    if (!isValidVietnamesePhone(sanitizedPhone)) {
       toast.error(
-        'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam gồm 10 chữ số bắt đầu bằng số 0 (ví dụ: 0901234567)'
+        'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam gồm 10 chữ số bắt đầu bằng 03, 05, 07, 08 hoặc 09 (ví dụ: 0901234567)'
       );
       return;
     }
-    let finalShippingAddress = customerAddress;
+
+    let finalShippingAddress = customerAddress ? customerAddress.trim() : '';
     if (deliveryMethod === 'PICKUP') {
       finalShippingAddress =
         pickupStore === 'HOC_MON'
           ? '[Nhận tại tiệm] Chi Nhánh 1: 120/4 Lý Thường Kiệt, TT. Hóc Môn, TP.HCM'
           : '[Nhận tại tiệm] Chi Nhánh 2: 45 Lê Đức Thọ, P.7, Q. Gò Vấp, TP.HCM';
     } else {
-      if (!customerAddress || customerAddress.trim().length < 5) {
+      if (!isNonEmptyText(customerAddress) || customerAddress.trim().length < 5) {
         toast.error('Vui lòng nhập địa chỉ giao hàng chi tiết (tối thiểu 5 ký tự)');
         return;
       }
+    }
+
+    if (notes && notes.trim()) {
+      finalShippingAddress = `${finalShippingAddress} (Ghi chú: ${notes.trim()})`;
     }
 
     setIsSubmitting(true);
@@ -267,13 +274,14 @@ export default function CheckoutPage() {
     }));
 
     const newOrder = {
-      contractorName: customerName || 'Khách Mua Lẻ',
+      contractorName: `${customerName.trim()} (${sanitizedPhone})`,
       contractorTier: 'Khách mua lẻ' as const,
       totalAmount: total,
       discountAmount: 0,
       finalAmount: total,
       status: 'Pending' as const,
       deliveryAddress: finalShippingAddress,
+      notes: notes?.trim() || undefined,
       items: orderItems,
     };
 
@@ -291,9 +299,10 @@ export default function CheckoutPage() {
       }
 
       const payload = {
-        customerName: customerPhone ? `${customerName.trim()} (${customerPhone.trim()})` : (customerName || 'Khách Mua Lẻ'),
-        customerPhone: customerPhone || undefined,
+        customerName: `${customerName.trim()} (${sanitizedPhone})`,
+        customerPhone: sanitizedPhone,
         shippingAddress: finalShippingAddress,
+        notes: notes?.trim() || undefined,
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
         is2h: deliveryMethod === 'DELIVERY' ? is2h : false,
         items: items.map((i) => {

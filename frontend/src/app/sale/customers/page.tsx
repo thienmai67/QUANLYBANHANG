@@ -24,6 +24,8 @@ import { SaleCustomerSummary, CustomerTier } from '@/types/sale';
 import { formatCurrencyVND } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
 import CustomerDetailModal from '@/components/sale/CustomerDetailModal';
+import { isValidVietnamesePhone, sanitizePhone } from '@/lib/validation';
+import { getFriendlyErrorMessage } from '@/lib/api';
 
 export default function SaleCustomersPage() {
   const { customers, fetchCustomers, createCustomer, isLoading } = useSaleStore();
@@ -75,12 +77,19 @@ export default function SaleCustomersPage() {
       toast.error('Vui lòng nhập họ tên và email');
       return;
     }
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone && !isValidVietnamesePhone(trimmedPhone)) {
+      toast.error(
+        'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam gồm 10 chữ số (bắt đầu bằng 03, 05, 07, 08, 09).'
+      );
+      return;
+    }
     try {
       setIsSubmitting(true);
       await createCustomer({
         fullName: fullName.trim(),
         email: email.trim(),
-        phone: phone.trim() || undefined,
+        phone: trimmedPhone ? sanitizePhone(trimmedPhone) : undefined,
         companyName: companyName.trim() || undefined,
         siteAddress: siteAddress.trim() || undefined,
         tier,
@@ -99,7 +108,7 @@ export default function SaleCustomersPage() {
       setCreditLimit(0);
       setNotes('');
     } catch (err: any) {
-      toast.error(err.message || 'Không thể tạo khách hàng');
+      toast.error(getFriendlyErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

@@ -24,6 +24,7 @@ import {
 export default function CartPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [qtyInputs, setQtyInputs] = useState<Record<string, string>>({});
   const {
     items,
     removeItem,
@@ -33,6 +34,27 @@ export default function CartPage() {
     getTotalPrice,
     getTotalItems,
   } = useCartStore();
+
+  const commitQuantity = (id: string, currentQty: number) => {
+    const raw = qtyInputs[id];
+    let finalQty = currentQty;
+    if (raw !== undefined) {
+      if (raw.trim() === '') {
+        finalQty = 1;
+      } else {
+        const parsed = parseInt(raw, 10);
+        finalQty = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(9999, parsed));
+      }
+    } else {
+      finalQty = Math.max(1, Math.min(9999, currentQty));
+    }
+    setQuantity(id, finalQty);
+    setQtyInputs((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
 
   const adminProducts = useAdminStore((state) => state.products);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
@@ -134,6 +156,7 @@ export default function CartPage() {
                 onClick={() => {
                   if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ sản phẩm khỏi giỏ hàng?')) {
                     clearCart();
+                    setQtyInputs({});
                   }
                 }}
                 className="inline-flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-700 font-semibold px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
@@ -286,7 +309,11 @@ export default function CartPage() {
                           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 shadow-sm">
                             <button
                               type="button"
-                              onClick={() => updateQuantity(item.id, -1)}
+                              onClick={() => {
+                                const next = Math.max(1, item.quantity - 1);
+                                setQuantity(item.id, next);
+                                setQtyInputs((prev) => ({ ...prev, [item.id]: String(next) }));
+                              }}
                               className="w-8 h-8 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-l-xl transition-colors active:scale-95"
                               title="Giảm số lượng"
                             >
@@ -295,18 +322,36 @@ export default function CartPage() {
                             <input
                               type="number"
                               min={1}
-                              value={item.quantity}
+                              max={9999}
+                              value={qtyInputs[item.id] !== undefined ? qtyInputs[item.id] : item.quantity}
                               onChange={(e) => {
-                                const val = parseInt(e.target.value, 10);
+                                const raw = e.target.value;
+                                setQtyInputs((prev) => ({ ...prev, [item.id]: raw }));
+                                if (raw === '') {
+                                  return;
+                                }
+                                const val = parseInt(raw, 10);
                                 if (!isNaN(val)) {
-                                  setQuantity(item.id, val);
+                                  const clamped = Math.max(1, Math.min(9999, val));
+                                  setQuantity(item.id, clamped);
+                                }
+                              }}
+                              onBlur={() => commitQuantity(item.id, item.quantity)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  commitQuantity(item.id, item.quantity);
+                                  (e.target as HTMLInputElement).blur();
                                 }
                               }}
                               className="w-12 h-8 text-center font-mono font-bold text-xs bg-transparent border-x border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:bg-blue-50 dark:focus:bg-blue-950/40"
                             />
                             <button
                               type="button"
-                              onClick={() => updateQuantity(item.id, 1)}
+                              onClick={() => {
+                                const next = Math.min(9999, item.quantity + 1);
+                                setQuantity(item.id, next);
+                                setQtyInputs((prev) => ({ ...prev, [item.id]: String(next) }));
+                              }}
                               className="w-8 h-8 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-r-xl transition-colors active:scale-95"
                               title="Tăng số lượng"
                             >
@@ -325,7 +370,14 @@ export default function CartPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => removeItem(item.id)}
+                            onClick={() => {
+                              setQtyInputs((prev) => {
+                                const next = { ...prev };
+                                delete next[item.id];
+                                return next;
+                              });
+                              removeItem(item.id);
+                            }}
                             className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors"
                             title="Xóa sản phẩm này"
                           >
