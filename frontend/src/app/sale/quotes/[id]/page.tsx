@@ -149,6 +149,11 @@ export default function SaleQuoteDetailPage() {
               >
                 {quote.status}
               </span>
+              {isExpired && quote.status !== 'CONVERTED' && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200">
+                  ĐÃ HẾT HẠN
+                </span>
+              )}
             </div>
             <div className="text-xs text-slate-500 mt-0.5">
               Tạo ngày: {formatDateTime(quote.createdAt)} • Hiệu lực đến:{' '}
@@ -183,11 +188,12 @@ export default function SaleQuoteDetailPage() {
           {(quote.status === 'ACCEPTED' || quote.status === 'SENT') && (
             <button
               onClick={handleConvert}
-              disabled={isConverting}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+              disabled={isConverting || isExpired}
+              title={isExpired ? 'Báo giá đã quá thời hạn hiệu lực' : undefined}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-sm transition-colors"
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>{isConverting ? 'Đang chuyển...' : 'Chuyển thành Đơn hàng'}</span>
+              <span>{isConverting ? 'Đang chuyển...' : isExpired ? 'Báo giá đã hết hạn' : 'Chuyển thành Đơn hàng'}</span>
             </button>
           )}
 
@@ -201,6 +207,17 @@ export default function SaleQuoteDetailPage() {
           </Link>
         </div>
       </div>
+
+      {/* Expired Quote Warning Banner */}
+      {isExpired && quote.status !== 'CONVERTED' && (
+        <div className="print:hidden p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          <div className="text-xs text-rose-800 dark:text-rose-300">
+            <strong className="block text-sm font-semibold">Báo giá này đã quá thời hạn hiệu lực:</strong>
+            Đã quá ngày hiệu lực ({new Date(quote.validUntil).toLocaleDateString('vi-VN')}). Do giá vật tư ngành điện nước biến động, chức năng tạo đơn hàng bị khóa. Vui lòng bấm <strong>&quot;Sao chép &amp; Sửa đổi&quot;</strong> để phát hành báo giá mới với đơn giá hiện tại.
+          </div>
+        </div>
+      )}
 
       {/* Approval banner if PENDING_APPROVAL */}
       {quote.status === 'PENDING_APPROVAL' && (

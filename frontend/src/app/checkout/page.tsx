@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
@@ -62,6 +62,24 @@ export default function CheckoutPage() {
   // Delivery Method: Giao tận nơi (DELIVERY) vs Ghé tiệm lấy (PICKUP)
   const [deliveryMethod, setDeliveryMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
   const [pickupStore, setPickupStore] = useState<'HOC_MON' | 'GO_VAP'>('HOC_MON');
+
+  // Business hours calculation for 2H express delivery (07:30 - 17:30)
+  const isWithinBusinessHours = useMemo(() => {
+    const now = new Date();
+    const currentTotal = now.getHours() * 60 + now.getMinutes();
+    return currentTotal >= 7 * 60 + 30 && currentTotal <= 17 * 60 + 30;
+  }, []);
+
+  const expected2HDeliveryText = useMemo(() => {
+    const now = new Date();
+    if (isWithinBusinessHours) {
+      const deliveryTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      const hours = String(deliveryTime.getHours()).padStart(2, '0');
+      const minutes = String(deliveryTime.getMinutes()).padStart(2, '0');
+      return `Cam kết giao hỏa tốc trước ${hours}:${minutes} hôm nay (Xe máy nội thành)`;
+    }
+    return '⚠️ Đặt ngoài khung giờ xe chạy (07:30 - 18:00): Đơn sẽ được ưu tiên đóng gói và giao hỏa tốc trước 09:30 sáng mai!';
+  }, [isWithinBusinessHours]);
 
   // Submit & Order State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -710,6 +728,15 @@ export default function CheckoutPage() {
                             <p className="text-[11px] text-slate-500 dark:text-slate-400">
                               Áp dụng cho các đơn hàng vật tư gấp trong phạm vi bán kính 15km
                             </p>
+                            {is2h && (
+                              <p className={`text-[11px] font-semibold mt-1.5 ${
+                                isWithinBusinessHours
+                                  ? 'text-emerald-700 dark:text-emerald-400'
+                                  : 'text-amber-800 dark:text-amber-300'
+                              }`}>
+                                {expected2HDeliveryText}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <span className="text-[10px] px-2.5 py-1 font-black uppercase rounded-full bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200 tracking-wider shrink-0">

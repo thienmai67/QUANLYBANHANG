@@ -435,8 +435,17 @@ function OrdersManagementContent() {
 
                         {/* Customer */}
                         <td className="px-4 py-3">
-                          <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[150px]">
-                            {order.customerName}
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-slate-900 dark:text-white truncate max-w-[140px]">
+                              {order.customerName}
+                            </span>
+                            {(order.shippingAddress?.toLowerCase().includes('chi nhánh') ||
+                              order.shippingAddress?.toLowerCase().includes('nhận tại') ||
+                              order.customerName?.toLowerCase().includes('khách lẻ tại quầy')) && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 shrink-0">
+                                Nhận tại tiệm
+                              </span>
+                            )}
                           </div>
                           <div className="text-[10px] text-slate-400 truncate max-w-[150px]">
                             {order.customerPhone}
@@ -477,6 +486,12 @@ function OrdersManagementContent() {
                           {order.shipperName ? (
                             <span className="font-medium text-slate-800 dark:text-slate-200">
                               {order.shipperName}
+                            </span>
+                          ) : (order.shippingAddress?.toLowerCase().includes('chi nhánh') ||
+                               order.shippingAddress?.toLowerCase().includes('nhận tại') ||
+                               order.customerName?.toLowerCase().includes('khách lẻ tại quầy')) ? (
+                            <span className="text-indigo-600 dark:text-indigo-400 font-medium text-[11px]">
+                              Khách tự lấy
                             </span>
                           ) : (
                             <span className="text-slate-400 italic">Chưa gán</span>
