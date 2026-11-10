@@ -4,6 +4,7 @@ import React from 'react';
 import RouteGuard from '@/components/auth/RouteGuard';
 import { SaleSidebar } from '@/components/sale/SaleSidebar';
 import { SaleHeader } from '@/components/sale/SaleHeader';
+import { SaleBottomNav } from '@/components/sale/SaleBottomNav';
 import { ToastContainer } from '@/components/common/ToastContainer';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useSaleShellStore } from '@/store/useSaleShellStore';
@@ -35,12 +36,15 @@ export default function SaleLayout({
           <SaleHeader />
 
           {/* Main page content wrapped in ErrorBoundary */}
-          <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+          <main className="flex-1 p-3 sm:p-4 lg:p-8 pb-28 lg:pb-8 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6">
             <ErrorBoundary>
               {children}
             </ErrorBoundary>
           </main>
         </div>
+
+        {/* Mobile bottom navigation bar */}
+        <SaleBottomNav />
 
         {/* Standalone Toast Notifications container */}
         <ToastContainer />

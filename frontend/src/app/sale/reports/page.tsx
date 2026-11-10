@@ -41,11 +41,11 @@ export default function SaleReportsPage() {
   );
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4 sm:space-y-6 pb-12">
       {/* Header & Date Range Filter */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">
             Báo cáo Hiệu quả Kinh doanh Cá nhân (Sales KPIs)
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -53,110 +53,110 @@ export default function SaleReportsPage() {
           </p>
         </div>
 
-        <form onSubmit={handleApplyFilter} className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-xs text-slate-500">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Từ:</span>
+        <form onSubmit={handleApplyFilter} className="flex items-center gap-2 flex-wrap sm:flex-nowrap bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span className="font-medium">Từ:</span>
           </div>
           <input
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-1 sm:flex-none px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
-          <span className="text-xs text-slate-500">-</span>
+          <span className="text-xs text-slate-400">-</span>
           <input
             type="date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-1 sm:flex-none px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
           <button
             type="submit"
-            className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
+            className="px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 active:scale-95 rounded-xl shadow-xs transition-all shrink-0"
           >
             Lọc
           </button>
         </form>
       </div>
 
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards Row (Compact vertical on mobile, 4-card on desktop) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Delivered Revenue */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Doanh số đã giao (DELIVERED)
             </span>
-            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+            <div className="p-1.5 sm:p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+          <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
             {formatCurrencyVND(reports?.totalDeliveredRevenue || 0)}
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-[11px] text-slate-500">
             Từ {reports?.totalOrdersCount || 0} đơn hàng hoàn tất
           </div>
         </div>
 
         {/* Quotes & Conversion Rate */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Tỷ lệ chốt Báo giá B2B
             </span>
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+            <div className="p-1.5 sm:p-2 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
               <Percent className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
+          <div className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight">
             {(reports?.conversionRate || 0).toFixed(1)}%
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-[11px] text-slate-500">
             {reports?.quotesConverted || 0} chuyển đổi / {reports?.quotesSent || 0} đã gửi
           </div>
         </div>
 
         {/* Total Quotes Created */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Báo giá khách đã chốt
             </span>
-            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
+            <div className="p-1.5 sm:p-2 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
               <Award className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-purple-600 dark:text-purple-400">
+          <div className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 tracking-tight">
             {reports?.quotesAccepted || 0}
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-[11px] text-slate-500">
             Đạt đồng thuận với chủ thầu / dự án
           </div>
         </div>
 
         {/* Outstanding Debt */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Công nợ cần thu hồi
             </span>
-            <div className="p-2 rounded-lg bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400">
+            <div className="p-1.5 sm:p-2 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-red-600 dark:text-red-400">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-red-600 dark:text-red-400">
+          <div className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight">
             {formatCurrencyVND(reports?.outstandingDebt || 0)}
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-[11px] text-slate-500">
             Cần đối soát theo dõi hàng tuần
           </div>
         </div>
       </div>
 
       {/* Revenue Over Time Chart (CSS Bar Chart) */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -168,8 +168,8 @@ export default function SaleReportsPage() {
         </div>
 
         {reports?.revenueByDate && reports.revenueByDate.length > 0 ? (
-          <div className="space-y-3 pt-2">
-            <div className="flex items-end gap-2 h-44 border-b border-slate-200 dark:border-slate-800 pb-2">
+          <div className="space-y-3 pt-2 overflow-x-auto no-scrollbar">
+            <div className="flex items-end gap-2 h-44 min-w-[320px] border-b border-slate-200 dark:border-slate-800 pb-2">
               {reports.revenueByDate.map((item, idx) => {
                 const heightPercent = maxRevenueDate > 0 ? (item.amount / maxRevenueDate) * 100 : 0;
                 return (

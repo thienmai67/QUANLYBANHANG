@@ -33,3 +33,7 @@ sql_paths.txt
 playwright-report/
 test-results/
 .serena/
+jira_credentials.json
+.jira_credentials.json
+scratch/
+

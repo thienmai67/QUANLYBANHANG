@@ -5,15 +5,16 @@ import {
   Search,
   Calculator,
   Layers,
-  ShieldAlert,
   X,
   Copy,
   Check,
+  ChevronDown,
 } from 'lucide-react';
 import { useSaleStore } from '@/store/useSaleStore';
 import { Product } from '@/types/manager';
 import { formatCurrencyVND } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
+import SearchableSelect, { SearchableOption } from '@/components/sale/SearchableSelect';
 
 function getBrandDisplay(b: any): string {
   if (!b) return 'Chưa cập nhật';
@@ -55,6 +56,13 @@ export default function SaleProductsPage() {
     });
     return Array.from(set);
   }, [products]);
+
+  const brandOptions = useMemo(() => {
+    return [
+      { value: 'ALL', label: 'Tất cả thương hiệu' },
+      ...brands.map((b) => ({ value: b, label: b })),
+    ];
+  }, [brands]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -111,6 +119,23 @@ export default function SaleProductsPage() {
     };
   }, [calcProduct, calcQuantity, selectedUnit, customDiscount]);
 
+  const calcUnitOptions = useMemo(() => {
+    if (!calcProduct) return [];
+    const list: SearchableOption[] = [
+      { value: calcProduct.unit || 'Đơn vị', label: `${calcProduct.unit || 'Đơn vị'} (Chuẩn)` },
+    ];
+    if (calcProduct.conversions) {
+      calcProduct.conversions.forEach((c) => {
+        list.push({
+          value: c.unit,
+          label: c.unit,
+          sublabel: `Quy đổi: x${c.factor} ${calcProduct.unit}`,
+        });
+      });
+    }
+    return list;
+  }, [calcProduct]);
+
   const handleCopyQuote = () => {
     if (!calcProduct || !calcResult) return;
     const text = `Báo giá sản phẩm:
@@ -144,62 +169,82 @@ export default function SaleProductsPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 px-3 py-1.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-          <ShieldAlert className="w-4 h-4 text-amber-500" />
-          <span>Quyền hạn: Xem giá & Chiết khấu</span>
-        </div>
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="space-y-2.5">
+        {/* Row 1: Search & Brand Selector */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           {/* Search */}
-          <div className="relative md:col-span-2">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Tìm theo tên sản phẩm, mã SKU..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 shadow-xs"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+                aria-label="Xóa tìm kiếm"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* Brand Filter */}
-          <div>
-            <select
+          {/* Brand select */}
+          <div className="sm:w-56 shrink-0">
+            <SearchableSelect
+              options={brandOptions}
               value={selectedBrand}
-              onChange={(e) => setSelectedBrand(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="ALL">Tất cả thương hiệu</option>
-              {brands.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Category Filter */}
-          <div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="ALL">Tất cả danh mục</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedBrand}
+              placeholder="Tất cả thương hiệu"
+              searchPlaceholder="Tìm kiếm thương hiệu..."
+              title="Lọc theo thương hiệu"
+              triggerClassName="!rounded-2xl !py-2.5"
+            />
           </div>
         </div>
 
+        {/* Category Category Pills (Lướt ngang không thanh cuộn) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('ALL')}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all active:scale-95 ${
+              selectedCategory === 'ALL'
+                ? 'bg-blue-600 text-white shadow-xs font-bold'
+                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Tất cả danh mục ({products.length})
+          </button>
+          {categories.map((c) => {
+            const isSelected = selectedCategory === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setSelectedCategory(c)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all active:scale-95 ${
+                  isSelected
+                    ? 'bg-blue-600 text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                {c}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Filter Summary */}
-        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
           <span>
             Tìm thấy <strong className="text-slate-800 dark:text-slate-200">{filteredProducts.length}</strong> sản phẩm
           </span>
@@ -218,8 +263,105 @@ export default function SaleProductsPage() {
         </div>
       </div>
 
-      {/* Product Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      {/* Mobile Products Card View (< md) */}
+      <div className="space-y-3 md:hidden">
+        {isLoading ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-400">
+            <p className="text-xs">Đang tải danh mục sản phẩm...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-400 space-y-2">
+            <Layers className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700" />
+            <p className="text-xs">Không tìm thấy sản phẩm nào phù hợp.</p>
+          </div>
+        ) : (
+          filteredProducts.map((p) => {
+            const netPrice = p.basePrice * (1 - (p.discountRate || 0) / 100);
+            return (
+              <div
+                key={p.id}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3 transition-shadow hover:shadow-md"
+              >
+                {/* Header: Title & SKU */}
+                <div className="border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                  <div className="font-bold text-slate-900 dark:text-white text-sm">
+                    {p.name}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {p.sku || p.code || 'SKU'}
+                    </span>
+                    <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                      {getBrandDisplay(p.brand)}
+                    </span>
+                    <span className="text-slate-300 dark:text-slate-700">•</span>
+                    <span className="text-[11px] text-slate-500">
+                      {getCategoryDisplay(p.category)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Specs & Pricing */}
+                <div className="grid grid-cols-2 gap-3 items-center">
+                  <div className="text-xs space-y-1">
+                    <div className="text-slate-500">
+                      Đơn vị: <strong className="text-slate-800 dark:text-slate-200">{p.unit || 'Cái'}</strong>
+                    </div>
+                    {p.conversions && p.conversions.length > 0 && (
+                      <div className="text-[11px] text-slate-400">
+                        Quy cách: {p.conversions.map((c) => `${c.unit}(x${c.factor})`).join(', ')}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-right">
+                    {p.discountRate && p.discountRate > 0 ? (
+                      <div className="text-xs text-slate-400 line-through">
+                        {formatCurrencyVND(p.basePrice)}
+                      </div>
+                    ) : null}
+                    <div className="text-base font-black text-blue-600 dark:text-blue-400 font-mono leading-tight">
+                      {formatCurrencyVND(netPrice)}
+                    </div>
+                    {p.discountRate && p.discountRate > 0 ? (
+                      <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                        CK {p.discountRate}%
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Footer Quick Actions */}
+                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openCalculator(p)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 active:scale-95 transition-all"
+                  >
+                    <Calculator className="w-3.5 h-3.5" />
+                    <span>Tính giá nhanh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${p.name} (${p.sku || p.code}) - Giá: ${formatCurrencyVND(netPrice)}/${p.unit}`);
+                      toast.success('Đã sao chép thông tin sản phẩm!');
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 active:scale-95 transition-all ml-auto"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Sao chép</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Product Table (>= md) */}
+      <div className="hidden md:block bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>
@@ -406,21 +548,17 @@ export default function SaleProductsPage() {
             <div className="grid grid-cols-2 gap-4">
               {/* Unit selection */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Đơn vị tính
                 </label>
-                <select
+                <SearchableSelect
+                  options={calcUnitOptions}
                   value={selectedUnit}
-                  onChange={(e) => setSelectedUnit(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value={calcProduct.unit}>{calcProduct.unit} (Chuẩn)</option>
-                  {calcProduct.conversions?.map((c) => (
-                    <option key={c.unit} value={c.unit}>
-                      {c.unit} (x{c.factor} {calcProduct.unit})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedUnit}
+                  placeholder="Chọn đơn vị tính..."
+                  searchPlaceholder="Tìm đơn vị..."
+                  title="Đơn vị tính"
+                />
               </div>
 
               {/* Quantity */}

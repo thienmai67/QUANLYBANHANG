@@ -1334,7 +1334,7 @@ export default function CustomerProfilePage() {
                         </div>
                       )}
 
-                      <div className="profile-items-preview">
+                      <div className={`profile-items-preview ${(ord.items?.length || 0) > 3 ? 'has-scroll' : ''}`}>
                         {ord.items.map((it, idx) => (
                           <div key={it.id || idx} className="profile-item-row">
                             <div className="profile-item-info">

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSaleStore } from '@/store/useSaleStore';
 import { ActivityType } from '@/types/sale';
 import { useToast } from '@/hooks/useToast';
+import SearchableSelect from '@/components/sale/SearchableSelect';
 
 interface ActivityFormProps {
   initialCustomerId?: string;
@@ -67,54 +68,64 @@ export function ActivityForm({ initialCustomerId, onSuccess, onCancel }: Activit
     }
   };
 
+  const customerOptions = useMemo(() => {
+    return customers.map((c) => ({
+      value: c.id,
+      label: c.fullName,
+      sublabel: c.profile?.companyName || c.phone || c.email,
+      badge: c.profile?.tier,
+    }));
+  }, [customers]);
+
+  const activityOptions = [
+    { value: 'CALL', label: 'Gọi điện thoại (Call)', badge: 'Call' },
+    { value: 'ZALO', label: 'Nhắn tin Zalo', badge: 'Zalo' },
+    { value: 'VISIT', label: 'Gặp mặt / Khảo sát công trình', badge: 'Gặp mặt' },
+    { value: 'NOTE', label: 'Ghi chú riêng', badge: 'Ghi chú' },
+    { value: 'FOLLOWUP', label: 'Hẹn chăm sóc lại', badge: 'Hẹn lại' },
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
           Chọn khách hàng <span className="text-red-500">*</span>
         </label>
-        <select
-          required
+        <SearchableSelect
+          options={customerOptions}
           value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
-          className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">-- Chọn khách hàng phụ trách --</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.fullName} ({c.profile?.companyName || c.phone || c.email})
-            </option>
-          ))}
-        </select>
+          onChange={setCustomerId}
+          placeholder="-- Chọn khách hàng phụ trách --"
+          searchPlaceholder="Tìm khách hàng theo tên, SĐT, công ty..."
+          title="Chọn khách hàng"
+          required
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
             Loại hình tương tác
           </label>
-          <select
+          <SearchableSelect
+            options={activityOptions}
             value={activityType}
-            onChange={(e) => setActivityType(e.target.value as ActivityType)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="CALL">Gọi điện thoại (Call)</option>
-            <option value="ZALO">Nhắn tin Zalo</option>
-            <option value="VISIT">Gặp mặt / Khảo sát công trình</option>
-            <option value="NOTE">Ghi chú riêng</option>
-            <option value="FOLLOWUP">Hẹn chăm sóc lại</option>
-          </select>
+            onChange={(val) => setActivityType(val as ActivityType)}
+            placeholder="Chọn loại hình..."
+            searchPlaceholder="Tìm loại hình..."
+            title="Loại hình tương tác"
+          />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
             Thời điểm diễn ra
           </label>
           <input
             type="datetime-local"
             value={contactedAt}
             onChange={(e) => setContactedAt(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors shadow-xs"
           />
         </div>
       </div>

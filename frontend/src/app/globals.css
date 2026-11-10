@@ -55,6 +55,15 @@ body {
   background: rgba(163, 137, 102, 0.5);
 }
 
+/* Hide scrollbar utility for horizontal swipeable tabs & categories */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
 /* Luxury Glassmorphism utility */
 .glass-panel {
   background: rgba(255, 255, 255, 0.7);
@@ -163,4 +172,48 @@ body {
 .high-contrast-mode a:focus-visible {
   outline: 3px solid #FACC15 !important;
   outline-offset: 2px !important;
+}
+
+/* Slide up animations for mobile bottom sheets and desktop popovers */
+@keyframes slideUpMobile {
+  from {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpDesktop {
+  from {
+    transform: translateY(10px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInOverlay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-up-mobile {
+  animation: slideUpMobile 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up-desktop {
+  animation: slideUpDesktop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in-overlay {
+  animation: fadeInOverlay 0.2s ease-out forwards;
 }

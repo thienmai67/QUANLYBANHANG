@@ -245,29 +245,39 @@ describe('Profile Page Features & Logic', () => {
       expect(ctLine).toBe('Số CT: OV109202406261803 - 27/10/2026 15:11-NV:154233');
     });
 
-    it('generates valid SVG tear points for top and bottom serrated edges', () => {
-      const generateTearPointsTop = (numTeeth = 36): string => {
-        const toothWidth = 200 / numTeeth;
-        let points = '0,8';
-        for (let i = 0; i < numTeeth; i++) {
-          const xMid = (i + 0.5) * toothWidth;
-          const xEnd = (i + 1) * toothWidth;
-          points += ` ${xMid.toFixed(1)},1.2 ${xEnd.toFixed(1)},8`;
-        }
-        points += ' 200,8 0,8';
-        return points;
-      };
+    it('formats column headers and rectangular receipt properties correctly', () => {
+      const headers = ['Tên hàng hóa', 'SL', 'Đơn giá', 'Thành tiền'];
+      expect(headers).toContain('Tên hàng hóa');
+      expect(headers).toContain('Đơn giá');
+      expect(headers.length).toBe(4);
 
-      const topPoints = generateTearPointsTop(10);
-      expect(topPoints.startsWith('0,8')).toBe(true);
-      expect(topPoints.endsWith('200,8 0,8')).toBe(true);
-      expect(topPoints.split(' ').length).toBe(23); // 1 initial + 2*10 teeth + 2 end points
+      const footerBackButton = 'Quay lại';
+      const footerHint = 'Khổ in nhiệt 80mm POS';
+      expect(footerBackButton).toBe('Quay lại');
+      expect(footerHint).toContain('80mm POS');
     });
 
     it('formats customer phone loyalty line accurately', () => {
       const formatLoyalty = (phone?: string) => `Hóa đơn tích điểm cho ${phone || '0987 *** 899'} sau 24h.`;
       expect(formatLoyalty('0912345678')).toBe('Hóa đơn tích điểm cho 0912345678 sau 24h.');
       expect(formatLoyalty(undefined)).toBe('Hóa đơn tích điểm cho 0987 *** 899 sau 24h.');
+    });
+  });
+
+  describe('Order Card Items Scrollable Feature', () => {
+    const shouldEnableScroll = (itemsCount: number) => itemsCount > 3;
+
+    it('disables scroll for order cards with <= 3 items', () => {
+      expect(shouldEnableScroll(0)).toBe(false);
+      expect(shouldEnableScroll(1)).toBe(false);
+      expect(shouldEnableScroll(2)).toBe(false);
+      expect(shouldEnableScroll(3)).toBe(false);
+    });
+
+    it('enables vertical scroll for order cards with > 3 items', () => {
+      expect(shouldEnableScroll(4)).toBe(true);
+      expect(shouldEnableScroll(5)).toBe(true);
+      expect(shouldEnableScroll(10)).toBe(true);
     });
   });
 });

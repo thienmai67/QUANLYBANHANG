@@ -15,6 +15,7 @@ import {
   Store,
   Printer,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { useSaleStore } from '@/store/useSaleStore';
 import { formatCurrencyVND } from '@/lib/formatters';
@@ -22,6 +23,7 @@ import { useToast } from '@/hooks/useToast';
 import { ThermalReceiptModal, ThermalOrderData } from '@/components/ThermalReceiptModal';
 import { isValidVietnamesePhone, sanitizePhone } from '@/lib/validation';
 import { getFriendlyErrorMessage } from '@/lib/api';
+import SearchableSelect from '@/components/sale/SearchableSelect';
 
 interface OrderItemRow {
   productId: string;
@@ -201,6 +203,19 @@ export function OrderCreateForm() {
     );
   };
 
+  const handleDiscountBlur = (index: number) => {
+    setItems((prev) =>
+      prev.map((item, idx) => {
+        if (idx !== index) return item;
+        const rate =
+          typeof item.discountRate === 'number'
+            ? item.discountRate
+            : parseFloat(String(item.discountRate)) || 0;
+        return { ...item, discountRate: Math.max(0, Math.min(100, rate)) };
+      })
+    );
+  };
+
   const handleRemoveItem = (index: number) => {
     setItems((prev) => prev.filter((_, idx) => idx !== index));
   };
@@ -331,6 +346,34 @@ export function OrderCreateForm() {
     }
   };
 
+  const customerOptions = useMemo(() => {
+    return customers.map((c) => ({
+      value: c.id,
+      label: c.fullName,
+      sublabel: `${c.profile?.companyName ? c.profile.companyName + ' • ' : ''}${c.phone || c.email}`,
+      badge: c.profile?.tier,
+    }));
+  }, [customers]);
+
+  const productOptions = useMemo(() => {
+    return products.map((p) => {
+      const brandName = typeof p.brand === 'object' && p.brand !== null ? (p.brand as any).name : p.brand;
+      return {
+        value: p.id,
+        label: p.name,
+        sublabel: `SKU: ${p.sku || p.code || 'N/A'} • ${formatCurrencyVND(p.basePrice)}/${p.unit}`,
+        badge: brandName ? String(brandName) : undefined,
+      };
+    });
+  }, [products]);
+
+  const paymentMethodOptions = [
+    { value: 'BANK_TRANSFER', label: 'Chuyển khoản ngân hàng', badge: 'Ngân hàng' },
+    { value: 'CASH', label: 'Tiền mặt tại kho / giao hàng', badge: 'Tiền mặt' },
+    { value: 'COD', label: 'Thu hộ (COD)', badge: 'COD' },
+    { value: 'DEBT', label: 'Ghi nợ hợp đồng (Công nợ B2B)', badge: 'Công nợ' },
+  ];
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
       {/* Back button and page title */}
@@ -385,11 +428,11 @@ export function OrderCreateForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Step 1: Customer Info */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        {/* Step 1: Customer Selection */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <User className="w-5 h-5 text-orange-500" />
+              <User className="w-5 h-5 text-orange-500 dark:text-orange-400" />
               <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                 1. Thông tin khách mua hàng {orderMode === 'WALK_IN' ? '(Bán lẻ tại quầy)' : '(Khách hồ sơ)'}
               </h2>
@@ -404,27 +447,23 @@ export function OrderCreateForm() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {orderMode === 'ASSIGNED' && (
               <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Chọn khách hàng phụ trách <span className="text-red-500">*</span>
                 </label>
-                <select
-                  required
+                <SearchableSelect
+                  options={customerOptions}
                   value={selectedCustomerId}
-                  onChange={(e) => setSelectedCustomerId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Chọn khách hàng --</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.fullName} ({c.profile?.companyName || c.phone || c.email})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedCustomerId}
+                  placeholder="-- Chọn khách hàng --"
+                  searchPlaceholder="Tìm theo tên, SĐT, công ty..."
+                  title="Khách hàng phụ trách"
+                  required
+                />
               </div>
             )}
 
             <div className={orderMode === 'WALK_IN' ? 'md:col-span-1' : ''}>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Tên khách mua hàng
               </label>
               <input
@@ -432,12 +471,12 @@ export function OrderCreateForm() {
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder={orderMode === 'WALK_IN' ? 'Khách lẻ tại quầy' : 'Họ tên người nhận'}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-colors shadow-xs"
               />
             </div>
 
             <div className={orderMode === 'WALK_IN' ? 'md:col-span-1' : ''}>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Số điện thoại {orderMode === 'WALK_IN' && <span className="text-slate-400 font-normal">(Tra cứu / Bảo hành)</span>}
               </label>
               <input
@@ -445,30 +484,30 @@ export function OrderCreateForm() {
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="0912..."
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-colors shadow-xs font-mono"
               />
             </div>
 
             <div className={orderMode === 'WALK_IN' ? 'md:col-span-1' : ''}>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Địa điểm nhận hàng
               </label>
               <input
                 type="text"
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
-                placeholder="Mua trực tiếp tại quầy / Địa chỉ giao"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder={orderMode === 'WALK_IN' ? 'Mua trực tiếp tại quầy' : 'VD: Số 123 đường Song Hành, TP. Thủ Đức'}
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-colors shadow-xs"
               />
             </div>
           </div>
         </div>
 
         {/* Step 2: Order Items Table */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-orange-500" />
+              <ShoppingBag className="w-5 h-5 text-orange-500 dark:text-orange-400 shrink-0" />
               <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                 2. Danh mục vật tư xuất bán ({items.length} món)
               </h2>
@@ -476,70 +515,83 @@ export function OrderCreateForm() {
             <button
               type="button"
               onClick={handleAddItem}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 active:scale-98 rounded-xl shadow-md shadow-orange-600/20 transition-all shrink-0 w-full sm:w-auto cursor-pointer"
             >
-              <Plus className="w-4 h-4" /> Thêm sản phẩm
+              <Plus className="w-4 h-4 shrink-0" />
+              <span className="whitespace-nowrap">Thêm sản phẩm</span>
             </button>
           </div>
 
           {items.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-              Chưa có sản phẩm nào. Nhấn nút &quot;Thêm sản phẩm&quot; để thêm vào đơn.
+            <div className="text-center py-8 text-xs sm:text-sm text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+              Chưa có sản phẩm nào trong đơn hàng. Nhấn nút &quot;Thêm sản phẩm&quot; để bắt đầu.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <th className="py-2.5 px-3">Sản phẩm vật tư</th>
-                    <th className="py-2.5 px-3 w-32">Đơn vị</th>
-                    <th className="py-2.5 px-3 w-28">Số lượng</th>
-                    <th className="py-2.5 px-3 w-32 text-right">Đơn giá</th>
-                    <th className="py-2.5 px-3 w-24 text-right">CK (%)</th>
-                    <th className="py-2.5 px-3 w-36 text-right">Thành tiền</th>
-                    <th className="py-2.5 px-3 w-12 text-center"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {items.map((item, index) => {
-                    const qtyNum =
-                      typeof item.quantity === 'number'
-                        ? item.quantity
-                        : parseFloat(String(item.quantity)) || 0;
-                    const lineSub = item.unitPrice * qtyNum;
-                    const lineTotal = lineSub * (1 - item.discountRate / 100);
+            <>
+              {/* Mobile Item Cards View (< md) */}
+              <div className="space-y-3 md:hidden">
+                {items.map((item, index) => {
+                  const qtyNum =
+                    typeof item.quantity === 'number'
+                      ? item.quantity
+                      : parseFloat(String(item.quantity)) || 0;
+                  const lineSub = item.unitPrice * qtyNum;
+                  const lineTotal = lineSub * (1 - item.discountRate / 100);
+                  return (
+                    <div
+                      key={index}
+                      className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3.5 border border-slate-200 dark:border-slate-700/80 space-y-3 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                          Sản phẩm #{index + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(index)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Xóa</span>
+                        </button>
+                      </div>
 
-                    return (
-                      <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                        <td className="py-2.5 px-3">
-                          <select
-                            value={item.productId}
-                            onChange={(e) => handleProductChange(index, e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                          >
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name} ({p.sku || p.code || 'N/A'}) - {formatCurrencyVND(p.basePrice)}/{p.unit}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1">
+                          Vật tư
+                        </label>
+                        <SearchableSelect
+                          options={productOptions}
+                          value={item.productId}
+                          onChange={(val) => handleProductChange(index, val)}
+                          placeholder="Chọn vật tư..."
+                          searchPlaceholder="Tìm sản phẩm, SKU..."
+                          title="Chọn vật tư"
+                        />
+                      </div>
 
-                        <td className="py-2.5 px-3">
-                          <select
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1">
+                            Đơn vị
+                          </label>
+                          <SearchableSelect
+                            options={item.availableUnits.map((u) => ({
+                              value: u.unit,
+                              label: u.unit,
+                              sublabel: u.factor !== 1 ? `x${u.factor}` : 'Đơn vị chuẩn',
+                            }))}
                             value={item.unit}
-                            onChange={(e) => handleUnitChange(index, e.target.value)}
-                            className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                          >
-                            {item.availableUnits.map((u) => (
-                              <option key={u.unit} value={u.unit}>
-                                {u.unit} (x{u.factor})
-                              </option>
-                            ))}
-                          </select>
-                        </td>
+                            onChange={(val) => handleUnitChange(index, val)}
+                            placeholder="ĐVT"
+                            title="Đơn vị tính"
+                          />
+                        </div>
 
-                        <td className="py-2.5 px-3">
+                        <div>
+                          <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1">
+                            Số lượng
+                          </label>
                           <input
                             type="number"
                             step="any"
@@ -548,50 +600,163 @@ export function OrderCreateForm() {
                             value={item.quantity}
                             onChange={(e) => handleQuantityChange(index, e.target.value)}
                             onBlur={() => handleQuantityBlur(index)}
-                            className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-orange-500 text-center font-mono font-bold"
+                            className="w-full px-2 py-1.5 text-xs text-center font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500/30 font-mono"
                           />
-                        </td>
+                        </div>
+                      </div>
 
-                        <td className="py-2.5 px-3 text-right font-mono text-xs font-medium text-slate-700 dark:text-slate-300">
-                          {formatCurrencyVND(item.unitPrice)}
-                        </td>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1">
+                            Đơn giá (VNĐ)
+                          </label>
+                          <div className="w-full px-2.5 py-2 text-xs text-right font-mono font-medium rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                            {formatCurrencyVND(item.unitPrice)}
+                          </div>
+                        </div>
 
-                        <td className="py-2.5 px-3">
+                        <div>
+                          <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1">
+                            Chiết khấu (%)
+                          </label>
                           <input
                             type="number"
                             min="0"
                             max="100"
                             value={item.discountRate}
                             onChange={(e) => handleDiscountChange(index, parseFloat(e.target.value))}
-                            className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-orange-500 text-right font-mono"
+                            onBlur={() => handleDiscountBlur(index)}
+                            className="w-full px-2 py-1.5 text-xs text-center font-bold text-orange-600 dark:text-orange-400 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500/30 font-mono"
                           />
-                        </td>
+                        </div>
+                      </div>
 
-                        <td className="py-2.5 px-3 text-right font-mono text-xs font-bold text-orange-600 dark:text-orange-400">
+                      <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                          Thành tiền:
+                        </span>
+                        <span className="text-sm font-extrabold text-orange-600 dark:text-orange-400 font-mono">
                           {formatCurrencyVND(lineTotal)}
-                        </td>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                        <td className="py-2.5 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(index)}
-                            className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+              {/* Desktop Items Table (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <th className="py-2.5 px-3">Sản phẩm</th>
+                      <th className="py-2.5 px-3 w-32">Đơn vị</th>
+                      <th className="py-2.5 px-3 w-28 text-center">Số lượng</th>
+                      <th className="py-2.5 px-3 w-36 text-right">Đơn giá niêm yết</th>
+                      <th className="py-2.5 px-3 w-24 text-center">CK (%)</th>
+                      <th className="py-2.5 px-3 w-36 text-right">Thành tiền</th>
+                      <th className="py-2.5 px-3 w-12 text-center"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {items.map((item, index) => {
+                      const qtyNum =
+                        typeof item.quantity === 'number'
+                          ? item.quantity
+                          : parseFloat(String(item.quantity)) || 0;
+                      const lineSub = item.unitPrice * qtyNum;
+                      const lineTotal = lineSub * (1 - item.discountRate / 100);
+                      return (
+                        <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                          {/* Product selection */}
+                          <td className="py-2 px-3">
+                            <SearchableSelect
+                              options={productOptions}
+                              value={item.productId}
+                              onChange={(val) => handleProductChange(index, val)}
+                              placeholder="Chọn vật tư..."
+                              searchPlaceholder="Tìm sản phẩm, SKU..."
+                              title="Chọn vật tư"
+                              triggerClassName="!py-1.5 !text-xs !rounded-lg"
+                            />
+                          </td>
+
+                          {/* Unit selection with conversions */}
+                          <td className="py-2 px-3">
+                            <SearchableSelect
+                              options={item.availableUnits.map((u) => ({
+                                value: u.unit,
+                                label: u.unit,
+                                sublabel: u.factor !== 1 ? `x${u.factor}` : undefined,
+                              }))}
+                              value={item.unit}
+                              onChange={(val) => handleUnitChange(index, val)}
+                              placeholder="ĐVT"
+                              title="Đơn vị tính"
+                              triggerClassName="!py-1.5 !text-xs !rounded-lg"
+                            />
+                          </td>
+
+                          {/* Quantity */}
+                          <td className="py-2 px-3">
+                            <input
+                              type="number"
+                              step="any"
+                              min="1"
+                              max="10000"
+                              value={item.quantity}
+                              onChange={(e) => handleQuantityChange(index, e.target.value)}
+                              onBlur={() => handleQuantityBlur(index)}
+                              className="w-full px-2 py-1.5 text-xs text-center font-bold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            />
+                          </td>
+
+                          {/* Unit price */}
+                          <td className="py-2 px-3 text-right font-mono text-xs font-medium text-slate-700 dark:text-slate-300">
+                            {formatCurrencyVND(item.unitPrice)}
+                          </td>
+
+                          {/* Discount */}
+                          <td className="py-2 px-3">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={item.discountRate}
+                              onChange={(e) => handleDiscountChange(index, parseFloat(e.target.value))}
+                              onBlur={() => handleDiscountBlur(index)}
+                              className="w-full px-2 py-1.5 text-xs text-center font-semibold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            />
+                          </td>
+
+                          {/* Line total */}
+                          <td className="py-2 px-3 text-right font-bold font-mono text-orange-600 dark:text-orange-400">
+                            {formatCurrencyVND(lineTotal)}
+                          </td>
+
+                          {/* Delete button */}
+                          <td className="py-2 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(index)}
+                              className="text-slate-400 hover:text-red-600 p-1 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
         {/* Step 3: Payment & Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
               <CreditCard className="w-5 h-5 text-orange-500" />
               <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
@@ -600,18 +765,16 @@ export function OrderCreateForm() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Phương thức thanh toán <span className="text-red-500">*</span>
               </label>
-              <select
+              <SearchableSelect
+                options={paymentMethodOptions}
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium"
-              >
-                <option value="CASH">💵 Tiền mặt (Thu ngân nhận tiền trực tiếp tại quầy)</option>
-                <option value="BANK_TRANSFER">📱 Chuyển khoản VietQR (Khách quét mã trả ngay)</option>
-                <option value="COD">🚚 Thu hộ COD (Khi giao hàng tận nơi)</option>
-              </select>
+                onChange={setPaymentMethod}
+                placeholder="Chọn phương thức thanh toán..."
+                title="Phương thức thanh toán"
+              />
             </div>
 
             {paymentMethod === 'CASH' && (
@@ -623,61 +786,72 @@ export function OrderCreateForm() {
                     </label>
                     <button
                       type="button"
-                      onClick={() => setCashTendered(totalAmount > 0 ? totalAmount.toString() : '')}
-                      className="text-[11px] text-orange-700 dark:text-orange-300 font-semibold underline hover:text-orange-900 cursor-pointer"
+                      onClick={() => setCashTendered(String(totalAmount))}
+                      className="text-[11px] font-bold text-orange-600 hover:text-orange-700 underline cursor-pointer"
                     >
-                      Đúng số tiền ({formatCurrencyVND(totalAmount)})
+                      Khách đưa đúng {formatCurrencyVND(totalAmount)}
                     </button>
                   </div>
                   <input
                     type="number"
-                    step="any"
                     min="0"
+                    step="1000"
                     value={cashTendered}
                     onChange={(e) => setCashTendered(e.target.value)}
-                    placeholder={`Mặc định: ${formatCurrencyVND(totalAmount)}`}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono font-bold"
+                    placeholder="VD: 500000"
+                    className="w-full px-3 py-2 text-base font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 rounded-lg border border-orange-300 dark:border-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
                   />
+                  {/* Quick cash denomination chips */}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {[100000, 200000, 500000, 1000000, 2000000, 5000000].map((den) => (
+                      <button
+                        key={den}
+                        type="button"
+                        onClick={() => setCashTendered(String(den))}
+                        className="px-2 py-0.5 text-[11px] font-medium rounded bg-white dark:bg-slate-800 border border-orange-200 dark:border-orange-700 hover:bg-orange-100 text-slate-700 dark:text-slate-300 cursor-pointer"
+                      >
+                        {formatCurrencyVND(den)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-orange-200/80 dark:border-orange-800">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <div className="pt-2 border-t border-orange-200 dark:border-orange-800/60 flex items-center justify-between">
+                  <span className="text-xs font-bold text-orange-900 dark:text-orange-200">
                     Tiền thối lại khách:
                   </span>
-                  <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                    {formatCurrencyVND(changeAmount)}
+                  <span
+                    className={`font-mono text-base font-black ${
+                      changeAmount < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'
+                    }`}
+                  >
+                    {changeAmount < 0 ? `Thiếu ${formatCurrencyVND(Math.abs(changeAmount))}` : formatCurrencyVND(changeAmount)}
                   </span>
                 </div>
-
-                {cashTendered !== '' && (parseFloat(cashTendered) || 0) < totalAmount && (
-                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">
-                    ⚠️ Tiền khách đưa còn thiếu {formatCurrencyVND(totalAmount - (parseFloat(cashTendered) || 0))}
-                  </p>
-                )}
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Ghi chú đơn hàng (Không bắt buộc)
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Ghi chú đơn hàng / Dặn dò giao hàng
               </label>
               <textarea
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ghi chú cắt ống, quấn băng keo, dặn dò thợ..."
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-colors shadow-xs resize-none"
               />
             </div>
           </div>
 
           {/* Order Summary & Confirmation Box */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4">
             <h2 className="font-bold text-slate-900 dark:text-slate-100 text-sm pb-3 border-b border-slate-100 dark:border-slate-800">
               Tổng kết giá trị đơn hàng
             </h2>
 
-            <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-xs sm:text-sm">
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Tiền hàng niêm yết:</span>
                 <span className="font-medium text-slate-800 dark:text-slate-200">
@@ -692,32 +866,31 @@ export function OrderCreateForm() {
                 <span className="font-bold text-slate-900 dark:text-slate-100 text-base">
                   Tổng thu khách:
                 </span>
-                <span className="font-black text-2xl text-orange-600 dark:text-orange-400">
+                <span className="font-black text-2xl text-orange-600 dark:text-orange-400 font-mono">
                   {formatCurrencyVND(totalAmount)}
                 </span>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
               <Link
                 href="/sale/orders"
-                className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                className="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-center order-2 sm:order-1"
               >
                 Hủy bỏ
               </Link>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 rounded-lg shadow-md transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 disabled:opacity-50 rounded-xl shadow-md shadow-orange-600/20 active:scale-98 transition-all order-1 sm:order-2 flex-1 sm:flex-none cursor-pointer"
               >
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="w-4 h-4 shrink-0" />
                 <span>{isSubmitting ? 'Đang tạo...' : 'Hoàn tất & Xuất Hóa Đơn'}</span>
               </button>
             </div>
           </div>
         </div>
       </form>
-
       {/* Thermal Receipt Modal */}
       <ThermalReceiptModal
         isOpen={showReceiptModal}

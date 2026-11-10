@@ -55,6 +55,11 @@ func getTestDB(t *testing.T) *sqlx.DB {
 		_, _ = db.ExecContext(ctx, string(upSQLBytes))
 	}
 
+	upSQLPath := filepath.Join("..", "..", "migrations", "000010_sale_role_and_crm.up.sql")
+	if upSQLBytes, err := os.ReadFile(upSQLPath); err == nil {
+		_, _ = db.ExecContext(ctx, string(upSQLBytes))
+	}
+
 	return db
 }
 

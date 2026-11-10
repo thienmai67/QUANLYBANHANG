@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -24,6 +25,41 @@ import (
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/payos"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/repository"
 )
+
+//go:embed openapi.yaml
+var openapiSpec []byte
+
+const swaggerUIHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VLXD M&E Platform - Swagger API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    body { margin: 0; background: #fafafa; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = () => {
+      SwaggerUIBundle({
+        url: '/swagger/openapi.yaml',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        layout: "StandaloneLayout"
+      });
+    };
+  </script>
+</body>
+</html>`
 
 func main() {
 	_ = godotenv.Load(".env", "backend/.env")
@@ -102,6 +138,19 @@ func main() {
 	}))
 
 	r.Get("/health", healthHandler(db))
+
+	// Swagger UI documentation
+	r.Get("/swagger/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yaml")
+		w.Write(openapiSpec)
+	})
+	r.Get("/swagger", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(swaggerUIHTML))
+	})
+	r.Get("/swagger/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/swagger", http.StatusMovedPermanently)
+	})
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", healthHandler(db))
@@ -428,7 +477,6 @@ CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_shipper_id ON orders(shipper_id);
 CREATE INDEX IF NOT EXISTS idx_cod_settlements_shipper_id ON cod_settlements(shipper_id);
 CREATE INDEX IF NOT EXISTS idx_orders_cod_remitted ON orders(cod_remitted, status, payment_method);
-
 -- GĐ1: Hồ sơ đăng ký shipper + pool 20 email (chỉ lưu 4 số cuối giấy tờ).
 -- Đặt ở đây để luồng chạy bằng go run cũng tự có schema như migration 000010.
 ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
@@ -494,9 +542,6 @@ ON CONFLICT (email) DO NOTHING;
 ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE me_supplies.shipper_applications ADD COLUMN IF NOT EXISTS lookup_code_hash TEXT;
 ALTER TABLE me_supplies.shipper_applications ADD COLUMN IF NOT EXISTS password_set_at TIMESTAMPTZ;
-
-
-
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS sale_id UUID REFERENCES users(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_sale_id ON orders(sale_id);
 
@@ -580,8 +625,6 @@ CREATE TABLE IF NOT EXISTS payment_notes (
     collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-
 ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id);
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
@@ -592,8 +635,6 @@ CREATE INDEX IF NOT EXISTS idx_payment_notes_order ON payment_notes(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_notes_sale ON payment_notes(sale_id);
 CREATE INDEX IF NOT EXISTS idx_activities_customer ON customer_activities(customer_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_status_valid_until ON quotes(status, valid_until);
-
-
 INSERT INTO brands (code, name, discount_rate) VALUES
     ('BINHMINH', 'Bình Minh', 18.00),
     ('CADIVI',   'Cadivi', 22.00),

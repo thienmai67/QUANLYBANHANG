@@ -80,21 +80,21 @@ export function SaleHeader() {
   const dueFollowups = activities.filter((a) => !a.isDone).length;
 
   return (
-    <header className="sticky top-0 z-20 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
-      <div className="flex items-center justify-between h-full px-4 lg:px-8">
+    <header className="sticky top-0 z-20 h-14 lg:h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
+      <div className="flex items-center justify-between h-full px-3 sm:px-4 lg:px-8">
         {/* Left: Mobile hamburger & Page Title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={toggleMobileDrawer}
-            className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             aria-label="Mở menu"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex flex-col">
-            <h1 className="text-base lg:text-lg font-bold text-slate-900 dark:text-white font-display tracking-tight leading-tight">
+          <div className="flex flex-col min-w-0">
+            <h1 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 dark:text-white font-display tracking-tight leading-tight truncate">
               {currentMeta.title}
             </h1>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block truncate max-w-md lg:max-w-xl">
@@ -104,7 +104,7 @@ export function SaleHeader() {
         </div>
 
         {/* Right: Quick actions, notifications, user avatar */}
-        <div className="flex items-center gap-2 lg:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 shrink-0">
           {/* Quick Order button */}
           <Link
             href="/sale/orders/new"

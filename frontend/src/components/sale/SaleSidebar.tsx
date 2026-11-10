@@ -42,6 +42,25 @@ export function SaleSidebar() {
   const { orders, activities } = useSaleStore();
   const { user, logout } = useAuthStore();
 
+  // Lock body scroll and handle Escape key when mobile drawer is open
+  React.useEffect(() => {
+    if (mobileDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setMobileDrawerOpen(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [mobileDrawerOpen, setMobileDrawerOpen]);
+
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
   const dueFollowupCount = activities.filter((a) => !a.isDone).length;
 
@@ -262,46 +281,55 @@ export function SaleSidebar() {
         {renderUserProfile(false)}
       </aside>
 
-      {/* ===================== MOBILE DRAWER ===================== */}
-      {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
-            onClick={() => setMobileDrawerOpen(false)}
-          />
+      {/* ===================== MOBILE DRAWER (SMOOTH SLIDE-IN) ===================== */}
+      <div
+        className={`fixed inset-0 z-50 lg:hidden transition-[visibility] duration-300 ${
+          mobileDrawerOpen ? 'visible' : 'invisible delay-300'
+        }`}
+        aria-hidden={!mobileDrawerOpen}
+      >
+        {/* Backdrop overlay with fade transition */}
+        <div
+          className={`fixed inset-0 bg-slate-950/80 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
+            mobileDrawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={() => setMobileDrawerOpen(false)}
+        />
 
-          {/* Drawer content */}
-          <div className="fixed inset-y-0 left-0 w-72 bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl animate-in slide-in-from-left duration-200">
-            <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800 bg-slate-950/40">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
-                  <Briefcase className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-extrabold text-white uppercase font-display">
-                    TDT M&amp;E
-                  </span>
-                  <span className="text-[10px] text-purple-400 font-semibold tracking-wider uppercase">
-                    Sale Workspace
-                  </span>
-                </div>
+        {/* Drawer panel with slide-in from left transition */}
+        <div
+          className={`fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl transition-transform duration-300 ease-out will-change-transform z-10 ${
+            mobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800 bg-slate-950/40">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
+                <Briefcase className="w-5 h-5 text-white" />
               </div>
-              <button
-                type="button"
-                onClick={() => setMobileDrawerOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                aria-label="Đóng menu"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex flex-col">
+                <span className="text-sm font-extrabold text-white uppercase font-display">
+                  TDT M&amp;E
+                </span>
+                <span className="text-[10px] text-purple-400 font-semibold tracking-wider uppercase">
+                  Sale Workspace
+                </span>
+              </div>
             </div>
-
-            {renderNavLinks(true)}
-            {renderUserProfile(true)}
+            <button
+              type="button"
+              onClick={() => setMobileDrawerOpen(false)}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              aria-label="Đóng menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
+
+          {renderNavLinks(true)}
+          {renderUserProfile(true)}
         </div>
-      )}
+      </div>
     </>
   );
 }
