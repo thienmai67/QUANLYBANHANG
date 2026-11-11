@@ -1208,9 +1208,17 @@ func (h *Handler) MarkPaid(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// D1.2 (F09): Chỉ cho phép khi đủ cả 4 điều kiện
-	if order.PaymentMethod == nil || !strings.EqualFold(strings.TrimSpace(*order.PaymentMethod), "BANK_TRANSFER") {
-		writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_METHOD", "Chỉ áp dụng đánh dấu thanh toán cho đơn chuyển khoản (BANK_TRANSFER)")
+	// D1.2 (F09): Cho phép xác nhận thanh toán tại quầy cho đơn Chuyển khoản (BANK_TRANSFER) hoặc Tiền mặt (CASH). Đơn COD do Shipper thu khi giao hàng.
+	pm := ""
+	if order.PaymentMethod != nil {
+		pm = strings.ToUpper(strings.TrimSpace(*order.PaymentMethod))
+	}
+	if pm != "BANK_TRANSFER" && pm != "CASH" {
+		if pm == "COD" {
+			writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_METHOD", "Đơn hàng COD do Shipper thu tiền khi giao hàng (chỉ áp dụng xác nhận tại quầy cho đơn Tiền mặt CASH hoặc Chuyển khoản BANK_TRANSFER)")
+		} else {
+			writeAPIError(w, http.StatusBadRequest, "INVALID_PAYMENT_METHOD", "Chỉ áp dụng xác nhận thanh toán tại quầy cho đơn Tiền mặt (CASH) hoặc Chuyển khoản (BANK_TRANSFER)")
+		}
 		return
 	}
 

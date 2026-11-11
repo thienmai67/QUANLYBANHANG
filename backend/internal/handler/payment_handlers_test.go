@@ -233,6 +233,38 @@ func TestPaymentHandlers_AllScenarios(t *testing.T) {
 		}
 	})
 
+	// Test 5b: MarkPaid - CASH method success
+	t.Run("MarkPaid_CashMethodSuccess", func(t *testing.T) {
+		cashMethod := "CASH"
+		cashOrderID := uuid.New()
+		mockRepo.orders = append(mockRepo.orders, domain.Order{
+			ID:            cashOrderID,
+			OrderNumber:   "ORD-261018-CASH-MARKPAID",
+			CustomerID:    &customerID,
+			SaleID:        &saleID,
+			CustomerName:  "Khách Tiền Mặt Tại Quầy",
+			PaymentMethod: &cashMethod,
+			TotalAmount:   150000,
+			Status:        domain.OrderStatusPending,
+			PaymentStatus: domain.PaymentStatusUnpaid,
+			Version:       1,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/orders/%s/mark-paid", cashOrderID), nil)
+		req = req.WithContext(contextWithClaims(saleID, domain.RoleSale))
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200 for CASH mark-paid, got %d: %s", rr.Code, rr.Body.String())
+		}
+		var updated domain.Order
+		_ = json.Unmarshal(rr.Body.Bytes(), &updated)
+		if updated.PaymentStatus != domain.PaymentStatusPaid {
+			t.Errorf("expected updated paymentStatus PAID for CASH, got %v", updated.PaymentStatus)
+		}
+	})
+
 	// Test 6: MarkPaid - Customer forbidden
 	t.Run("MarkPaid_CustomerForbidden", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/orders/%s/mark-paid", order1ID), nil)
