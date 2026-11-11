@@ -555,23 +555,26 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 
 	claims, ok := middleware.GetClaimsFromContext(req.Context())
 	if !ok || claims == nil {
-		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
-		return
-	}
+		// Hỗ trợ khách vãng lai (Guest) đặt hàng trực tuyến
+		order.CustomerID = nil
+		order.SaleID = nil
+	} else {
+		switch claims.Role {
+		case domain.RoleShipper:
+			parsedShipperID, err := uuid.Parse(claims.UserID)
+			if err == nil {
+				order.CustomerID = &parsedShipperID
+			}
+			order.SaleID = nil
 
-	switch claims.Role {
-	case domain.RoleShipper:
-		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Shipper không có quyền tạo đơn hàng")
-		return
-
-	case domain.RoleCustomer:
-		parsedCustID, err := uuid.Parse(claims.UserID)
-		if err != nil {
-			writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID khách hàng không hợp lệ")
-			return
-		}
-		order.CustomerID = &parsedCustID
-		order.SaleID = nil // Wipe any spoofed sale_id
+		case domain.RoleCustomer:
+			parsedCustID, err := uuid.Parse(claims.UserID)
+			if err != nil {
+				writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "ID khách hàng không hợp lệ")
+				return
+			}
+			order.CustomerID = &parsedCustID
+			order.SaleID = nil // Wipe any spoofed sale_id
 
 	case domain.RoleSale:
 		parsedSaleID, err := uuid.Parse(claims.UserID)
@@ -608,8 +611,9 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 		}
 
 	default:
-		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Vai trò không có quyền tạo đơn hàng")
-		return
+		order.CustomerID = nil
+		order.SaleID = nil
+	}
 	}
 
 	now := time.Now()

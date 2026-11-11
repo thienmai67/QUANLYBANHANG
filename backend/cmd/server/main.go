@@ -189,6 +189,11 @@ func main() {
 		r.Post("/payment/payos-webhook", productHandler.HandlePayOSWebhook)
 		r.Post("/payos/webhook", productHandler.HandlePayOSWebhook)
 
+		// Public & Guest-friendly Order Placement (Supports Guest or Logged In Users)
+		r.With(authMiddleware.OptionalAuth).Post("/orders", productHandler.CreateOrder)
+		r.With(authMiddleware.OptionalAuth).Post("/orders/{id}/payment-link", productHandler.CreatePaymentLink)
+		r.With(authMiddleware.OptionalAuth).Get("/orders/{id}/payment-status", productHandler.GetPaymentStatus)
+
 		// Authenticated Routes (Any Logged In User / Customer)
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth)
@@ -196,11 +201,8 @@ func main() {
 			r.Put("/users/me", authHandler.HandleUpdateProfile)
 			r.Post("/users/me/change-password", authHandler.HandleChangePassword)
 			r.Post("/users/me/verify-password", authHandler.HandleVerifyPassword)
-			r.Post("/orders", productHandler.CreateOrder)
 			r.Get("/orders", productHandler.ListOrders)
 			r.Get("/orders/{id}", productHandler.GetOrderByID)
-			r.Post("/orders/{id}/payment-link", productHandler.CreatePaymentLink)
-			r.Get("/orders/{id}/payment-status", productHandler.GetPaymentStatus)
 		})
 
 		// Manual Payment Confirmation (SALE, MANAGER)

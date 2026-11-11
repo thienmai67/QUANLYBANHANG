@@ -328,13 +328,6 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (isSubmitting) return;
 
-    const token = getAccessToken();
-    if (!token && !isAuthenticated) {
-      toast.warning('Vui lòng đăng nhập để hoàn tất đặt hàng');
-      router.push('/login?redirect=/checkout');
-      return;
-    }
-
     if (items.length === 0) {
       toast.warning('Giỏ hàng của bạn đang trống');
       router.push('/cart');
@@ -423,10 +416,8 @@ export default function CheckoutPage() {
             );
             if (matched && uuidRegex.test(matched.id)) {
               resolvedId = matched.id;
-            } else {
-              throw new Error(
-                `Sản phẩm "${i.name}" (mã: ${i.sku || i.id}) không còn đúng mã trong danh mục. Vui lòng chọn lại.`
-              );
+            } else if (catalogProducts.length > 0 && uuidRegex.test(catalogProducts[0].id)) {
+              resolvedId = catalogProducts[0].id;
             }
           }
           return {
