@@ -45,6 +45,21 @@ export default function PodModal({
   const [codConfirmed, setCodConfirmed] = useState(false);
   const [processing, setProcessing] = useState(false);
 
+  const handleAutoFillDemo = () => {
+    const defaultReceiver = order?.customerName || 'A. Nam (Đội trưởng thi công)';
+    setReceiverName(defaultReceiver);
+    setPhotos([
+      {
+        name: 'bien-ban-giao-hang.jpg',
+        thumbnail: '/images/products/day-cap-don-1.jpg',
+      },
+    ]);
+    if (isCod) {
+      setCodConfirmed(true);
+    }
+    toast.success('Đã nạp nhanh biên bản & ảnh POD mẫu phục vụ demo!');
+  };
+
   // D2.6: Reset state completely on order change or when modal opens/closes
   useEffect(() => {
     if (isOpen) {
@@ -225,10 +240,20 @@ export default function PodModal({
         <div className="p-5 space-y-4 text-xs">
           {/* Receiver Name */}
           <div className="space-y-1.5">
-            <label className="font-bold flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-emerald-500" />
-              Tên người ký nhận thực tế <span className="text-rose-500">*</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="font-bold flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-emerald-500" />
+                Tên người ký nhận thực tế <span className="text-rose-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAutoFillDemo}
+                className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 underline transition-colors"
+                title="Tự động điền tên và ảnh mẫu phục vụ báo cáo"
+              >
+                ✨ Điền mẫu nhanh (Demo)
+              </button>
+            </div>
             <input
               type="text"
               placeholder="VD: Anh Nam (Thủ kho công trình)"

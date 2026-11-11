@@ -34,6 +34,7 @@ import {
 export default function ShipperOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const orderId = params?.orderId as string;
   const toast = useToast();
   const { user } = useAuthStore();
   const { orders, updateOrderStatusWithActor, fetchOrders } = useManagerStore();
@@ -42,8 +43,30 @@ export default function ShipperOrderDetailPage() {
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [isPickingUp, setIsPickingUp] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [localIncident, setLocalIncident] = useState<{
+    category: string;
+    detail: string;
+    reportedAt: string;
+  } | null>(null);
 
-  const orderId = params?.orderId as string;
+  const loadLocalIncident = React.useCallback(() => {
+    if (typeof window !== 'undefined' && orderId) {
+      try {
+        const stored = JSON.parse(
+          localStorage.getItem('shipper_incidents') || '{}'
+        );
+        if (stored[orderId]) {
+          setLocalIncident(stored[orderId]);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    loadLocalIncident();
+  }, [loadLocalIncident]);
 
   useEffect(() => {
     fetchOrders();
@@ -397,6 +420,36 @@ export default function ShipperOrderDetailPage() {
             </div>
           )}
 
+          {/* Active Local Incident Report Badge for SHIPPING status */}
+          {localIncident && order.status === 'SHIPPING' && (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-2xl p-4 space-y-2 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <span>Biên bản sự cố hiện trường: {localIncident.category}</span>
+                </span>
+                <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                  {new Date(localIncident.reportedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/90 dark:text-amber-200/90 leading-relaxed bg-white/70 dark:bg-slate-900/70 p-2.5 rounded-xl border border-amber-200/60 dark:border-amber-800/40">
+                &ldquo;{localIncident.detail}&rdquo;
+              </p>
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                  Đã chuyển tiếp Điều phối kho xử lý
+                </span>
+                <a
+                  href="tel:0988248524"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>Gọi Hotline kho</span>
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* 5. Floating Bottom Action Controls */}
           <div className="space-y-2 pt-2">
             {order.status === 'SHIPPING' && (
@@ -497,6 +550,7 @@ export default function ShipperOrderDetailPage() {
           onClose={() => setIsIncidentModalOpen(false)}
           onSuccess={() => {
             setIsIncidentModalOpen(false);
+            loadLocalIncident();
             fetchOrders();
           }}
         />
