@@ -143,6 +143,29 @@ func TestPaymentHandlers_AllScenarios(t *testing.T) {
 		}
 	})
 
+	// Test 2b: CreatePaymentLink - guest order success without token
+	t.Run("CreatePaymentLink_GuestSuccess", func(t *testing.T) {
+		guestOrderID := uuid.New()
+		mockRepo.orders = append(mockRepo.orders, domain.Order{
+			ID:            guestOrderID,
+			OrderNumber:   "TDT-GUEST-01",
+			CustomerID:    nil, // Guest
+			CustomerName:  "Khách Vãng Lai",
+			PaymentMethod: &bankMethod,
+			TotalAmount:   300000,
+			Status:        domain.OrderStatusPending,
+			PaymentStatus: domain.PaymentStatusPending,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/orders/%s/payment-link", guestOrderID), nil)
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200 for guest payment link, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
 	// Test 3: GetPaymentStatus - returns PAID and updates order
 	t.Run("GetPaymentStatus_SuccessPAID", func(t *testing.T) {
 		// Mock repo order now has PayOSOrderCode from Test 1

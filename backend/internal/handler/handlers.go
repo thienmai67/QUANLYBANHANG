@@ -935,11 +935,7 @@ func (h *Handler) ListCODSettlements(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) CreatePaymentLink(w http.ResponseWriter, req *http.Request) {
-	claims, ok := middleware.GetClaimsFromContext(req.Context())
-	if !ok || claims == nil {
-		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
-		return
-	}
+	claims, _ := middleware.GetClaimsFromContext(req.Context())
 
 	idStr := chi.URLParam(req, "id")
 	if idStr == "" {
@@ -967,21 +963,33 @@ func (h *Handler) CreatePaymentLink(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Verify authorization: Chỉ chủ đơn (CUSTOMER) hoặc MANAGER
-	if claims.Role == domain.RoleCustomer {
-		if order.CustomerID == nil || order.CustomerID.String() != claims.UserID {
-			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền thanh toán đơn hàng này")
+	// Verify authorization: Nếu đơn của khách đã đăng ký thì bắt buộc phải là chủ đơn, sale phụ trách hoặc manager
+	if order.CustomerID != nil {
+		if claims == nil {
+			writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 			return
 		}
-	} else if claims.Role == domain.RoleSale {
-		saleUUID, parseErr := uuid.Parse(claims.UserID)
-		if parseErr != nil || !h.isOrderInSaleScope(req.Context(), saleUUID, order) {
-			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+		if claims.Role == domain.RoleCustomer {
+			if order.CustomerID.String() != claims.UserID {
+				writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền thanh toán đơn hàng này")
+				return
+			}
+		} else if claims.Role == domain.RoleSale {
+			saleUUID, parseErr := uuid.Parse(claims.UserID)
+			if parseErr != nil || !h.isOrderInSaleScope(req.Context(), saleUUID, order) {
+				writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+				return
+			}
+		} else if claims.Role != domain.RoleManager {
+			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền tạo link thanh toán cho đơn hàng này")
 			return
 		}
-	} else if claims.Role != domain.RoleManager {
-		writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền tạo link thanh toán cho đơn hàng này")
-		return
+	} else {
+		// Đơn của khách vãng lai (Guest order): Shipper không được tạo link thanh toán
+		if claims != nil && claims.Role == domain.RoleShipper {
+			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Shipper không có quyền tạo link thanh toán cho đơn hàng này")
+			return
+		}
 	}
 
 	if order.Status == domain.OrderStatusCancelled {
@@ -1053,11 +1061,7 @@ func (h *Handler) CreatePaymentLink(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) GetPaymentStatus(w http.ResponseWriter, req *http.Request) {
-	claims, ok := middleware.GetClaimsFromContext(req.Context())
-	if !ok || claims == nil {
-		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
-		return
-	}
+	claims, _ := middleware.GetClaimsFromContext(req.Context())
 
 	idStr := chi.URLParam(req, "id")
 	if idStr == "" {
@@ -1080,21 +1084,40 @@ func (h *Handler) GetPaymentStatus(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Verify authorization
-	if claims.Role == domain.RoleCustomer {
-		if order.CustomerID == nil || order.CustomerID.String() != claims.UserID {
-			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền xem thông tin thanh toán đơn này")
+	if order.CustomerID != nil {
+		if claims == nil {
+			writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 			return
 		}
-	} else if claims.Role == domain.RoleShipper {
-		if order.ShipperID == nil || order.ShipperID.String() != claims.UserID {
-			writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Shipper chỉ có thể kiểm tra trạng thái thanh toán của đơn hàng được giao cho mình")
-			return
+		if claims.Role == domain.RoleCustomer {
+			if order.CustomerID.String() != claims.UserID {
+				writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Bạn không có quyền xem thông tin thanh toán đơn này")
+				return
+			}
+		} else if claims.Role == domain.RoleShipper {
+			if order.ShipperID == nil || order.ShipperID.String() != claims.UserID {
+				writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Shipper chỉ có thể kiểm tra trạng thái thanh toán của đơn hàng được giao cho mình")
+				return
+			}
+		} else if claims.Role == domain.RoleSale {
+			saleUUID, parseErr := uuid.Parse(claims.UserID)
+			if parseErr != nil || !h.isOrderInSaleScope(req.Context(), saleUUID, order) {
+				writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+				return
+			}
 		}
-	} else if claims.Role == domain.RoleSale {
-		saleUUID, parseErr := uuid.Parse(claims.UserID)
-		if parseErr != nil || !h.isOrderInSaleScope(req.Context(), saleUUID, order) {
-			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
-			return
+	} else if claims != nil {
+		if claims.Role == domain.RoleShipper {
+			if order.ShipperID == nil || order.ShipperID.String() != claims.UserID {
+				writeAPIError(w, http.StatusForbidden, "FORBIDDEN", "Shipper chỉ có thể kiểm tra trạng thái thanh toán của đơn hàng được giao cho mình")
+				return
+			}
+		} else if claims.Role == domain.RoleSale {
+			saleUUID, parseErr := uuid.Parse(claims.UserID)
+			if parseErr != nil || !h.isOrderInSaleScope(req.Context(), saleUUID, order) {
+				writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+				return
+			}
 		}
 	}
 
