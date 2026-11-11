@@ -271,7 +271,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                 href="/shop"
                 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
-                <Package className="w-4 h-4 text-blue-600" /> Mua Sản Phẩm Lẻ
+                <Package className="w-4 h-4 text-blue-600" /> Tất Cả Sản Phẩm (Shop)
               </Link>
               <Link
                 href="/cong-trinh"
@@ -321,7 +321,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center gap-2"
               >
-                <Package className="w-4 h-4 text-blue-600" /> Mua Bán Lẻ
+                <Package className="w-4 h-4 text-blue-600" /> Tất Cả Sản Phẩm
               </Link>
               <Link
                 href="/cong-trinh"
