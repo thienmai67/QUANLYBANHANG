@@ -90,7 +90,7 @@ export default function IncidentModal({
       }
 
       toast.success(
-        `Đã gửi báo cáo sự cố đơn #${order.code} về Quản lý kho Minh Lý thành công!`
+        `Đã gửi báo cáo sự cố đơn #${order.code} về Quản lý (Manager) thành công!`
       );
       onClose();
       onSuccess?.();
@@ -139,7 +139,7 @@ export default function IncidentModal({
           <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 flex items-center justify-between gap-2">
             <div>
               <span className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400 block">
-                Hotline Điều Phối Kho
+                Hotline Quản lý (Manager)
               </span>
               <span className="text-xs font-black text-slate-900 dark:text-white">
                 0937.292.769

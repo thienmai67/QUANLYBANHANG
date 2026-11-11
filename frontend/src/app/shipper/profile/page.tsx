@@ -158,7 +158,7 @@ export default function ShipperProfilePage() {
               >
                 <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
                   <Headphones className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Tổng đài điều phối kho (0937.292.769)</span>
+                  <span>Hotline Quản lý điều phối (0937.292.769)</span>
                 </div>
                 <span className="text-xs text-emerald-600 font-bold">Gọi</span>
               </a>

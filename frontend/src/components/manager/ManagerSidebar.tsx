@@ -195,7 +195,7 @@ export function ManagerSidebar() {
           {(!sidebarCollapsed || isMobile) && (
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-white truncate leading-tight">
-                {user?.name || user?.email || 'Quản lý kho'}
+                {user?.name || user?.email || 'Quản lý (Manager)'}
               </div>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="px-1.5 py-0.2 text-[9px] font-bold rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30">

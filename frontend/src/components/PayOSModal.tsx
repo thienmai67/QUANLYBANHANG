@@ -210,7 +210,7 @@ export default function PayOSModal({
               </div>
               <h4 className="text-lg font-bold text-slate-900 dark:text-white">Đã Thanh Toán Thành Công!</h4>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Hệ thống đã nhận thanh toán cho đơn hàng #{order.orderNumber}. Quản lý kho sẽ tiến hành đóng gói và giao hàng.
+                Hệ thống đã nhận thanh toán cho đơn hàng #{order.orderNumber}. Quản lý (Manager) sẽ tiến hành đóng gói và giao hàng.
               </p>
               <button
                 type="button"

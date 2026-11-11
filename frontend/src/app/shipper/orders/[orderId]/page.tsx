@@ -437,14 +437,14 @@ export default function ShipperOrderDetailPage() {
               </p>
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
-                  Đã chuyển tiếp Điều phối kho xử lý
+                  Đã gửi báo cáo cho Quản lý (Manager) xử lý
                 </span>
                 <a
                   href="tel:0937292769"
                   className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
                 >
                   <Phone className="w-3.5 h-3.5" />
-                  <span>Gọi Hotline kho</span>
+                  <span>Gọi Hotline Quản lý</span>
                 </a>
               </div>
             </div>
@@ -469,7 +469,7 @@ export default function ShipperOrderDetailPage() {
                   className="w-full min-h-[46px] rounded-xl bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-50 text-xs font-bold flex items-center justify-center gap-2 transition-all"
                 >
                   <AlertTriangle className="w-4 h-4" />
-                  <span>Báo cáo sự cố cho Quản lý kho</span>
+                  <span>Báo cáo sự cố cho Quản lý (Manager)</span>
                 </button>
               </>
             )}
