@@ -153,12 +153,12 @@ export default function ShipperProfilePage() {
 
               {/* Support Hotline */}
               <a
-                href="tel:0988248524"
+                href="tel:0937292769"
                 className="p-3.5 flex items-center justify-between text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
               >
                 <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
                   <Headphones className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Tổng đài điều phối kho (0988.248.524)</span>
+                  <span>Tổng đài điều phối kho (0937.292.769)</span>
                 </div>
                 <span className="text-xs text-emerald-600 font-bold">Gọi</span>
               </a>

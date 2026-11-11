@@ -780,11 +780,10 @@ export default function ProductDetailPage() {
                     <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
                       <div className="text-xs text-slate-600 dark:text-slate-300">
                         <span>Kỹ thuật viên tại quầy: </span>
-                        <a href="tel:0988248524" className="font-mono font-bold text-blue-600 hover:underline">0988.248.524</a>
-                        <span className="text-slate-400 ml-1">(Anh Tuấn)</span>
+                        <a href="tel:0937292769" className="font-mono font-bold text-blue-600 hover:underline">0937.292.769</a>
                       </div>
                       <a
-                        href="https://zalo.me/0988248524"
+                        href="https://zalo.me/0937292769"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"

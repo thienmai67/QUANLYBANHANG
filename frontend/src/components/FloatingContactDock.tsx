@@ -1,9 +1,29 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { Phone, MessageCircle } from 'lucide-react';
 
 export default function FloatingContactDock() {
+  const pathname = usePathname();
+
+  // Hide on authentication, managerial, shipper, sale and internal operational pages
+  const HIDDEN_PREFIXES = [
+    '/login',
+    '/register',
+    '/manager',
+    '/shipper',
+    '/sale',
+    '/admin',
+    '/change-password',
+    '/unauthorized',
+    '/403',
+  ];
+
+  if (pathname && HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
+
   return (
     <aside
       aria-label="Liên hệ kỹ thuật trực tiếp"
@@ -11,7 +31,7 @@ export default function FloatingContactDock() {
     >
       {/* Zalo Button */}
       <a
-        href="https://zalo.me/0988248524"
+        href="https://zalo.me/0937292769"
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat Zalo gửi ảnh thiết bị hỏng cho kỹ thuật viên"
@@ -33,8 +53,8 @@ export default function FloatingContactDock() {
 
       {/* Hotline Call Button */}
       <a
-        href="tel:0988248524"
-        aria-label="Gọi điện thoại tư vấn kỹ thuật trực tiếp cho Anh Tuấn"
+        href="tel:0937292769"
+        aria-label="Gọi điện thoại tư vấn kỹ thuật trực tiếp"
         className="group flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 hover:scale-105 transition-all duration-200 border border-emerald-400/30"
       >
         <div className="relative w-6 h-6 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
@@ -46,7 +66,7 @@ export default function FloatingContactDock() {
             Tư vấn tại quầy
           </span>
           <span className="text-xs font-bold font-mono mt-0.5 leading-tight">
-            0988.248.524 <span className="text-[11px] font-sans font-normal text-emerald-100">(A. Tuấn)</span>
+            0937.292.769
           </span>
         </div>
         <span className="sm:hidden text-xs font-bold">Gọi</span>

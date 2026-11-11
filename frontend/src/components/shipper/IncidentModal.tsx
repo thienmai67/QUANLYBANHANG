@@ -142,11 +142,11 @@ export default function IncidentModal({
                 Hotline Điều Phối Kho
               </span>
               <span className="text-xs font-black text-slate-900 dark:text-white">
-                0988.248.524 (A. Tuấn)
+                0937.292.769
               </span>
             </div>
             <a
-              href="tel:0988248524"
+              href="tel:0937292769"
               className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
             >
               <Phone className="w-3.5 h-3.5" />

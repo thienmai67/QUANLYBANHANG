@@ -108,7 +108,7 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
               <p>📍 CN1: 120/4 Lý Thường Kiệt, TT. Hóc Môn</p>
               <p>📍 CN2: 45 Lê Đức Thọ, P.7, Q. Gò Vấp</p>
               <p className="font-bold text-slate-900">
-                📞 Hotline kỹ thuật: 0988.248.524 (A. Tuấn)
+                📞 Hotline kỹ thuật: 0937.292.769
               </p>
             </div>
           </div>

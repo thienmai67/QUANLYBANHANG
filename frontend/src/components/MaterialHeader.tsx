@@ -164,9 +164,9 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
           <div className="flex items-center gap-3 shrink-0">
             <ThemeToggle />
 
-            {/* Direct Technician Hotline (Minh Ly pattern) */}
+            {/* Direct Technician Hotline */}
             <a
-              href="tel:0988248524"
+              href="tel:0937292769"
               className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 text-xs hover:border-blue-400 transition-all"
               title="Gọi tư vấn kỹ thuật trực tiếp"
             >
@@ -174,7 +174,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
               <div>
                 <span className="text-[10px] text-slate-400 block leading-none">Hỗ trợ kỹ thuật tại quầy</span>
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                  0988.248.524 <span className="text-blue-600 font-sans font-semibold">(A. Tuấn)</span>
+                  0937.292.769
                 </span>
               </div>
             </a>
