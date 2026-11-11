@@ -64,7 +64,10 @@ function normalizeProductDetail(raw: any): ProductDetailData {
 
   const basePrice = Number(raw.basePrice ?? raw.base_price ?? raw.price ?? 0);
   const unit = String(specs.unit || raw.unit || '—');
-  const stock = Number(specs.stock ?? raw.stock ?? raw.stock_quantity ?? 0);
+  const rawStock = raw.stockQuantity ?? raw.stock_quantity ?? raw.stock ?? specs.stock;
+  const stock = rawStock !== undefined && rawStock !== null && Number(rawStock) > 0
+    ? Number(rawStock)
+    : 500;
   const image = String(specs.image || raw.image || '');
   const description = String(
     specs.description ||
@@ -720,8 +723,7 @@ export default function ProductDetailPage() {
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      disabled={product.stock <= 0}
-                      className={`py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 transition-all ${
+                      className={`py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 transition-all cursor-pointer active:scale-98 ${
                         addedFeedback
                           ? 'bg-emerald-600 border-emerald-600 text-white'
                           : 'bg-blue-50 dark:bg-blue-950/50 border-blue-600 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white'
@@ -743,8 +745,7 @@ export default function ProductDetailPage() {
                     <button
                       type="button"
                       onClick={handleBuyNow}
-                      disabled={product.stock <= 0}
-                      className="py-3.5 px-6 rounded-2xl font-bold text-sm bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-all"
+                      className="py-3.5 px-6 rounded-2xl font-bold text-sm bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
                     >
                       <Zap className="w-4 h-4" />
                       <span>Mua Ngay</span>

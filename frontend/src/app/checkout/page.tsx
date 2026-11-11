@@ -42,6 +42,57 @@ interface PaymentInfo {
   qrCode: string;
 }
 
+const VN_PROVINCES: Record<string, Record<string, string[]>> = {
+  'TP. Hồ Chí Minh': {
+    'Huyện Hóc Môn': ['Xã Thới Tam Thôn', 'Thị trấn Hóc Môn', 'Xã Bà Điểm', 'Xã Xuân Thới Thượng', 'Xã Đông Thạnh', 'Xã Tân Thới Nhì', 'Xã Nhị Bình'],
+    'Quận Gò Vấp': ['Phường 1', 'Phường 3', 'Phường 5', 'Phường 7', 'Phường 10', 'Phường 11', 'Phường 14', 'Phường 17'],
+    'Quận 1': ['Phường Bến Nghé', 'Phường Bến Thành', 'Phường Đa Kao', 'Phường Tân Định', 'Phường Cầu Ông Lãnh'],
+    'Quận 3': ['Phường Võ Thị Sáu', 'Phường 1', 'Phường 2', 'Phường 4', 'Phường 9', 'Phường 14'],
+    'Quận 7': ['Phường Tân Phong', 'Phường Tân Phú', 'Phường Phú Mỹ', 'Phường Tân Quy', 'Phường Bình Thuận'],
+    'Quận 12': ['Phường Tân Chánh Hiệp', 'Phường Hiệp Thành', 'Phường Thạnh Lộc', 'Phường An Phú Đông', 'Phường Đông Hưng Thuận'],
+    'Quận Bình Thạnh': ['Phường 1', 'Phường 2', 'Phường 12', 'Phường 19', 'Phường 25', 'Phường 26'],
+    'Quận Tân Bình': ['Phường 1', 'Phường 2', 'Phường 4', 'Phường 12', 'Phường 13', 'Phường 15'],
+    'Quận Bình Tân': ['Phường An Lạc', 'Phường Bình Trị Đông', 'Phường Bình Hưng Hòa', 'Phường Tân Tạo'],
+    'TP. Thủ Đức': ['Phường Thảo Điền', 'Phường An Phú', 'Phường Hiệp Phú', 'Phường Linh Trung', 'Phường Tam Bình'],
+    'Huyện Bình Chánh': ['Thị trấn Tân Túc', 'Xã Bình Hưng', 'Xã Vĩnh Lộc A', 'Xã Vĩnh Lộc B', 'Xã Phong Phú'],
+    'Huyện Củ Chi': ['Thị trấn Củ Chi', 'Xã Tân An Hội', 'Xã Phước Vĩnh An', 'Xã Bình Mỹ'],
+    'Huyện Nhà Bè': ['Thị trấn Nhà Bè', 'Xã Phước Kiển', 'Xã Nhơn Đức', 'Xã Hiệp Phước'],
+  },
+  'Bình Dương': {
+    'TP. Thủ Dầu Một': ['Phường Phú Hòa', 'Phường Phú Cường', 'Phường Chánh Nghĩa', 'Phường Định Hòa'],
+    'TP. Thuận An': ['Phường Lái Thiêu', 'Phường An Phú', 'Phường Bình Hòa', 'Phường Thuận Giao'],
+    'TP. Dĩ An': ['Phường Dĩ An', 'Phường Đông Hòa', 'Phường Tân Bình', 'Phường An Bình'],
+    'TP. Tân Uyên': ['Phường Uyên Hưng', 'Phường Thái Hòa', 'Phường Khánh Bình'],
+    'TX. Bến Cát': ['Phường Mỹ Phước', 'Phường Thới Hòa', 'Phường Tân Định'],
+  },
+  'Đồng Nai': {
+    'TP. Biên Hòa': ['Phường Trảng Dài', 'Phường Tân Phong', 'Phường Long Bình', 'Phường Hố Nai', 'Phường Quyết Thắng'],
+    'Huyện Long Thành': ['Thị trấn Long Thành', 'Xã An Phước', 'Xã Lộc An', 'Xã Bình Sơn'],
+    'Huyện Nhơn Trạch': ['Thị trấn Hiệp Phước', 'Xã Phú Hội', 'Xã Đại Phước'],
+  },
+  'Long An': {
+    'TP. Tân An': ['Phường 1', 'Phường 2', 'Phường 3', 'Phường 4', 'Phường 5'],
+    'Huyện Bến Lức': ['Thị trấn Bến Lức', 'Xã An Thạnh', 'Xã Mỹ Yên'],
+    'Huyện Đức Hòa': ['Thị trấn Hậu Nghĩa', 'Thị trấn Đức Hòa', 'Xã Đức Hòa Hạ'],
+  },
+  'Hà Nội': {
+    'Quận Cầu Giấy': ['Phường Dịch Vọng', 'Phường Nghĩa Đô', 'Phường Mai Dịch', 'Phường Quan Hoa'],
+    'Quận Đống Đa': ['Phường Láng Hạ', 'Phường Ô Chợ Dừa', 'Phường Kim Liên', 'Phường Văn Miếu'],
+    'Quận Ba Đình': ['Phường Điện Bàn', 'Phường Quán Thánh', 'Phường Kim Mã'],
+    'Quận Hoàng Mai': ['Phường Định Công', 'Phường Hoàng Liệt', 'Phường Giáp Bát'],
+    'Quận Thanh Xuân': ['Phường Khương Trung', 'Phường Thanh Xuân Bắc', 'Phường Nhân Chính'],
+  },
+  'Đà Nẵng': {
+    'Quận Hải Châu': ['Phường Hải Châu 1', 'Phường Thạch Thang', 'Phường Hòa Thuận'],
+    'Quận Thanh Khê': ['Phường Tam Thuận', 'Phường Xuân Hà', 'Phường An Khê'],
+    'Quận Sơn Trà': ['Phường An Hải Bắc', 'Phường Phước Mỹ', 'Phường Nại Hiên Đông'],
+  },
+  'Cần Thơ': {
+    'Quận Ninh Kiều': ['Phường Tân An', 'Phường An Hòa', 'Phường Xuân Khánh', 'Phường Hưng Lợi'],
+    'Quận Cái Răng': ['Phường Lê Bình', 'Phường Hưng Phú', 'Phường Ba Láng'],
+  },
+};
+
 export default function CheckoutPage() {
   const router = useRouter();
   const toast = useToast();
@@ -55,6 +106,10 @@ export default function CheckoutPage() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [selectedProvince, setSelectedProvince] = useState<string>('TP. Hồ Chí Minh');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('Huyện Hóc Môn');
+  const [selectedWard, setSelectedWard] = useState<string>('Xã Thới Tam Thôn');
+  const [streetAddress, setStreetAddress] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [is2h, setIs2h] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'BANK'>('COD');
@@ -62,6 +117,44 @@ export default function CheckoutPage() {
   // Delivery Method: Giao tận nơi (DELIVERY) vs Ghé tiệm lấy (PICKUP)
   const [deliveryMethod, setDeliveryMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
   const [pickupStore, setPickupStore] = useState<'HOC_MON' | 'GO_VAP'>('HOC_MON');
+
+  const availableDistricts = useMemo(() => {
+    return VN_PROVINCES[selectedProvince] ? Object.keys(VN_PROVINCES[selectedProvince]) : [];
+  }, [selectedProvince]);
+
+  const availableWards = useMemo(() => {
+    return VN_PROVINCES[selectedProvince]?.[selectedDistrict] || [];
+  }, [selectedProvince, selectedDistrict]);
+
+  const handleProvinceChange = (prov: string) => {
+    setSelectedProvince(prov);
+    const districts = VN_PROVINCES[prov] ? Object.keys(VN_PROVINCES[prov]) : [];
+    const firstDist = districts[0] || '';
+    setSelectedDistrict(firstDist);
+    const wards = VN_PROVINCES[prov]?.[firstDist] || [];
+    setSelectedWard(wards[0] || '');
+  };
+
+  const handleDistrictChange = (dist: string) => {
+    setSelectedDistrict(dist);
+    const wards = VN_PROVINCES[selectedProvince]?.[dist] || [];
+    setSelectedWard(wards[0] || '');
+  };
+
+  const fullDeliveryAddress = useMemo(() => {
+    if (deliveryMethod === 'PICKUP') {
+      return pickupStore === 'HOC_MON'
+        ? '[Nhận tại tiệm] Chi Nhánh 1: 120/4 Lý Thường Kiệt, TT. Hóc Môn, TP.HCM'
+        : '[Nhận tại tiệm] Chi Nhánh 2: 45 Lê Đức Thọ, P.7, Q. Gò Vấp, TP.HCM';
+    }
+    const parts = [
+      streetAddress.trim(),
+      selectedWard,
+      selectedDistrict,
+      selectedProvince,
+    ].filter(Boolean);
+    return parts.join(', ');
+  }, [deliveryMethod, pickupStore, streetAddress, selectedWard, selectedDistrict, selectedProvince]);
 
   // Business hours calculation for 2H express delivery (07:30 - 17:30)
   const isWithinBusinessHours = useMemo(() => {
@@ -248,28 +341,27 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!isNonEmptyText(customerName) || customerName.trim().length < 2) {
-      toast.error('Vui lòng nhập họ và tên người nhận hợp lệ (tối thiểu 2 ký tự)');
+    if (!customerName || customerName.trim().length < 2) {
+      toast.warning('Vui lòng nhập họ và tên người nhận hợp lệ (tối thiểu 2 ký tự)');
       return;
     }
 
-    const sanitizedPhone = sanitizePhone(customerPhone);
+    const sanitizedPhone = customerPhone.replace(/\D/g, '');
+    if (!sanitizedPhone) {
+      toast.warning('Vui lòng nhập số điện thoại nhận hàng');
+      return;
+    }
     if (!isValidVietnamesePhone(sanitizedPhone)) {
-      toast.error(
-        'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam gồm 10 chữ số bắt đầu bằng 03, 05, 07, 08 hoặc 09 (ví dụ: 0901234567)'
+      toast.warning(
+        'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại gồm 10 chữ số (bắt đầu bằng 03, 05, 07, 08, 09, ví dụ: 0901234567)'
       );
       return;
     }
 
-    let finalShippingAddress = customerAddress ? customerAddress.trim() : '';
-    if (deliveryMethod === 'PICKUP') {
-      finalShippingAddress =
-        pickupStore === 'HOC_MON'
-          ? '[Nhận tại tiệm] Chi Nhánh 1: 120/4 Lý Thường Kiệt, TT. Hóc Môn, TP.HCM'
-          : '[Nhận tại tiệm] Chi Nhánh 2: 45 Lê Đức Thọ, P.7, Q. Gò Vấp, TP.HCM';
-    } else {
-      if (!isNonEmptyText(customerAddress) || customerAddress.trim().length < 5) {
-        toast.error('Vui lòng nhập địa chỉ giao hàng chi tiết (tối thiểu 5 ký tự)');
+    let finalShippingAddress = fullDeliveryAddress;
+    if (deliveryMethod === 'DELIVERY') {
+      if (!streetAddress || streetAddress.trim().length < 3) {
+        toast.warning('Vui lòng nhập số nhà, tên đường giao hàng cụ thể (tối thiểu 3 ký tự)');
         return;
       }
     }
@@ -499,7 +591,7 @@ export default function CheckoutPage() {
                     <span>Thông Tin Giao Hàng & Thanh Toán</span>
                   </h2>
 
-                  <form onSubmit={handleSubmit} className="space-y-5">
+                  <form onSubmit={handleSubmit} noValidate className="space-y-5">
                     {/* Customer Name */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -511,7 +603,6 @@ export default function CheckoutPage() {
                         </div>
                         <input
                           type="text"
-                          required
                           value={customerName}
                           onChange={(e) => setCustomerName(e.target.value)}
                           placeholder="Nguyễn Văn A"
@@ -531,15 +622,18 @@ export default function CheckoutPage() {
                         </div>
                         <input
                           type="tel"
-                          required
+                          inputMode="numeric"
                           value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          onChange={(e) => {
+                            const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                            setCustomerPhone(digitsOnly);
+                          }}
                           placeholder="0901234567"
                           className="w-full pl-10 pr-3.5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-orange-500 rounded-xl text-xs md:text-sm text-slate-900 dark:text-white outline-none font-mono transition-colors"
                         />
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Tài xế sẽ gọi vào số này trước khi giao hàng
+                        Chỉ nhập chữ số (gồm 10 chữ số, VD: 0901234567)
                       </p>
                     </div>
 
@@ -655,23 +749,87 @@ export default function CheckoutPage() {
                         </p>
                       </div>
                     ) : (
-                      /* Customer Address for Delivery */
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                          Địa chỉ giao hàng tận nhà / Công trình <span className="text-rose-500">*</span>
+                      /* Customer Address for Delivery with Vietnam Administrative Selectors */
+                      <div className="space-y-3">
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                          Khu vực & Địa chỉ giao hàng tận nhà / Công trình <span className="text-rose-500">*</span>
                         </label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                            <MapPin className="w-4 h-4" />
+
+                        {/* 3 Cascading Selectors */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          {/* 1. Tỉnh / Thành phố */}
+                          <div>
+                            <span className="block text-[11px] font-semibold text-slate-500 mb-1">Tỉnh / Thành phố</span>
+                            <select
+                              value={selectedProvince}
+                              onChange={(e) => handleProvinceChange(e.target.value)}
+                              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-orange-500 rounded-xl text-xs md:text-sm text-slate-900 dark:text-white outline-none font-medium cursor-pointer"
+                            >
+                              {Object.keys(VN_PROVINCES).map((prov) => (
+                                <option key={prov} value={prov}>
+                                  {prov}
+                                </option>
+                              ))}
+                            </select>
                           </div>
-                          <input
-                            type="text"
-                            required
-                            value={customerAddress}
-                            onChange={(e) => setCustomerAddress(e.target.value)}
-                            placeholder="Số nhà, Tên đường, Phường/Xã, Quận/Huyện..."
-                            className="w-full pl-10 pr-3.5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-orange-500 rounded-xl text-xs md:text-sm text-slate-900 dark:text-white outline-none transition-colors"
-                          />
+
+                          {/* 2. Quận / Huyện */}
+                          <div>
+                            <span className="block text-[11px] font-semibold text-slate-500 mb-1">Quận / Huyện</span>
+                            <select
+                              value={selectedDistrict}
+                              onChange={(e) => handleDistrictChange(e.target.value)}
+                              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-orange-500 rounded-xl text-xs md:text-sm text-slate-900 dark:text-white outline-none font-medium cursor-pointer"
+                            >
+                              {availableDistricts.map((dist) => (
+                                <option key={dist} value={dist}>
+                                  {dist}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* 3. Phường / Xã */}
+                          <div>
+                            <span className="block text-[11px] font-semibold text-slate-500 mb-1">Phường / Xã</span>
+                            <select
+                              value={selectedWard}
+                              onChange={(e) => setSelectedWard(e.target.value)}
+                              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-orange-500 rounded-xl text-xs md:text-sm text-slate-900 dark:text-white outline-none font-medium cursor-pointer"
+                            >
+                              {availableWards.map((w) => (
+                                <option key={w} value={w}>
+                                  {w}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Street Address Input */}
+                        <div>
+                          <span className="block text-[11px] font-semibold text-slate-500 mb-1">Số nhà, ngõ/hẻm, tên đường cụ thể</span>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                              <MapPin className="w-4 h-4" />
+                            </div>
+                            <input
+                              type="text"
+                              value={streetAddress}
+                              onChange={(e) => setStreetAddress(e.target.value)}
+                              placeholder="VD: 80/3A Đường Thới Tam Thôn 6 hoặc 120 Nguyễn Thị Thập..."
+                              className="w-full pl-10 pr-3.5 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-orange-500 rounded-xl text-xs md:text-sm text-slate-900 dark:text-white outline-none transition-colors"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Preview Combined Address */}
+                        <div className="p-2.5 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/80 dark:border-orange-900/50 text-[11px] text-slate-600 dark:text-slate-300 flex items-start gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-orange-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white">Địa chỉ giao hàng đầy đủ: </span>
+                            <span>{fullDeliveryAddress || '(Vui lòng nhập số nhà, tên đường)'}</span>
+                          </div>
                         </div>
                       </div>
                     )}
