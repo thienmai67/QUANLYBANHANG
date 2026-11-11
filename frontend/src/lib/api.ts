@@ -134,6 +134,9 @@ export function getFriendlyErrorMessage(err: unknown): string {
   if (statusCode !== undefined) {
     switch (statusCode) {
       case 400:
+        if (errorCode === "INSUFFICIENT_STOCK") {
+          return "Số lượng tồn kho hiện tại không đủ để đáp ứng đơn hàng này.";
+        }
         if (errorCode === "PAYMENT_NOT_CONFIRMED") {
           return "Đơn hàng chuyển khoản ngân hàng phải được xác nhận thanh toán (PAID) trước khi đóng gói.";
         }
