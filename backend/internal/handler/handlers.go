@@ -476,33 +476,34 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	claims, ok := middleware.GetClaimsFromContext(req.Context())
-	if !ok || claims == nil {
-		writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
-		return
-	}
+	claims, _ := middleware.GetClaimsFromContext(req.Context())
 
-	if claims.Role == domain.RoleSale {
-		saleUUID, parseErr := uuid.Parse(claims.UserID)
-		if parseErr != nil || !h.isOrderInSaleScope(req.Context(), saleUUID, order) {
-			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+	if claims == nil {
+		// Khách vãng lai (không có token): chỉ được xem đơn hàng của khách vãng lai (CustomerID == nil)
+		if order.CustomerID != nil {
+			writeAPIError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Chưa xác thực người dùng")
 			return
 		}
-	}
-
-	if claims.Role == domain.RoleCustomer {
-		customerUUID, parseErr := uuid.Parse(claims.UserID)
-		if parseErr != nil || order.CustomerID == nil || *order.CustomerID != customerUUID {
-			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
-			return
-		}
-	}
-
-	if claims.Role == domain.RoleShipper {
-		shipperUUID, parseErr := uuid.Parse(claims.UserID)
-		if parseErr != nil || order.ShipperID == nil || *order.ShipperID != shipperUUID {
-			writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
-			return
+	} else {
+		// Người dùng đã đăng nhập: kiểm tra phân quyền chặt chẽ
+		if claims.Role == domain.RoleCustomer {
+			customerUUID, parseErr := uuid.Parse(claims.UserID)
+			if parseErr != nil || order.CustomerID == nil || *order.CustomerID != customerUUID {
+				writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+				return
+			}
+		} else if claims.Role == domain.RoleSale {
+			saleUUID, parseErr := uuid.Parse(claims.UserID)
+			if parseErr != nil || !h.isOrderInSaleScope(req.Context(), saleUUID, order) {
+				writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+				return
+			}
+		} else if claims.Role == domain.RoleShipper {
+			shipperUUID, parseErr := uuid.Parse(claims.UserID)
+			if parseErr != nil || order.ShipperID == nil || *order.ShipperID != shipperUUID {
+				writeAPIError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng")
+				return
+			}
 		}
 	}
 

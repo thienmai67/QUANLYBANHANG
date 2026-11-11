@@ -12,6 +12,27 @@ import {
  * mapOrderFromApi: Centralized parser transforming API order responses (camelCase)
  * into the frontend Order model. Safe against missing or null fields.
  */
+function inferBrand(name?: string, sku?: string, fallback: string = 'Cadivi'): string {
+  const text = `${name || ''} ${sku || ''}`.toLowerCase();
+  if (text.includes('schneider') || text.startsWith('sch-') || text.includes('ez9')) return 'Schneider';
+  if (
+    text.includes('bình minh') ||
+    text.includes('binh minh') ||
+    text.startsWith('bm-') ||
+    text.includes('upvc') ||
+    text.includes('ppr')
+  ) {
+    return 'Bình Minh';
+  }
+  if (text.includes('panasonic') || text.startsWith('pana-') || text.startsWith('pan-')) {
+    return 'Panasonic';
+  }
+  if (text.includes('cadivi') || text.startsWith('cad-') || text.includes('cv-')) {
+    return 'Cadivi';
+  }
+  return fallback;
+}
+
 export function mapOrderFromApi(raw: any): Order {
   if (!raw || typeof raw !== 'object') {
     throw new Error('Dữ liệu đơn hàng không hợp lệ');
@@ -73,7 +94,10 @@ export function mapOrderFromApi(raw: any): Order {
         productId: it.productId || it.product_id || '',
         productName: it.productName || it.name || it.product?.name || 'Vật tư M&E',
         name: it.productName || it.name || it.product?.name || 'Vật tư M&E',
-        brand: (it.brand || it.product?.brand?.name || it.brand_name || 'Cadivi') as any,
+        brand: (it.brand ||
+          it.product?.brand?.name ||
+          it.brand_name ||
+          inferBrand(it.productName || it.name, it.sku)) as any,
         unitPrice:
           typeof it.unitPrice === 'number'
             ? Math.round(it.unitPrice)

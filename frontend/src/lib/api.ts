@@ -231,8 +231,24 @@ function handleAuthFailure() {
   } catch {
     // ignore
   }
-  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-    window.location.href = "/login";
+  if (typeof window !== "undefined") {
+    const publicPrefixes = [
+      "/login",
+      "/register",
+      "/shop",
+      "/product",
+      "/cart",
+      "/checkout",
+      "/order-success",
+      "/tra-cuu",
+      "/cong-trinh",
+    ];
+    const isPublicPage =
+      publicPrefixes.some((p) => window.location.pathname.startsWith(p)) ||
+      window.location.pathname === "/";
+    if (!isPublicPage) {
+      window.location.href = "/login";
+    }
   }
 }
 

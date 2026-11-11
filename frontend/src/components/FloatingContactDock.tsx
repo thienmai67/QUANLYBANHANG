@@ -7,7 +7,7 @@ import { Phone, MessageCircle } from 'lucide-react';
 export default function FloatingContactDock() {
   const pathname = usePathname();
 
-  // Hide on authentication, managerial, shipper, sale and internal operational pages
+  // Hide on authentication, managerial, shipper, sale, checkout, cart and internal operational pages
   const HIDDEN_PREFIXES = [
     '/login',
     '/register',
@@ -15,6 +15,9 @@ export default function FloatingContactDock() {
     '/shipper',
     '/sale',
     '/admin',
+    '/checkout',
+    '/cart',
+    '/order-success',
     '/change-password',
     '/unauthorized',
     '/403',

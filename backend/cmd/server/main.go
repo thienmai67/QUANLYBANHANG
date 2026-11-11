@@ -191,6 +191,7 @@ func main() {
 
 		// Public & Guest-friendly Order Placement (Supports Guest or Logged In Users)
 		r.With(authMiddleware.OptionalAuth).Post("/orders", productHandler.CreateOrder)
+		r.With(authMiddleware.OptionalAuth).Get("/orders/{id}", productHandler.GetOrderByID)
 		r.With(authMiddleware.OptionalAuth).Post("/orders/{id}/payment-link", productHandler.CreatePaymentLink)
 		r.With(authMiddleware.OptionalAuth).Get("/orders/{id}/payment-status", productHandler.GetPaymentStatus)
 
@@ -202,7 +203,6 @@ func main() {
 			r.Post("/users/me/change-password", authHandler.HandleChangePassword)
 			r.Post("/users/me/verify-password", authHandler.HandleVerifyPassword)
 			r.Get("/orders", productHandler.ListOrders)
-			r.Get("/orders/{id}", productHandler.GetOrderByID)
 		})
 
 		// Manual Payment Confirmation (SALE, MANAGER)

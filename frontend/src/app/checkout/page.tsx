@@ -468,9 +468,12 @@ export default function CheckoutPage() {
           clearCart();
         } catch (linkErr: any) {
           const errMsg = getFriendlyErrorMessage(linkErr);
-          toast.error(
-            `Đơn hàng #${validOrderId.slice(0, 8)} đã ghi nhận nhưng tạo link PayOS thất bại: ${errMsg}. Nhấn đặt hàng để thử lại thanh toán.`
+          toast.warning(
+            `Đơn hàng #${validOrderId.slice(0, 8)} đã được ghi nhận. Cổng thanh toán PayOS tạm thời phản hồi chậm: ${errMsg}. Đang chuyển bạn sang trang chi tiết đơn hàng...`
           );
+          setExistingCreatedOrderId(null);
+          clearCart();
+          router.push(`/order-success/${validOrderId}?paymentMethod=BANK&payosErr=1`);
         }
       } else {
         toast.success('Đặt hàng thành công! Đơn hàng đang được xử lý.');
