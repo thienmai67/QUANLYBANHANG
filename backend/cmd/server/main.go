@@ -223,6 +223,9 @@ func main() {
 			r.Use(middleware.RequireRole(domain.RoleManager))
 
 			r.Get("/shippers", productHandler.ListShippers)
+			r.Get("/manager/users", authHandler.HandleManagerListUsers)
+			r.Patch("/manager/users/{id}/role", authHandler.HandleManagerUpdateUserRole)
+			r.Patch("/manager/users/{id}/status", authHandler.HandleManagerToggleUserStatus)
 			r.Get("/shipper-applications", shipperHandler.ListApplications)
 			r.Get("/shipper-applications/{id}", shipperHandler.GetApplication)
 			r.Post("/shipper-applications/{id}/approve", shipperHandler.ApproveApplication)

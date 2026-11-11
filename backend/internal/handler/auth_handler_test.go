@@ -138,6 +138,48 @@ func (m *mockUserRepo) UpdatePassword(ctx context.Context, id uuid.UUID, passwor
 	return domain.ErrUserNotFound
 }
 
+func (m *mockUserRepo) ListUsers(ctx context.Context, search string, role string) ([]domain.User, error) {
+	m.Lock()
+	defer m.Unlock()
+	var list []domain.User
+	for _, u := range m.users {
+		if role != "" && string(u.Role) != role {
+			continue
+		}
+		if search != "" && !strings.Contains(strings.ToLower(u.Email), strings.ToLower(search)) && !strings.Contains(strings.ToLower(u.FullName), strings.ToLower(search)) {
+			continue
+		}
+		list = append(list, *u)
+	}
+	return list, nil
+}
+
+func (m *mockUserRepo) UpdateUserRole(ctx context.Context, id uuid.UUID, role domain.UserRole) error {
+	m.Lock()
+	defer m.Unlock()
+	for _, u := range m.users {
+		if u.ID == id {
+			u.Role = role
+			u.UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
+	return domain.ErrUserNotFound
+}
+
+func (m *mockUserRepo) UpdateUserStatus(ctx context.Context, id uuid.UUID, isActive bool) error {
+	m.Lock()
+	defer m.Unlock()
+	for _, u := range m.users {
+		if u.ID == id {
+			u.IsActive = isActive
+			u.UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
+	return domain.ErrUserNotFound
+}
+
 func TestHandleRegister_Success(t *testing.T) {
 	repo := newMockUserRepo()
 	jwtSvc := auth.NewJWTService("secret-for-test-jwt-1234567890")

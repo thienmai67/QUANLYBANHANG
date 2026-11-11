@@ -95,6 +95,7 @@ type UserProfileResponse struct {
 	Role               UserRole     `json:"role"`
 	AuthProvider       AuthProvider `json:"authProvider"`
 	MustChangePassword bool         `json:"mustChangePassword"`
+	IsActive           bool         `json:"isActive"`
 	CreatedAt          time.Time    `json:"createdAt"`
 	UpdatedAt          time.Time    `json:"updatedAt"`
 }
@@ -106,4 +107,7 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *User) error
 	UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, phone *string, avatarURL *string) (*User, error)
 	UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error
+	ListUsers(ctx context.Context, search string, role string) ([]User, error)
+	UpdateUserRole(ctx context.Context, id uuid.UUID, role UserRole) error
+	UpdateUserStatus(ctx context.Context, id uuid.UUID, isActive bool) error
 }

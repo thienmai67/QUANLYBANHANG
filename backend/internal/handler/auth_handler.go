@@ -2,13 +2,14 @@ package handler
 
 import (
 	"encoding/json"
-	"regexp"
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
@@ -572,5 +573,135 @@ func (h *AuthHandler) HandleVerifyPassword(w http.ResponseWriter, r *http.Reques
 	_ = json.NewEncoder(w).Encode(domain.VerifyPasswordResponse{
 		Valid:   true,
 		Message: "Mật khẩu hiện tại chính xác",
+	})
+}
+
+type UpdateRoleRequest struct {
+	Role domain.UserRole `json:"role"`
+}
+
+type UpdateStatusRequest struct {
+	IsActive bool `json:"isActive"`
+}
+
+func (h *AuthHandler) HandleManagerListUsers(w http.ResponseWriter, r *http.Request) {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	role := strings.TrimSpace(strings.ToUpper(r.URL.Query().Get("role")))
+
+	users, err := h.userRepo.ListUsers(r.Context(), q, role)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi lấy danh sách người dùng", "INTERNAL_ERROR")
+		return
+	}
+
+	res := make([]domain.UserProfileResponse, 0, len(users))
+	for _, u := range users {
+		res = append(res, domain.UserProfileResponse{
+			ID:                 u.ID,
+			Email:              u.Email,
+			FullName:           u.FullName,
+			Phone:              u.Phone,
+			AvatarURL:          u.AvatarURL,
+			Role:               u.Role,
+			AuthProvider:       u.AuthProvider,
+			MustChangePassword: u.MustChangePassword,
+			IsActive:           u.IsActive,
+			CreatedAt:          u.CreatedAt,
+			UpdatedAt:          u.UpdatedAt,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(res)
+}
+
+func (h *AuthHandler) HandleManagerUpdateUserRole(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	userID, err := uuid.Parse(idStr)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "ID người dùng không hợp lệ", "INVALID_ID")
+		return
+	}
+
+	var req UpdateRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Dữ liệu yêu cầu không hợp lệ", "INVALID_BODY")
+		return
+	}
+
+	targetRole := domain.UserRole(strings.ToUpper(strings.TrimSpace(string(req.Role))))
+	switch targetRole {
+	case domain.RoleCustomer, domain.RoleSale, domain.RoleManager, domain.RoleShipper:
+		// valid
+	default:
+		writeJSONError(w, http.StatusBadRequest, "Vai trò không hợp lệ (hợp lệ: CUSTOMER, SALE, MANAGER, SHIPPER)", "INVALID_ROLE")
+		return
+	}
+
+	// Verify user exists
+	user, err := h.userRepo.FindByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy người dùng", "NOT_FOUND")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi kiểm tra người dùng", "INTERNAL_ERROR")
+		return
+	}
+
+	if err := h.userRepo.UpdateUserRole(r.Context(), userID, targetRole); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi cập nhật vai trò người dùng", "INTERNAL_ERROR")
+		return
+	}
+
+	user.Role = targetRole
+	user.UpdatedAt = time.Now()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(domain.UserProfileResponse{
+		ID:                 user.ID,
+		Email:              user.Email,
+		FullName:           user.FullName,
+		Phone:              user.Phone,
+		AvatarURL:          user.AvatarURL,
+		Role:               user.Role,
+		AuthProvider:       user.AuthProvider,
+		MustChangePassword: user.MustChangePassword,
+		IsActive:           user.IsActive,
+		CreatedAt:          user.CreatedAt,
+		UpdatedAt:          user.UpdatedAt,
+	})
+}
+
+func (h *AuthHandler) HandleManagerToggleUserStatus(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	userID, err := uuid.Parse(idStr)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "ID người dùng không hợp lệ", "INVALID_ID")
+		return
+	}
+
+	var req UpdateStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Dữ liệu yêu cầu không hợp lệ", "INVALID_BODY")
+		return
+	}
+
+	if err := h.userRepo.UpdateUserStatus(r.Context(), userID, req.IsActive); err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			writeJSONError(w, http.StatusNotFound, "Không tìm thấy người dùng", "NOT_FOUND")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "Lỗi cập nhật trạng thái người dùng", "INTERNAL_ERROR")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"isActive": req.IsActive,
 	})
 }

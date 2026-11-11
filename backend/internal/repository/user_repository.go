@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -103,6 +104,73 @@ func (r *userRepository) UpdatePassword(ctx context.Context, id uuid.UUID, passw
 		WHERE id = $2`
 
 	res, err := r.db.ExecContext(ctx, query, passwordHash, id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *userRepository) ListUsers(ctx context.Context, search string, role string) ([]domain.User, error) {
+	query := `
+		SELECT id, email, full_name, phone, avatar_url, role, auth_provider, is_active, created_at, updated_at
+		FROM me_supplies.users
+		WHERE 1=1`
+	var args []interface{}
+	idx := 1
+
+	if role != "" {
+		query += fmt.Sprintf(" AND role = $%d", idx)
+		args = append(args, role)
+		idx++
+	}
+
+	if search != "" {
+		query += fmt.Sprintf(" AND (email ILIKE $%d OR full_name ILIKE $%d OR (phone IS NOT NULL AND phone ILIKE $%d))", idx, idx, idx)
+		args = append(args, "%"+search+"%")
+		idx++
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	var users []domain.User
+	if err := r.db.SelectContext(ctx, &users, query, args...); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (r *userRepository) UpdateUserRole(ctx context.Context, id uuid.UUID, role domain.UserRole) error {
+	query := `
+		UPDATE me_supplies.users
+		SET role = $1, updated_at = NOW()
+		WHERE id = $2`
+	res, err := r.db.ExecContext(ctx, query, role, id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *userRepository) UpdateUserStatus(ctx context.Context, id uuid.UUID, isActive bool) error {
+	query := `
+		UPDATE me_supplies.users
+		SET is_active = $1, updated_at = NOW()
+		WHERE id = $2`
+	res, err := r.db.ExecContext(ctx, query, isActive, id)
 	if err != nil {
 		return err
 	}

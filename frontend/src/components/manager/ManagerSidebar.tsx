@@ -17,6 +17,7 @@ import {
   LogOut,
   Layers,
   Truck,
+  UserCheck,
 } from 'lucide-react';
 import { useManagerShellStore } from '@/store/useManagerShellStore';
 import { useManagerStore } from '@/store/useManagerStore';
@@ -106,6 +107,11 @@ export function ManagerSidebar() {
       href: '/manager/shipper-applications',
       icon: Truck,
       badge: pendingShipperCount > 0 ? pendingShipperCount : undefined,
+    },
+    {
+      name: 'Phân quyền',
+      href: '/manager/users',
+      icon: UserCheck,
     },
     {
       name: 'Cài đặt',
