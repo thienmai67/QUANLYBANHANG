@@ -19,13 +19,29 @@ export function normalizePhone(rawPhone?: string | null): string {
 }
 
 /**
- * Resolves contact phone for an order: prefers siteContact.phone, falls back to customerPhone.
+ * Resolves contact phone for an order: prefers siteContact.phone, falls back to customerPhone,
+ * or parses phone number embedded inside customerName (e.g. "A. Long Thợ Điện (0901234567)").
  */
 export function getOrderContactPhone(order: {
   siteContact?: { phone: string };
   customerPhone?: string;
+  customerName?: string;
 }): string {
-  return normalizePhone(order.siteContact?.phone || order.customerPhone || '');
+  if (order.siteContact?.phone) {
+    const p = normalizePhone(order.siteContact.phone);
+    if (p) return p;
+  }
+  if (order.customerPhone) {
+    const p = normalizePhone(order.customerPhone);
+    if (p) return p;
+  }
+  if (order.customerName) {
+    const match = order.customerName.match(/\((0\d{9})\)|\b(0[35789]\d{8})\b/);
+    if (match) {
+      return normalizePhone(match[1] || match[2]);
+    }
+  }
+  return '';
 }
 
 /**
@@ -34,6 +50,7 @@ export function getOrderContactPhone(order: {
 export function getTelUrl(order: {
   siteContact?: { phone: string };
   customerPhone?: string;
+  customerName?: string;
 }): string {
   const phone = getOrderContactPhone(order);
   return phone ? `tel:${phone}` : '';

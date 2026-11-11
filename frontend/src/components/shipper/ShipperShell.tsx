@@ -228,9 +228,9 @@ export default function ShipperShell({ children }: ShipperShellProps) {
 
             {/* Tab 3: Tài khoản */}
             <Link
-              href="/change-password"
+              href="/shipper/profile"
               className={`flex flex-col items-center justify-center gap-1 transition-all rounded-xl my-1 ${
-                pathname === '/change-password'
+                pathname === '/shipper/profile'
                   ? isHighContrast
                     ? 'text-blue-400 font-bold bg-blue-950/40'
                     : 'text-blue-600 font-bold bg-blue-50/80'

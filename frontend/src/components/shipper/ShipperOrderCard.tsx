@@ -65,6 +65,7 @@ export default function ShipperOrderCard({
   const telUrl = getTelUrl({
     siteContact: order.siteContact,
     customerPhone: order.customerPhone,
+    customerName: order.customerName,
   });
 
   const mapsUrl = getGoogleMapsUrl({

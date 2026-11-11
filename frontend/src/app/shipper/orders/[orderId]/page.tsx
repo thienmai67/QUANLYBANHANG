@@ -125,6 +125,7 @@ export default function ShipperOrderDetailPage() {
   const telUrl = getTelUrl({
     siteContact: order.siteContact,
     customerPhone: order.customerPhone,
+    customerName: order.customerName,
   });
   const mapsUrl = getGoogleMapsUrl({
     deliveryCoords: order.deliveryCoords,
@@ -439,6 +440,37 @@ export default function ShipperOrderDetailPage() {
                   </>
                 )}
               </button>
+            )}
+
+            {order.status === 'DELIVERED' && (
+              <div className="space-y-2">
+                <Link
+                  href="/shipper"
+                  className="w-full min-h-[50px] rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Quay về danh sách đơn hôm nay</span>
+                </Link>
+                {isCod && (
+                  <Link
+                    href="/shipper/cod"
+                    className="w-full min-h-[46px] rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Banknote className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>Xem đối soát tiền thu hộ COD</span>
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {order.status === 'CANCELLED' && (
+              <Link
+                href="/shipper"
+                className="w-full min-h-[50px] rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Quay về danh sách đơn hôm nay</span>
+              </Link>
             )}
           </div>
         </div>
