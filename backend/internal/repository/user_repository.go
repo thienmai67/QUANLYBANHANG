@@ -37,20 +37,24 @@ func (r *userRepository) UpsertGoogleUser(ctx context.Context, info *domain.Goog
 	return &user, nil
 }
 
-func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (r *userRepository) FindByEmailOrPhone(ctx context.Context, identifier string) (*domain.User, error) {
 	const query = `
 		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, must_change_password, is_active, created_at, updated_at
 		FROM me_supplies.users
-		WHERE email = $1`
+		WHERE email = $1 OR phone = $1`
 
 	var user domain.User
-	if err := r.db.GetContext(ctx, &user, query, email); err != nil {
+	if err := r.db.GetContext(ctx, &user, query, identifier); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return r.FindByEmailOrPhone(ctx, email)
 }
 
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {

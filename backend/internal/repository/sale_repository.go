@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
@@ -428,12 +428,7 @@ func (r *saleRepository) CreateCustomerForSale(ctx context.Context, saleID uuid.
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	cleanEmail := strings.TrimSpace(strings.ToLower(req.Email))
 	if cleanEmail == "" {
@@ -558,12 +553,7 @@ func (r *saleRepository) UpdateCustomerProfile(ctx context.Context, customerID u
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	// Update user info strictly ensuring role is CUSTOMER (P1-7)
 	res, err := tx.ExecContext(ctx, `
@@ -611,12 +601,7 @@ func (r *saleRepository) AssignCustomer(ctx context.Context, customerID uuid.UUI
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	// Verify target sale user exists and has role SALE or MANAGER
 	var role string
@@ -1049,12 +1034,7 @@ func (r *saleRepository) CreateQuote(ctx context.Context, saleID uuid.UUID, req 
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	var subtotal float64
 	var discountTotal float64
@@ -1232,12 +1212,7 @@ func (r *saleRepository) UpdateQuote(ctx context.Context, quoteID uuid.UUID, sal
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	var currentStatus string
 	var currentSaleID uuid.UUID
@@ -1431,12 +1406,7 @@ func (r *saleRepository) SendQuote(ctx context.Context, quoteID uuid.UUID, saleI
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	var currentStatus string
 	var currentSaleID uuid.UUID
@@ -1495,12 +1465,7 @@ func (r *saleRepository) ConvertQuoteToOrder(ctx context.Context, quoteID uuid.U
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	var q domain.Quote
 	var convertedOrderID uuid.NullUUID
@@ -2271,12 +2236,7 @@ func (r *saleRepository) AddPaymentNote(ctx context.Context, orderID uuid.UUID, 
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	var order domain.Order
 	err = tx.QueryRowContext(ctx, `

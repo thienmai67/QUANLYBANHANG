@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { getAccessToken } from '@/lib/auth';
 
 export interface CartItem {
   id: string;
@@ -136,11 +135,6 @@ export const useCartStore = create<CartState>()(
         isOpen: false,
         openToCheckout: false,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (typeof window !== 'undefined' && !getAccessToken() && state && state.items.length > 0) {
-          state.clearCart();
-        }
-      },
     }
   )
 );

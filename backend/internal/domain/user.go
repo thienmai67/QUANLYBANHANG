@@ -103,6 +103,7 @@ type UserProfileResponse struct {
 type UserRepository interface {
 	UpsertGoogleUser(ctx context.Context, info *GoogleUserInfo) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
+	FindByEmailOrPhone(ctx context.Context, identifier string) (*User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	CreateUser(ctx context.Context, user *User) error
 	UpdateProfile(ctx context.Context, id uuid.UUID, fullName string, phone *string, avatarURL *string) (*User, error)

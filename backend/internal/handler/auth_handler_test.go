@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/auth"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/domain"
 	"github.com/me-supplies/vlxd-dien-nuoc/backend/internal/middleware"
@@ -66,17 +67,26 @@ func (m *mockUserRepo) UpsertGoogleUser(ctx context.Context, info *domain.Google
 	return user, nil
 }
 
-func (m *mockUserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (m *mockUserRepo) FindByEmailOrPhone(ctx context.Context, identifier string) (*domain.User, error) {
 	m.Lock()
 	defer m.Unlock()
 	if m.findByEmailErr != nil {
 		return nil, m.findByEmailErr
 	}
-	user, exists := m.users[strings.ToLower(email)]
-	if !exists {
-		return nil, domain.ErrUserNotFound
+	clean := strings.ToLower(strings.TrimSpace(identifier))
+	if user, exists := m.users[clean]; exists {
+		return user, nil
 	}
-	return user, nil
+	for _, u := range m.users {
+		if u.Phone != nil && strings.TrimSpace(*u.Phone) == strings.TrimSpace(identifier) {
+			return u, nil
+		}
+	}
+	return nil, domain.ErrUserNotFound
+}
+
+func (m *mockUserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return m.FindByEmailOrPhone(ctx, email)
 }
 
 func (m *mockUserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
@@ -469,6 +479,58 @@ func TestHandleLogin_Success(t *testing.T) {
 	}
 	if claims.Email != email {
 		t.Errorf("expected email %q, got %q", email, claims.Email)
+	}
+}
+
+func TestHandleLogin_Success_Phone(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-login-1234567890123456")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	email := "shipper1@tdt.vn"
+	phone := "0901234567"
+	plainPassword := "Shipper@123"
+	hash, _ := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
+	hashStr := string(hash)
+
+	_ = repo.CreateUser(context.Background(), &domain.User{
+		ID:           uuid.New(),
+		Email:        email,
+		Phone:        &phone,
+		FullName:     "Nguyễn Văn Hùng",
+		PasswordHash: &hashStr,
+		Role:         domain.RoleShipper,
+		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
+	})
+
+	// Login with phone number instead of email
+	payload := LoginRequest{Email: phone, Password: plainPassword}
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	h.HandleLogin(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for phone login, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var pair domain.TokenPair
+	if err := json.Unmarshal(rr.Body.Bytes(), &pair); err != nil {
+		t.Fatalf("failed to decode TokenPair: %v", err)
+	}
+
+	if pair.AccessToken == "" {
+		t.Fatal("expected non-empty tokens in TokenPair")
+	}
+
+	claims, err := jwtSvc.ValidateClaims(pair.AccessToken)
+	if err != nil {
+		t.Fatalf("access token failed validation: %v", err)
+	}
+	if claims.Role != domain.RoleShipper {
+		t.Errorf("expected role SHIPPER, got %v", claims.Role)
 	}
 }
 
@@ -974,5 +1036,175 @@ func TestHandleVerifyPassword_Wrong(t *testing.T) {
 	}
 	if resp.Valid {
 		t.Fatalf("expected valid false, got true")
+	}
+}
+
+func TestHandleManagerUpdateUserRole_SelfDemotionRejected(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	managerID := uuid.New()
+	managerUser := &domain.User{
+		ID:           managerID,
+		Email:        "manager_guard@tdt.vn",
+		Role:         domain.RoleManager,
+		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
+	}
+	_ = repo.CreateUser(context.Background(), managerUser)
+
+	body, _ := json.Marshal(UpdateRoleRequest{Role: domain.RoleCustomer})
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/manager/users/"+managerID.String()+"/role", bytes.NewReader(body))
+
+	claims := &auth.Claims{
+		UserID: managerID.String(),
+		Role:   domain.RoleManager,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", managerID.String())
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleManagerUpdateUserRole(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "Cannot demote your own administrative role") {
+		t.Errorf("expected self-demotion error message, got %s", rr.Body.String())
+	}
+}
+
+func TestHandleManagerUpdateUserRole_OtherUserSuccess(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	managerID := uuid.New()
+	managerUser := &domain.User{
+		ID:           managerID,
+		Email:        "manager_actor@tdt.vn",
+		Role:         domain.RoleManager,
+		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
+	}
+	_ = repo.CreateUser(context.Background(), managerUser)
+
+	targetID := uuid.New()
+	targetUser := &domain.User{
+		ID:           targetID,
+		Email:        "target_user@tdt.vn",
+		Role:         domain.RoleCustomer,
+		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
+	}
+	_ = repo.CreateUser(context.Background(), targetUser)
+
+	body, _ := json.Marshal(UpdateRoleRequest{Role: domain.RoleSale})
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/manager/users/"+targetID.String()+"/role", bytes.NewReader(body))
+
+	claims := &auth.Claims{
+		UserID: managerID.String(),
+		Role:   domain.RoleManager,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", targetID.String())
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleManagerUpdateUserRole(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleManagerToggleUserStatus_SelfDeactivationRejected(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	managerID := uuid.New()
+	managerUser := &domain.User{
+		ID:           managerID,
+		Email:        "manager_deact@tdt.vn",
+		Role:         domain.RoleManager,
+		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
+	}
+	_ = repo.CreateUser(context.Background(), managerUser)
+
+	body, _ := json.Marshal(UpdateStatusRequest{IsActive: false})
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/manager/users/"+managerID.String()+"/status", bytes.NewReader(body))
+
+	claims := &auth.Claims{
+		UserID: managerID.String(),
+		Role:   domain.RoleManager,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", managerID.String())
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleManagerToggleUserStatus(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "Cannot deactivate your own administrative account") {
+		t.Errorf("expected self-deactivation error message, got %s", rr.Body.String())
+	}
+}
+
+func TestHandleManagerToggleUserStatus_OtherUserSuccess(t *testing.T) {
+	repo := newMockUserRepo()
+	jwtSvc := auth.NewJWTService("secret-key-32-bytes-long-123456789")
+	h := NewAuthHandler(repo, jwtSvc)
+
+	managerID := uuid.New()
+	managerUser := &domain.User{
+		ID:           managerID,
+		Email:        "manager_deact_other@tdt.vn",
+		Role:         domain.RoleManager,
+		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
+	}
+	_ = repo.CreateUser(context.Background(), managerUser)
+
+	targetID := uuid.New()
+	targetUser := &domain.User{
+		ID:           targetID,
+		Email:        "target_deact@tdt.vn",
+		Role:         domain.RoleCustomer,
+		AuthProvider: domain.AuthProviderLocal,
+		IsActive:     true,
+	}
+	_ = repo.CreateUser(context.Background(), targetUser)
+
+	body, _ := json.Marshal(UpdateStatusRequest{IsActive: false})
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/manager/users/"+targetID.String()+"/status", bytes.NewReader(body))
+
+	claims := &auth.Claims{
+		UserID: managerID.String(),
+		Role:   domain.RoleManager,
+	}
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", targetID.String())
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.HandleManagerToggleUserStatus(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d: %s", rr.Code, rr.Body.String())
 	}
 }

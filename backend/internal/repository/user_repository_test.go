@@ -55,11 +55,6 @@ func getTestDB(t *testing.T) *sqlx.DB {
 		_, _ = db.ExecContext(ctx, string(upSQLBytes))
 	}
 
-	upSQLPath := filepath.Join("..", "..", "migrations", "000010_sale_role_and_crm.up.sql")
-	if upSQLBytes, err := os.ReadFile(upSQLPath); err == nil {
-		_, _ = db.ExecContext(ctx, string(upSQLBytes))
-	}
-
 	return db
 }
 
@@ -115,6 +110,29 @@ func TestUserRepository_CreateUser_And_FindByEmail(t *testing.T) {
 	}
 	if found.PasswordHash == nil || *found.PasswordHash != passHash {
 		t.Errorf("password hash mismatch")
+	}
+
+	// 3. Find by email via FindByEmailOrPhone
+	foundByIdentifier, err := repo.FindByEmailOrPhone(ctx, testEmail)
+	if err != nil {
+		t.Fatalf("failed to find user by email via FindByEmailOrPhone: %v", err)
+	}
+	if foundByIdentifier.ID != user.ID {
+		t.Errorf("expected user ID %s, got %s", user.ID, foundByIdentifier.ID)
+	}
+
+	// 4. Update profile with phone and find by phone
+	testPhone := "0901234567"
+	_, err = repo.UpdateProfile(ctx, user.ID, user.FullName, &testPhone, nil)
+	if err != nil {
+		t.Fatalf("failed to update user phone: %v", err)
+	}
+	foundByPhone, err := repo.FindByEmailOrPhone(ctx, testPhone)
+	if err != nil {
+		t.Fatalf("failed to find user by phone via FindByEmailOrPhone: %v", err)
+	}
+	if foundByPhone.ID != user.ID {
+		t.Errorf("expected user ID %s, got %s", user.ID, foundByPhone.ID)
 	}
 }
 

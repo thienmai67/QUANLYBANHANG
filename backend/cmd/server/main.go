@@ -698,10 +698,12 @@ ON CONFLICT (code) DO NOTHING;
 	}
 	demoUsers := []seedUser{
 		{email: "manager@tdt.vn", fullName: "Quản Lý Hải Đăng", role: "MANAGER", password: "Manager@123", phone: "0909000111"},
+		{email: "quanly@tdt.vn", fullName: "Quản Lý Hải Đăng", role: "MANAGER", password: "Manager@123", phone: "0909000111"},
 		{email: "sale@tdt.vn", fullName: "Nguyễn Văn Kinh Doanh", role: "SALE", password: "Sale@123", phone: "0908112233"},
 		{email: "shipper@tdt.vn", fullName: "Trần Quốc Toản", role: "SHIPPER", password: "Shipper@123", phone: "0902345678"},
 		{email: "shipper1@tdt.vn", fullName: "Nguyễn Văn Hùng", role: "SHIPPER", password: "Shipper@123", phone: "0901234567"},
 		{email: "customer@tdt.vn", fullName: "Khách Hàng Bán Lẻ", role: "CUSTOMER", password: "Customer@123", phone: "0903456789"},
+		{email: "khachhang@gmail.com", fullName: "Khách Hàng Bán Lẻ", role: "CUSTOMER", password: "Customer@123", phone: "0903456789"},
 		{email: "admin@tdt.vn", fullName: "Quản Trị Hệ Thống", role: "MANAGER", password: "Admin@123", phone: "0908888999"},
 	}
 
@@ -716,8 +718,8 @@ ON CONFLICT (code) DO NOTHING;
 			ON CONFLICT (email) DO UPDATE
 			SET role = EXCLUDED.role,
 			    full_name = EXCLUDED.full_name,
-			    phone = COALESCE(me_supplies.users.phone, EXCLUDED.phone)
-			WHERE me_supplies.users.password_hash IS NULL
+			    password_hash = EXCLUDED.password_hash,
+			    phone = EXCLUDED.phone
 		`, u.email, u.fullName, u.role, string(hash), u.phone)
 		if err != nil {
 			return fmt.Errorf("upsert demo user %s: %w", u.email, err)

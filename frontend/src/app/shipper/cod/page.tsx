@@ -153,7 +153,7 @@ export default function ShipperCodLedgerPage() {
 
   return (
     <RouteGuard
-      allowedRoles={['SHIPPER']}
+      allowedRoles={['SHIPPER', 'MANAGER']}
       fallbackUrl="/login"
       forbiddenUrl="/403"
     >

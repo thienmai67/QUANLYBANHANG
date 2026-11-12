@@ -212,7 +212,7 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userRepo.FindByEmail(r.Context(), cleanEmail)
+	user, err := h.userRepo.FindByEmailOrPhone(r.Context(), cleanEmail)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
 			recordFailedAttempt(cleanEmail)
@@ -639,6 +639,12 @@ func (h *AuthHandler) HandleManagerUpdateUserRole(w http.ResponseWriter, r *http
 		return
 	}
 
+	// Self-demotion guard
+	if callerID, ok := middleware.GetUserIDFromContext(r.Context()); ok && callerID == userID.String() && targetRole != domain.RoleManager {
+		writeJSONError(w, http.StatusBadRequest, "Cannot demote your own administrative role", "SELF_DEMOTION_FORBIDDEN")
+		return
+	}
+
 	// Verify user exists
 	user, err := h.userRepo.FindByID(r.Context(), userID)
 	if err != nil {
@@ -686,6 +692,12 @@ func (h *AuthHandler) HandleManagerToggleUserStatus(w http.ResponseWriter, r *ht
 	var req UpdateStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, http.StatusBadRequest, "Dữ liệu yêu cầu không hợp lệ", "INVALID_BODY")
+		return
+	}
+
+	// Self-deactivation guard
+	if callerID, ok := middleware.GetUserIDFromContext(r.Context()); ok && callerID == userID.String() && !req.IsActive {
+		writeJSONError(w, http.StatusBadRequest, "Cannot deactivate your own administrative account", "SELF_DEACTIVATION_FORBIDDEN")
 		return
 	}
 

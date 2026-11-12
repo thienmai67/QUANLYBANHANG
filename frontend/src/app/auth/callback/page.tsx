@@ -22,6 +22,7 @@ function CallbackProcessor() {
         let role: any = 'CUSTOMER';
         if (rawRole === 'MANAGER' || rawRole === 'ADMIN') role = 'MANAGER';
         else if (rawRole === 'SHIPPER') role = 'SHIPPER';
+        else if (rawRole === 'SALE') role = 'SALE';
 
         useAuthStore.getState().setAuth(token, {
           id: user.userId,
@@ -35,6 +36,9 @@ function CallbackProcessor() {
           return;
         } else if (role === 'SHIPPER') {
           router.replace('/shipper');
+          return;
+        } else if (role === 'SALE') {
+          router.replace('/sale');
           return;
         }
       }

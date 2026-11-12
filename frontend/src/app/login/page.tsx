@@ -20,11 +20,17 @@ const MOCK_ACCOUNTS: Record<
     userId: string;
   }
 > = {
+  'khachhang@gmail.com': {
+    role: 'CUSTOMER',
+    pass: 'Customer@123',
+    name: 'Khách Hàng Kiểm Thử',
+    userId: 'mock-customer-001',
+  },
   'customer@tdt.vn': {
     role: 'CUSTOMER',
     pass: 'Customer@123',
     name: 'Khách Hàng Bán Lẻ',
-    userId: 'mock-customer-001',
+    userId: 'mock-customer-002',
   },
   'sale@tdt.vn': {
     role: 'SALE',
@@ -32,17 +38,29 @@ const MOCK_ACCOUNTS: Record<
     name: 'Nguyễn Văn Kinh Doanh',
     userId: 'mock-sale-001',
   },
+  'quanly@tdt.vn': {
+    role: 'MANAGER',
+    pass: 'Manager@123',
+    name: 'Quản Lý Cửa Hàng',
+    userId: 'mock-manager-001',
+  },
   'manager@tdt.vn': {
     role: 'MANAGER',
     pass: 'Manager@123',
     name: 'Quản Lý Hải Đăng',
-    userId: 'mock-manager-001',
+    userId: 'mock-manager-002',
+  },
+  '0901234567': {
+    role: 'SHIPPER',
+    pass: 'Shipper@123',
+    name: 'Tài Xế Giao Vận',
+    userId: 'mock-shipper-001',
   },
   'shipper@tdt.vn': {
     role: 'SHIPPER',
     pass: 'Shipper@123',
     name: 'Trần Quốc Toản',
-    userId: 'mock-shipper-001',
+    userId: 'mock-shipper-002',
   },
   'admin@tdt.vn': {
     role: 'MANAGER',
@@ -126,16 +144,16 @@ export default function LoginPage() {
   const handleQuickMockLogin = (role: 'MANAGER' | 'CUSTOMER' | 'SHIPPER' | 'SALE') => {
     setErrorMsg(null);
     if (role === 'MANAGER') {
-      setEmail('manager@tdt.vn');
+      setEmail('quanly@tdt.vn');
       setPassword('Manager@123');
     } else if (role === 'SALE') {
       setEmail('sale@tdt.vn');
       setPassword('Sale@123');
     } else if (role === 'SHIPPER') {
-      setEmail('shipper@tdt.vn');
+      setEmail('0901234567');
       setPassword('Shipper@123');
     } else {
-      setEmail('customer@tdt.vn');
+      setEmail('khachhang@gmail.com');
       setPassword('Customer@123');
     }
   };
@@ -201,14 +219,14 @@ export default function LoginPage() {
   return (
     <AuthLayout variant="login">
       <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Email Field */}
+        {/* Email or Phone Field */}
         <AuthField
           id="login-email"
-          type="email"
-          label="Email hoặc tên đăng nhập"
-          placeholder="michal.masiak@anywhere.co"
+          type="text"
+          label="Email hoặc số điện thoại"
+          placeholder="Email hoặc số điện thoại"
           required
-          autoComplete="email"
+          autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           trailingIcon={<Mail className="w-4 h-4" />}
@@ -276,6 +294,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleQuickMockLogin('MANAGER')}
+              title="quanly@tdt.vn / Manager@123"
               className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all text-center truncate"
             >
               👔 Manager
@@ -283,6 +302,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleQuickMockLogin('SALE')}
+              title="sale@tdt.vn / Sale@123"
               className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 transition-all text-center truncate"
             >
               💼 Sale
@@ -290,6 +310,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleQuickMockLogin('SHIPPER')}
+              title="0901234567 / Shipper@123"
               className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all text-center truncate"
             >
               🚚 Shipper
@@ -297,10 +318,15 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleQuickMockLogin('CUSTOMER')}
+              title="khachhang@gmail.com / Customer@123"
               className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 transition-all text-center truncate"
             >
               👤 Customer
             </button>
+          </div>
+          <div className="mt-2 text-[10px] text-slate-400 text-center space-y-0.5">
+            <div>Manager: <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">quanly@tdt.vn</span> | Sale: <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">sale@tdt.vn</span></div>
+            <div>Shipper: <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">0901234567</span> | Customer: <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">khachhang@gmail.com</span></div>
           </div>
         </div>
       </form>

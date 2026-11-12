@@ -1036,8 +1036,8 @@ func (h *Handler) CreatePaymentLink(w http.ResponseWriter, req *http.Request) {
 		desc = desc[:25]
 	}
 
-	cancelURL := fmt.Sprintf("%s/account", h.frontendURL)
-	returnURL := fmt.Sprintf("%s/account", h.frontendURL)
+	cancelURL := fmt.Sprintf("%s/order-success/%s", h.frontendURL, order.ID.String())
+	returnURL := fmt.Sprintf("%s/order-success/%s", h.frontendURL, order.ID.String())
 
 	linkData, err := h.payosClient.CreatePaymentLink(req.Context(), orderCode, amount, desc, cancelURL, returnURL)
 	if err != nil {

@@ -114,7 +114,7 @@ export default function ShipperDispatchFeedPage() {
   }, [listOrdersPool, filterTab]);
 
   return (
-    <RouteGuard allowedRoles={['SHIPPER']} fallbackUrl="/login" forbiddenUrl="/403">
+    <RouteGuard allowedRoles={['SHIPPER', 'MANAGER']} fallbackUrl="/login" forbiddenUrl="/403">
       <ShipperShell>
         <div className="px-4 py-3.5 space-y-4">
           {/* 1. Daily Summary Banner */}

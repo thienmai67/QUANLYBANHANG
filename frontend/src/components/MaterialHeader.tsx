@@ -22,6 +22,7 @@ import { ThemeToggle } from './ThemeToggle';
 import CartDrawer from './CartDrawer';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
+import { clearTokens } from '@/lib/auth';
 
 import { useAdminStore } from '@/store/useAdminStore';
 
@@ -218,7 +219,6 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
 
                 <button
                   onClick={() => {
-                    const { clearTokens } = require('@/lib/auth');
                     clearTokens();
                     logout();
                     window.location.href = '/login';

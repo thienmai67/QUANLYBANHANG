@@ -962,12 +962,7 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	// Always enforce PENDING status
 	order.Status = domain.OrderStatusPending
@@ -990,7 +985,7 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 		err := tx.QueryRowContext(ctx, `SELECT base_price, COALESCE(stock_quantity, 0) FROM me_supplies.products WHERE id = $1 AND is_active = TRUE`, item.ProductID).Scan(&basePrice, &stockQuantity)
 		if err != nil {
 			_ = tx.Rollback()
-		if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, sql.ErrNoRows) {
 				return domain.ErrProductNotFound
 			}
 			return fmt.Errorf("fetch product base price: %w", err)
@@ -1120,12 +1115,7 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	selectQuery := fmt.Sprintf(`
         SELECT %s
@@ -1273,25 +1263,35 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 	// D5: Hoàn kho nếu đơn bị hủy sau khi đã duyệt PACKING/SHIPPING
 	if (o.Status == domain.OrderStatusPacking || o.Status == domain.OrderStatusShipping) && toStatus == domain.OrderStatusCancelled {
 		restoreRows, err := tx.QueryContext(ctx, `SELECT product_id, quantity FROM me_supplies.order_items WHERE order_id = $1`, o.ID)
-		if err == nil {
-			type restoreReq struct {
-				productID uuid.UUID
-				qty       float64
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch order items for stock restoration: %w", err)
+		}
+		type restoreReq struct {
+			productID uuid.UUID
+			qty       float64
+		}
+		var restItems []restoreReq
+		for restoreRows.Next() {
+			var it restoreReq
+			if err := restoreRows.Scan(&it.productID, &it.qty); err != nil {
+				_ = restoreRows.Close()
+				return nil, fmt.Errorf("scan item for stock restoration: %w", err)
 			}
-			var restItems []restoreReq
-			for restoreRows.Next() {
-				var it restoreReq
-				if err := restoreRows.Scan(&it.productID, &it.qty); err == nil {
-					restItems = append(restItems, it)
-				}
+			restItems = append(restItems, it)
+		}
+		_ = restoreRows.Close()
+		for _, it := range restItems {
+			restoreQty := int(math.Ceil(it.qty))
+			if restoreQty <= 0 {
+				continue
 			}
-			_ = restoreRows.Close()
-			for _, it := range restItems {
-				_, _ = tx.ExecContext(ctx, `
-					UPDATE me_supplies.products
-					SET stock_quantity = stock_quantity + $1, updated_at = NOW()
-					WHERE id = $2
-				`, it.qty, it.productID)
+			_, err = tx.ExecContext(ctx, `
+				UPDATE me_supplies.products
+				SET stock_quantity = stock_quantity + $1, updated_at = NOW()
+				WHERE id = $2
+			`, restoreQty, it.productID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to restore stock: %w", err)
 			}
 		}
 	}
@@ -1502,12 +1502,7 @@ func (r *productRepository) CreateCODSettlement(
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
-	}()
+	defer tx.Rollback()
 
 	// Verify shipper exists and has role SHIPPER
 	var shipperRole domain.UserRole
@@ -1899,4 +1894,3 @@ func (r *productRepository) CancelTimedOutBankTransferOrders(ctx context.Context
 	}
 	return count, nil
 }
-
