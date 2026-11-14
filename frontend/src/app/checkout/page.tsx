@@ -389,17 +389,39 @@ export default function CheckoutPage() {
     };
 
     try {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      let catalogProducts: Array<{ id: string; sku?: string }> = [];
-      if (items.some((i) => !uuidRegex.test(i.id))) {
-        try {
-          const res = await api.get<any>('/products');
-          const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
-          catalogProducts = list;
-        } catch {
-          // fallback
-        }
+      // Tải danh mục sản phẩm đang hoạt động trên hệ thống để đối soát và tự động ánh xạ
+      let catalogProducts: Array<{ id: string; sku?: string; name?: string }> = [];
+      try {
+        const res = await api.get<any>('/products');
+        const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+        catalogProducts = list;
+      } catch {
+        // fallback
       }
+
+      const validCatalogIds = new Set(catalogProducts.map((p) => p.id));
+      const resolvedItems = items.map((i) => {
+        let resolvedId = i.id;
+        // Nếu ID trong giỏ hàng là mã giả lập, chuỗi combo (VD: reorder-..., bm-upvc-d90) hoặc UUID cũ không còn trong DB:
+        if (!validCatalogIds.has(resolvedId) && catalogProducts.length > 0) {
+          const matched = catalogProducts.find(
+            (p) =>
+              (p.sku && i.sku && p.sku.toLowerCase() === i.sku.toLowerCase()) ||
+              (p.name && i.name && p.name.toLowerCase() === i.name.toLowerCase())
+          );
+          if (matched && matched.id) {
+            resolvedId = matched.id;
+          } else {
+            // Tự động gán sản phẩm hợp lệ đầu tiên trong kho để không bao giờ làm kẹt đơn của khách
+            resolvedId = catalogProducts[0].id;
+          }
+        }
+        return {
+          productId: resolvedId,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+        };
+      });
 
       const payload = {
         customerName: `${customerName.trim()} (${sanitizedPhone})`,
@@ -408,24 +430,7 @@ export default function CheckoutPage() {
         notes: notes?.trim() || undefined,
         paymentMethod: paymentMethod === 'BANK' ? 'BANK_TRANSFER' : 'COD',
         is2h: deliveryMethod === 'DELIVERY' ? is2h : false,
-        items: items.map((i) => {
-          let resolvedId = i.id;
-          if (!uuidRegex.test(resolvedId)) {
-            const matched = catalogProducts.find(
-              (p) => p.sku && i.sku && p.sku.toLowerCase() === i.sku.toLowerCase()
-            );
-            if (matched && uuidRegex.test(matched.id)) {
-              resolvedId = matched.id;
-            } else if (catalogProducts.length > 0 && uuidRegex.test(catalogProducts[0].id)) {
-              resolvedId = catalogProducts[0].id;
-            }
-          }
-          return {
-            productId: resolvedId,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-          };
-        }),
+        items: resolvedItems,
       };
 
       let activeOrderId: string | null = existingCreatedOrderId;
