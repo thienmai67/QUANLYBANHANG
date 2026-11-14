@@ -717,13 +717,14 @@ ON CONFLICT (code) DO NOTHING;
 			return fmt.Errorf("hash password for %s: %w", u.email, err)
 		}
 		_, err = db.Exec(`
-			INSERT INTO me_supplies.users (email, full_name, role, auth_provider, password_hash, phone)
-			VALUES ($1, $2, $3, 'LOCAL', $4, $5)
+			INSERT INTO me_supplies.users (email, full_name, role, auth_provider, password_hash, phone, is_active)
+			VALUES ($1, $2, $3, 'LOCAL', $4, $5, TRUE)
 			ON CONFLICT (email) DO UPDATE
 			SET role = EXCLUDED.role,
 			    full_name = EXCLUDED.full_name,
 			    password_hash = EXCLUDED.password_hash,
-			    phone = EXCLUDED.phone
+			    phone = EXCLUDED.phone,
+			    is_active = TRUE
 		`, u.email, u.fullName, u.role, string(hash), u.phone)
 		if err != nil {
 			return fmt.Errorf("upsert demo user %s: %w", u.email, err)

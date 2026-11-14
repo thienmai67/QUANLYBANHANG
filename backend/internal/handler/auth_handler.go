@@ -189,6 +189,7 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 type LoginRequest struct {
 	Email    string `json:"email"`
+	Phone    string `json:"phone,omitempty"`
 	Password string `json:"password"`
 }
 
@@ -199,10 +200,14 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cleanEmail := strings.ToLower(strings.TrimSpace(req.Email))
+	loginIdentifier := strings.TrimSpace(req.Email)
+	if loginIdentifier == "" {
+		loginIdentifier = strings.TrimSpace(req.Phone)
+	}
+	cleanEmail := strings.ToLower(loginIdentifier)
 
 	if cleanEmail == "" || req.Password == "" {
-		writeJSONError(w, http.StatusBadRequest, "Vui lòng nhập Email và Mật khẩu.")
+		writeJSONError(w, http.StatusBadRequest, "Vui lòng nhập Email hoặc Số điện thoại và Mật khẩu.")
 		return
 	}
 
