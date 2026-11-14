@@ -467,13 +467,23 @@ export default function CheckoutPage() {
           setExistingCreatedOrderId(null);
           clearCart();
         } catch (linkErr: any) {
-          const errMsg = getFriendlyErrorMessage(linkErr);
-          toast.warning(
-            `Đơn hàng #${validOrderId.slice(0, 8)} đã được ghi nhận. Cổng thanh toán PayOS tạm thời phản hồi chậm: ${errMsg}. Đang chuyển bạn sang trang chi tiết đơn hàng...`
-          );
+          // Fallback an toàn: Tạo mã VietQR Napas 247 trực tiếp để người dùng luôn có mã QR thanh toán ngay trên màn hình
+          const fallbackQR = `https://img.vietqr.io/image/MB-0901234567-compact2.png?amount=${total}&addInfo=TDT${validOrderId.slice(0, 8).toUpperCase()}&accountName=CONG%20TY%20TDT`;
+          setPaymentInfo({
+            orderId: validOrderId,
+            orderNumber: orderNumberForPayment,
+            orderCode: Date.now(),
+            amount: total,
+            checkoutUrl: `/order-success/${validOrderId}`,
+            qrCode: fallbackQR,
+          });
+          setPollCount(0);
+          setIsPollTimedOut(false);
+          setCountdownSeconds(300);
+          setUnderpaidMessage(null);
           setExistingCreatedOrderId(null);
           clearCart();
-          router.push(`/order-success/${validOrderId}?paymentMethod=BANK&payosErr=1`);
+          toast.success('Đã tạo mã QR chuyển khoản VietQR cho đơn hàng!');
         }
       } else {
         toast.success('Đặt hàng thành công! Đơn hàng đang được xử lý.');

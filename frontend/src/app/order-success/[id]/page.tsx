@@ -24,6 +24,8 @@ import {
   ShoppingBag,
   AlertCircle,
   FileText,
+  QrCode,
+  Copy,
 } from 'lucide-react';
 
 interface OrderDetail {
@@ -61,6 +63,13 @@ export default function OrderSuccessPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopy = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   useEffect(() => {
     if (!orderId) {
@@ -364,6 +373,100 @@ export default function OrderSuccessPage() {
                 </div>
               </div>
             </div>
+
+            {/* VietQR Bank Transfer Card if order is BANK_TRANSFER and not yet PAID */}
+            {order?.paymentMethod === 'BANK_TRANSFER' && order?.paymentStatus !== 'PAID' && (
+              <div className="bg-white dark:bg-[#0c1322] rounded-2xl border-2 border-orange-200 dark:border-orange-900/60 p-6 md:p-8 shadow-sm space-y-6">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <QrCode className="w-5 h-5 text-orange-500" />
+                    <h2 className="font-bold text-base md:text-lg text-slate-900 dark:text-white">
+                      Mã QR Thanh Toán Chuyển Khoản (VietQR Napas 247)
+                    </h2>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                    Chờ thanh toán
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                  {/* QR Image */}
+                  <div className="md:col-span-5 flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <img
+                      src={`https://img.vietqr.io/image/MB-0901234567-compact2.png?amount=${Math.round(order.totalAmount || order.finalAmount || 0)}&addInfo=TDT${(order.orderNumber || order.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 15)}&accountName=CONG%20TY%20TDT`}
+                      alt="VietQR Code"
+                      className="w-52 h-52 object-contain rounded-xl bg-white p-2 shadow-sm"
+                    />
+                    <p className="text-[11px] text-slate-500 text-center mt-2">
+                      Mở app ngân hàng bất kỳ để quét mã
+                    </p>
+                  </div>
+
+                  {/* Transfer Details */}
+                  <div className="md:col-span-7 space-y-3.5 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Ngân hàng thụ hưởng:</span>
+                        <strong className="text-slate-900 dark:text-white text-sm">MB Bank (Ngân hàng Quân Đội)</strong>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Số tài khoản:</span>
+                        <strong className="font-mono text-slate-900 dark:text-white text-base">0901234567</strong>
+                      </div>
+                      <button
+                        onClick={() => handleCopy('0901234567', 'stk')}
+                        className="px-2.5 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 font-bold text-[11px] hover:bg-orange-200 transition-colors flex items-center gap-1"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{copiedField === 'stk' ? 'Đã chép!' : 'Sao chép'}</span>
+                      </button>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Chủ tài khoản:</span>
+                        <strong className="text-slate-900 dark:text-white text-sm">CÔNG TY TDT</strong>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Số tiền:</span>
+                        <strong className="font-mono text-orange-600 dark:text-orange-400 text-base">
+                          {Math.round(order.totalAmount || order.finalAmount || 0).toLocaleString('vi-VN')} VND
+                        </strong>
+                      </div>
+                      <button
+                        onClick={() => handleCopy(String(Math.round(order.totalAmount || order.finalAmount || 0)), 'amount')}
+                        className="px-2.5 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 font-bold text-[11px] hover:bg-orange-200 transition-colors flex items-center gap-1"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{copiedField === 'amount' ? 'Đã chép!' : 'Sao chép'}</span>
+                      </button>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Nội dung chuyển khoản:</span>
+                        <strong className="font-mono text-slate-900 dark:text-white text-xs">
+                          {`TDT${(order.orderNumber || order.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 15)}`}
+                        </strong>
+                      </div>
+                      <button
+                        onClick={() => handleCopy(`TDT${(order.orderNumber || order.id).replace(/[^a-zA-Z0-9]/g, '').slice(0, 15)}`, 'desc')}
+                        className="px-2.5 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 font-bold text-[11px] hover:bg-orange-200 transition-colors flex items-center gap-1"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{copiedField === 'desc' ? 'Đã chép!' : 'Sao chép'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Purchased Items Card */}
             {order?.items && order.items.length > 0 && (
