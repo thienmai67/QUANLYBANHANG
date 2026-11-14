@@ -26,7 +26,9 @@ import {
   FileText,
   QrCode,
   Copy,
+  Printer,
 } from 'lucide-react';
+import { ThermalReceiptModal, ThermalOrderData } from '@/components/ThermalReceiptModal';
 
 interface OrderDetail {
   id: string;
@@ -64,6 +66,7 @@ export default function OrderSuccessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -513,6 +516,15 @@ export default function OrderSuccessPage() {
 
             {/* Bottom Actions */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowReceipt(true)}
+                className="w-full sm:w-auto px-5 py-3.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 font-bold rounded-xl shadow-md transition-all text-xs flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4 text-orange-400" />
+                <span>In Phiếu K80 / Hóa Đơn</span>
+              </button>
+
               {isAuth ? (
                 <Link
                   href="/profile"
@@ -548,6 +560,30 @@ export default function OrderSuccessPage() {
           </div>
         )}
       </main>
+
+      {/* K80 Thermal Receipt Modal */}
+      {order && (
+        <ThermalReceiptModal
+          isOpen={showReceipt}
+          onClose={() => setShowReceipt(false)}
+          order={{
+            orderNumber: order.orderNumber || order.id,
+            createdAt: order.createdAt,
+            customerName: order.customerName,
+            customerPhone: order.customerPhone,
+            shippingAddress: order.shippingAddress || order.deliveryAddress,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: order.paymentStatus,
+            totalAmount: order.totalAmount || order.finalAmount || 0,
+            items: (order.items || []).map((it) => ({
+              productName: it.productName,
+              sku: it.sku,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+            })),
+          }}
+        />
+      )}
 
       <MaterialFooter />
     </div>

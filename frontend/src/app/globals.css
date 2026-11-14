@@ -47,6 +47,52 @@ body {
 ::-webkit-scrollbar-track {
   background: #F8F5EE;
 }
+
+/* Lenis Smooth Scroll Recommended Styles */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* Modern Glow & Micro-interactions (Inspired by 21st.dev & React Bits) */
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 3s ease-in-out infinite;
+}
+
+.card-hover-glow {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-hover-glow:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -6px rgba(249, 115, 22, 0.12), 0 0 0 1px rgba(249, 115, 22, 0.15);
+}
 ::-webkit-scrollbar-thumb {
   background: rgba(163, 137, 102, 0.3);
   border-radius: 9999px;
