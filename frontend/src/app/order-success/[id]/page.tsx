@@ -7,6 +7,8 @@ import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import { api, getFriendlyErrorMessage } from '@/lib/api';
 import { useAdminStore } from '@/store/useAdminStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/auth';
 import {
   CheckCircle2,
   Package,
@@ -53,6 +55,8 @@ export default function OrderSuccessPage() {
   const params = useParams();
   const router = useRouter();
   const orderId = (params?.id as string) || '';
+  const { isAuthenticated } = useAuthStore();
+  const isAuth = isAuthenticated || !!getAccessToken();
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -406,13 +410,23 @@ export default function OrderSuccessPage() {
 
             {/* Bottom Actions */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-              <Link
-                href="/profile"
-                className="w-full sm:w-auto px-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all text-xs flex items-center justify-center gap-2"
-              >
-                <span>Theo dõi tiến độ đơn hàng tại Hồ Sơ</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              {isAuth ? (
+                <Link
+                  href="/profile"
+                  className="w-full sm:w-auto px-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all text-xs flex items-center justify-center gap-2"
+                >
+                  <span>Theo dõi tiến độ đơn hàng tại Hồ Sơ</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <Link
+                  href={`/tra-cuu-don-hang?phone=${encodeURIComponent(order?.customerPhone || '')}&orderNumber=${encodeURIComponent(order?.orderNumber || orderId)}`}
+                  className="w-full sm:w-auto px-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all text-xs flex items-center justify-center gap-2"
+                >
+                  <span>Tra cứu tiến độ đơn hàng</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
               <Link
                 href="/"
                 className="w-full sm:w-auto px-6 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all text-xs flex items-center justify-center gap-2"

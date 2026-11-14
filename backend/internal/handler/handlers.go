@@ -629,6 +629,11 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 		order.Items[i].CreatedAt = now
 	}
 
+	// Defensively truncate CustomerName to max 100 characters to prevent PostgreSQL error 22001
+	if len([]rune(order.CustomerName)) > 100 {
+		order.CustomerName = string([]rune(order.CustomerName)[:100])
+	}
+
 	if err := h.productRepo.CreateOrder(req.Context(), &order); err != nil {
 		if errors.Is(err, domain.ErrInsufficientStock) {
 			writeAPIError(w, http.StatusBadRequest, "INSUFFICIENT_STOCK", "Số lượng tồn kho không đủ để đáp ứng đơn hàng")

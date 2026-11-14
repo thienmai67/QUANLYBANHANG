@@ -699,12 +699,16 @@ ON CONFLICT (code) DO NOTHING;
 	demoUsers := []seedUser{
 		{email: "manager@tdt.vn", fullName: "Quản Lý Hải Đăng", role: "MANAGER", password: "Manager@123", phone: "0909000111"},
 		{email: "quanly@tdt.vn", fullName: "Quản Lý Hải Đăng", role: "MANAGER", password: "Manager@123", phone: "0909000111"},
+		{email: "admin@gmail.com", fullName: "Quản Trị Viên", role: "MANAGER", password: "admin123", phone: "0908888999"},
+		{email: "admin@tdt.vn", fullName: "Quản Trị Hệ Thống", role: "MANAGER", password: "Admin@123", phone: "0908888999"},
+		{email: "sale@gmail.com", fullName: "Nhân Viên Kinh Doanh", role: "SALE", password: "sale123", phone: "0908112233"},
 		{email: "sale@tdt.vn", fullName: "Nguyễn Văn Kinh Doanh", role: "SALE", password: "Sale@123", phone: "0908112233"},
+		{email: "shipper@gmail.com", fullName: "Nhân Viên Giao Hàng", role: "SHIPPER", password: "shipper123", phone: "0901234567"},
 		{email: "shipper@tdt.vn", fullName: "Trần Quốc Toản", role: "SHIPPER", password: "Shipper@123", phone: "0902345678"},
 		{email: "shipper1@tdt.vn", fullName: "Nguyễn Văn Hùng", role: "SHIPPER", password: "Shipper@123", phone: "0901234567"},
+		{email: "customer@gmail.com", fullName: "Khách Hàng Mua Sắm", role: "CUSTOMER", password: "customer123", phone: "0903456789"},
 		{email: "customer@tdt.vn", fullName: "Khách Hàng Bán Lẻ", role: "CUSTOMER", password: "Customer@123", phone: "0903456789"},
 		{email: "khachhang@gmail.com", fullName: "Khách Hàng Bán Lẻ", role: "CUSTOMER", password: "Customer@123", phone: "0903456789"},
-		{email: "admin@tdt.vn", fullName: "Quản Trị Hệ Thống", role: "MANAGER", password: "Admin@123", phone: "0908888999"},
 	}
 
 	for _, u := range demoUsers {

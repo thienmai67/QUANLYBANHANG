@@ -79,6 +79,8 @@ export default function ChangePasswordPage() {
         window.location.href = "/shipper?welcome=1";
       } else if (user?.role === "MANAGER") {
         window.location.href = "/manager/dashboard";
+      } else if (user?.role === "SALE") {
+        window.location.href = "/sale/dashboard";
       } else {
         window.location.href = "/profile";
       }

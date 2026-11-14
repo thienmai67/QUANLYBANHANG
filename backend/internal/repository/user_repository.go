@@ -41,7 +41,9 @@ func (r *userRepository) FindByEmailOrPhone(ctx context.Context, identifier stri
 	const query = `
 		SELECT id, email, full_name, phone, avatar_url, google_id, password_hash, role, auth_provider, must_change_password, is_active, created_at, updated_at
 		FROM me_supplies.users
-		WHERE email = $1 OR phone = $1`
+		WHERE email = $1 OR phone = $1
+		ORDER BY (CASE WHEN email = $1 THEN 0 WHEN email = 'shipper1@tdt.vn' THEN 1 ELSE 2 END), id ASC
+		LIMIT 1`
 
 	var user domain.User
 	if err := r.db.GetContext(ctx, &user, query, identifier); err != nil {

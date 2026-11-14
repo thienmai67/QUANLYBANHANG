@@ -1244,3 +1244,41 @@ func TestHandlePayOSWebhook(t *testing.T) {
 		t.Errorf("expected order payment status REFUND_PENDING, got %s", repo.orders[1].PaymentStatus)
 	}
 }
+
+
+func TestCreateOrder_CustomerNameTruncation(t *testing.T) {
+	repo := newMockProductRepo()
+	h := New(repo)
+
+	longName := strings.Repeat("Nguyễn Văn A ", 15) // > 100 characters
+	orderPayload := domain.Order{
+		CustomerName: longName,
+		TotalAmount:  50000,
+		Items: []domain.OrderItem{
+			{
+				ProductID: uuid.New(),
+				Quantity:  1,
+				UnitPrice: 50000,
+			},
+		},
+	}
+
+	body, _ := json.Marshal(orderPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/orders", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	h.CreateOrder(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status 201 Created, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	if len(repo.orders) != 1 {
+		t.Fatalf("expected 1 order in repo, got %d", len(repo.orders))
+	}
+
+	saved := repo.orders[0]
+	if len([]rune(saved.CustomerName)) > 100 {
+		t.Errorf("expected customerName to be truncated to max 100 runes, got %d runes", len([]rune(saved.CustomerName)))
+	}
+}

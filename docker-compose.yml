@@ -47,7 +47,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: /api

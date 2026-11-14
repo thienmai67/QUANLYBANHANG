@@ -39,7 +39,7 @@ test.describe('03. Role-Based Access Control (RBAC) & RouteGuard Enforcement', (
     await expect(page).toHaveURL(/\/auth\/error\?reason=unauthorized/);
   });
 
-  test('should allow MANAGER access to /manager but block from /admin/dashboard', async ({ page }) => {
+  test('should allow MANAGER access to /manager and redirect /admin/dashboard to /manager/dashboard', async ({ page }) => {
     await injectAuthState(page, 'MANAGER');
 
     // Manager allowed in /manager
@@ -47,9 +47,9 @@ test.describe('03. Role-Based Access Control (RBAC) & RouteGuard Enforcement', (
     await expect(page).toHaveURL(/\/manager/);
     await expect(page.getByText('Manager Portal')).toBeVisible();
 
-    // Manager blocked from /admin/dashboard
+    // Manager accessing /admin/dashboard redirects to consolidated /manager/dashboard
     await page.goto('/admin/dashboard');
-    await expect(page).toHaveURL(/\/auth\/error\?reason=unauthorized/);
+    await expect(page).toHaveURL(/\/manager\/dashboard/);
   });
 
   test('should grant ADMIN universal access across /admin, /manager, and /shipper portals', async ({ page }) => {

@@ -407,9 +407,14 @@ export default function CustomerProfilePage() {
 
   useEffect(() => {
     setMounted(true);
+    const token = getAccessToken();
+    if (!token && !isAuthenticated) {
+      router.replace('/login?from=/profile');
+      return;
+    }
     loadProfile();
     loadOrders();
-  }, [loadProfile, loadOrders]);
+  }, [loadProfile, loadOrders, isAuthenticated, router]);
 
   // Handle Save Profile
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -838,6 +843,14 @@ export default function CustomerProfilePage() {
   const activeTheme = mounted ? resolvedTheme || theme || 'dark' : 'dark';
   const displayName = fullNameInput || user?.name || 'Khách hàng';
   const userAvatar = displayName.charAt(0).toUpperCase();
+
+  if (mounted && !getAccessToken() && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="profile-root" data-theme={activeTheme}>
