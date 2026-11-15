@@ -189,8 +189,31 @@ export default function CheckoutPage() {
   const [countdownSeconds, setCountdownSeconds] = useState(300); // 5 minutes countdown
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
+  const fallbackCopyText = (text: string) => {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      textArea.remove();
+    } catch {
+      // ignore
+    }
+  };
+
   const handleCopy = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {
+        fallbackCopyText(text);
+      });
+    } else {
+      fallbackCopyText(text);
+    }
     setCopiedField(field);
     toast.success('Đã sao chép vào bộ nhớ tạm!');
     setTimeout(() => setCopiedField(null), 2000);
