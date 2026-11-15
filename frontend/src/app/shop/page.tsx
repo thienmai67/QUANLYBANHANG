@@ -182,14 +182,17 @@ export default function ShopPage() {
   const handleAddToCart = (prod: MaterialProduct) => {
     const rawPrice = prod.rawPrice || parseInt(prod.price.replace(/[^\d]/g, ''), 10) || 100000;
 
-    addItem({
-      id: prod.id,
-      sku: prod.sku,
-      name: prod.name,
-      price: prod.price,
-      unitPrice: rawPrice,
-      image: prod.image,
-    });
+    addItem(
+      {
+        id: prod.id,
+        sku: prod.sku,
+        name: prod.name,
+        price: prod.price,
+        unitPrice: rawPrice,
+        image: prod.image,
+      },
+      false
+    );
 
     toast.success(`Đã thêm "${prod.name}" vào giỏ hàng`);
 
