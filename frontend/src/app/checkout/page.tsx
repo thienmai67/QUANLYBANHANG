@@ -31,6 +31,7 @@ import {
   Phone,
   FileText,
   Store,
+  Copy,
 } from 'lucide-react';
 
 interface PaymentInfo {
@@ -186,6 +187,14 @@ export default function CheckoutPage() {
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [isRegeneratingQR, setIsRegeneratingQR] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(300); // 5 minutes countdown
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopy = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    toast.success('Đã sao chép vào bộ nhớ tạm!');
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   // Snapshot of items and total before clearing cart on PayOS
   const [orderSnapshot, setOrderSnapshot] = useState<{
@@ -1059,6 +1068,72 @@ export default function CheckoutPage() {
                     <p className="text-xs text-center font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-xl border border-amber-200 dark:border-amber-900 max-w-md">
                       ⚠️ <strong>Lưu ý quan trọng:</strong> Vui lòng giữ nguyên số tiền và nội dung chuyển khoản để hệ thống tự động xác nhận đơn hàng sau 3–5 giây.
                     </p>
+
+                    {/* Bank Info Cards with Copy Action Buttons */}
+                    <div className="w-full max-w-md space-y-2.5 pt-1 text-left">
+                      <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                        <div>
+                          <span className="text-slate-500 block text-[11px]">Ngân hàng:</span>
+                          <strong className="text-slate-900 dark:text-white text-xs">MB Bank (Quân Đội)</strong>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                        <div>
+                          <span className="text-slate-500 block text-[11px]">Số tài khoản:</span>
+                          <strong className="font-mono text-slate-900 dark:text-white text-base">0901234567</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy('0901234567', 'stk')}
+                          className="px-2.5 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 font-bold text-[11px] hover:bg-orange-200 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{copiedField === 'stk' ? 'Đã chép!' : 'Sao chép'}</span>
+                        </button>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                        <div>
+                          <span className="text-slate-500 block text-[11px]">Chủ tài khoản:</span>
+                          <strong className="text-slate-900 dark:text-white text-xs">CONG TY TDT</strong>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                        <div>
+                          <span className="text-slate-500 block text-[11px]">Số tiền:</span>
+                          <strong className="font-mono text-orange-600 dark:text-orange-400 text-base">
+                            {paymentInfo.amount.toLocaleString('vi-VN')} VND
+                          </strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(String(paymentInfo.amount), 'amount')}
+                          className="px-2.5 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 font-bold text-[11px] hover:bg-orange-200 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{copiedField === 'amount' ? 'Đã chép!' : 'Sao chép'}</span>
+                        </button>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+                        <div>
+                          <span className="text-slate-500 block text-[11px]">Nội dung chuyển khoản:</span>
+                          <strong className="font-mono text-slate-900 dark:text-white text-xs">
+                            {`TDT${paymentInfo.orderId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase()}`}
+                          </strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(`TDT${paymentInfo.orderId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase()}`, 'desc')}
+                          className="px-2.5 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 font-bold text-[11px] hover:bg-orange-200 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{copiedField === 'desc' ? 'Đã chép!' : 'Sao chép'}</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Underpaid warning if any */}

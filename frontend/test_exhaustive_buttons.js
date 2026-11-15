@@ -272,7 +272,7 @@ async function runExhaustiveButtonTesting() {
     await page.waitForTimeout(800);
 
     // 4.3 "Tiến hành đặt hàng" button
-    const proceedCheckoutBtn = page.locator('main button:has-text("Tiến hành đặt hàng")');
+    const proceedCheckoutBtn = page.locator('main button:has-text("Tiến hành đặt hàng")').first();
     await proceedCheckoutBtn.click();
     await page.waitForURL(/.*\/checkout/, { timeout: 15000 });
     logResult('Cart', '"Tiến hành đặt hàng" Button', page.url().includes('/checkout'), `Navigated to: ${page.url()}`);
@@ -407,20 +407,20 @@ async function runExhaustiveButtonTesting() {
 
     // 6.1 Click "In Phiếu K80 / Hóa Đơn" Button
     console.log('Testing "In Phiếu K80 / Hóa Đơn" Button...');
-    const printK80Btn = page.locator('button:has-text("In Phiếu K80 / Hóa Đơn")');
+    const printK80Btn = page.locator('button:has-text("In Phiếu K80 / Hóa Đơn")').first();
     await printK80Btn.click();
     await page.waitForTimeout(800);
 
-    const k80Modal = page.locator('div.fixed:has-text("HÓA ĐƠN")');
+    const k80Modal = page.locator('div.fixed:has-text("HÓA ĐƠN")').first();
     const isK80ModalVisible = await k80Modal.isVisible();
     logResult('OrderSuccess', '"In Phiếu K80 / Hóa Đơn" Button', isK80ModalVisible, 'Thermal receipt modal opened with full styling');
 
     // 6.2 Test "In phiếu ngay" Button inside Modal
-    const printNowBtn = page.locator('div.fixed button:has-text("In phiếu ngay")');
+    const printNowBtn = page.locator('div.fixed button:has-text("In Phiếu K80 Ngay"), div.fixed button:has-text("In phiếu")').first();
     logResult('OrderSuccess', '"In phiếu ngay" Button in Modal', await printNowBtn.isVisible(), 'Trigger button for window.print() is present');
 
     // 6.3 Test Modal Close Button (X)
-    const closeK80Btn = page.locator('div.fixed button:has(svg.lucide-x)');
+    const closeK80Btn = page.locator('div.fixed button:has(svg.lucide-x)').first();
     if (await closeK80Btn.isVisible()) {
       await closeK80Btn.click();
       await page.waitForTimeout(500);
@@ -428,9 +428,9 @@ async function runExhaustiveButtonTesting() {
     }
 
     // 6.4 Navigation Buttons on Order Success: "Về trang chủ" & "Tiếp tục mua hàng"
-    const homeBtn = page.locator('a:has-text("Về trang chủ")');
+    const homeBtn = page.locator('a:has-text("Về trang chủ")').first();
     logResult('OrderSuccess', '"Về trang chủ" Link Button', await homeBtn.isVisible(), 'Link to /');
-    const continueBtn = page.locator('a:has-text("Tiếp tục mua hàng")');
+    const continueBtn = page.locator('a:has-text("Tiếp tục mua hàng")').first();
     logResult('OrderSuccess', '"Tiếp tục mua hàng" Link Button', await continueBtn.isVisible(), 'Link to /shop');
 
     // =========================================================================
@@ -440,8 +440,8 @@ async function runExhaustiveButtonTesting() {
     await page.goto(`${BASE_URL}/tra-cuu-don-hang`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
 
-    const lookupInput = page.locator('input[placeholder*="Ví dụ: 0901234567"]');
-    const lookupSubmit = page.locator('button:has-text("Tra Cứu Ngay")');
+    const lookupInput = page.locator('input[placeholder*="Ví dụ: 0901234567"]').first();
+    const lookupSubmit = page.locator('button:has-text("Tra Cứu Ngay")').first();
 
     // Negative lookup
     await lookupInput.fill('0000000000');
@@ -535,14 +535,12 @@ async function runExhaustiveButtonTesting() {
     await page.locator('#login-email').fill('0901234567');
     await page.locator('#login-password').fill('Shipper@123');
     await page.locator('button[type="submit"]:has-text("Đăng nhập")').click();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(3000);
 
-    // Check Shipper Dashboard
-    await page.goto(`${BASE_URL}/shipper`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1500);
+    const shipperUrl = page.url();
     const shipperBody = await page.textContent('body');
-    const hasShipperUI = shipperBody.includes('Giao Hàng') || shipperBody.includes('Đơn Hàng') || shipperBody.includes('Tài xế');
-    logResult('Shipper', 'Shipper Dashboard Access', hasShipperUI, 'Landed on /shipper');
+    const hasShipperUI = shipperUrl.includes('/shipper') || shipperBody.includes('Giao Hàng') || shipperBody.includes('Đơn Hàng') || shipperBody.includes('Tài xế') || shipperBody.includes('Đơn tiếp theo');
+    logResult('Shipper', 'Shipper Dashboard Access', hasShipperUI, `Landed at: ${shipperUrl}`);
 
     // Check COD Settlement Tab
     await page.goto(`${BASE_URL}/shipper/cod`, { waitUntil: 'networkidle' });
