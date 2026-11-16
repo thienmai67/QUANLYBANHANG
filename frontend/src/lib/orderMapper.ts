@@ -177,14 +177,33 @@ export function mapOrderFromApi(raw: any): Order {
           },
         ];
 
+  const rawCustomerName = raw.customerName || raw.customer_name || 'Khách hàng';
+  const namePhoneMatch = rawCustomerName.match(/\((0\d{9})\)|\b(0[35789]\d{8})\b/);
+  const resolvedPhone =
+    raw.customerPhone ||
+    raw.customer_phone ||
+    (namePhoneMatch ? namePhoneMatch[1] || namePhoneMatch[2] : '') ||
+    '';
+
+  const resolvedAddress =
+    raw.deliveryAddress ||
+    raw.delivery_address ||
+    raw.shippingAddress ||
+    raw.shipping_address ||
+    '';
+
+  const resolvedNotes = raw.notes || raw.note || undefined;
+
   return {
     id,
     code,
     orderNumber,
     customerId: raw.customerId || raw.customer_id || '',
-    customerName: raw.customerName || raw.customer_name || 'Khách hàng',
-    customerPhone: raw.customerPhone || raw.customer_phone || '0901234567',
-    shippingAddress: raw.shippingAddress || raw.shipping_address || 'TP. Hồ Chí Minh',
+    customerName: rawCustomerName,
+    customerPhone: resolvedPhone,
+    shippingAddress: resolvedAddress,
+    deliveryAddress: resolvedAddress,
+    notes: resolvedNotes,
     items,
     totalAmount: totalAmountNum,
     total: totalAmountNum,

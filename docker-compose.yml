@@ -46,13 +46,29 @@ services:
     container_name: me-supplies-frontend
     depends_on:
       - backend
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+    expose:
+      - "3000"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: /api
       BACKEND_INTERNAL_URL: http://backend:8080
     restart: unless-stopped
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: me-supplies-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
 volumes:
   pg_data:
+  caddy_data:
+  caddy_config:

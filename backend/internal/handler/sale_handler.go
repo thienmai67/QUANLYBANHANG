@@ -80,7 +80,8 @@ func getActorSaleIDForWrite(r *http.Request, explicitSaleID *uuid.UUID) (uuid.UU
 				return parsed, nil
 			}
 		}
-		return uuid.Nil, errors.New("quản lý cần chọn nhân viên bán hàng phụ trách")
+		// Fallback to manager's own ID if no specific sale agent is specified
+		return uuid.Parse(claims.UserID)
 	}
 	return uuid.Parse(claims.UserID)
 }

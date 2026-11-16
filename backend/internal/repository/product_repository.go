@@ -622,7 +622,7 @@ const orderBaseSelectColumns = `
     version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
     cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
     payment_status, payos_order_code, paid_at, payment_receipt_url, refund_tx_code, refunded_at,
-    created_at, updated_at, sale_id
+    created_at, updated_at, sale_id, delivery_address, notes
 `
 
 type orderScanner interface {
@@ -632,7 +632,7 @@ type orderScanner interface {
 func scanOrderRow(s orderScanner) (*domain.Order, error) {
 	var o domain.Order
 	var custID, shipID, incidentReportedBy, saleID uuid.NullUUID
-	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail, payStatus, payReceipt, refundTx sql.NullString
+	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail, payStatus, payReceipt, refundTx, deliveryAddress, notes sql.NullString
 	var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt, paidAt, refundedAt sql.NullTime
 	var payosOrderCode sql.NullInt64
 
@@ -642,7 +642,7 @@ func scanOrderRow(s orderScanner) (*domain.Order, error) {
 		&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
 		&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
 		&payStatus, &payosOrderCode, &paidAt, &payReceipt, &refundTx, &refundedAt,
-		&o.CreatedAt, &o.UpdatedAt, &saleID,
+		&o.CreatedAt, &o.UpdatedAt, &saleID, &deliveryAddress, &notes,
 	)
 	if err != nil {
 		return nil, err
@@ -710,6 +710,13 @@ func scanOrderRow(s orderScanner) (*domain.Order, error) {
 	}
 	if refundedAt.Valid {
 		o.RefundedAt = &refundedAt.Time
+	}
+	if deliveryAddress.Valid {
+		o.DeliveryAddress = &deliveryAddress.String
+		o.ShippingAddress = &deliveryAddress.String
+	}
+	if notes.Valid {
+		o.Notes = &notes.String
 	}
 
 	return &o, nil
@@ -875,7 +882,7 @@ const orderAliasedSelectColumns = `
     o.version, o.pod_photo_url, o.pod_recipient_name, o.pod_confirmed_at, o.cod_collected,
     o.cod_remitted, o.cod_remitted_at, o.incident_detail, o.incident_reported_by, o.incident_reported_at,
     o.payment_status, o.payos_order_code, o.paid_at, o.payment_receipt_url, o.refund_tx_code, o.refunded_at,
-    o.created_at, o.updated_at, o.sale_id
+    o.created_at, o.updated_at, o.sale_id, o.delivery_address, o.notes
 `
 
 func (r *productRepository) LookupOrderByNumberOrPhone(ctx context.Context, orderNumber, phone string) ([]domain.Order, error) {
@@ -1027,15 +1034,16 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
         INSERT INTO me_supplies.orders (
             id, order_number, customer_id, customer_name, shipper_id, payment_method,
             is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-            version, created_at, updated_at, payment_status, sale_id
+            version, created_at, updated_at, payment_status, sale_id, delivery_address, notes
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
         )
     `
 	_, err = tx.ExecContext(ctx, orderQuery,
 		order.ID, order.OrderNumber, order.CustomerID, order.CustomerName, order.ShipperID, order.PaymentMethod,
 		order.Is2H, order.Deadline2H, order.DeliveredAt, order.CancellationReason, order.TotalAmount, order.Status,
 		order.Version, order.CreatedAt, order.UpdatedAt, order.PaymentStatus, order.SaleID,
+		order.DeliveryAddress, order.Notes,
 	)
 	if err != nil {
 		_ = tx.Rollback()
@@ -1072,11 +1080,12 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 }
 
 var validTransitions = map[domain.OrderStatus][]domain.OrderStatus{
-	domain.OrderStatusPending:   {domain.OrderStatusPacking, domain.OrderStatusCancelled},
-	domain.OrderStatusPacking:   {domain.OrderStatusShipping, domain.OrderStatusCancelled},
-	domain.OrderStatusShipping:  {domain.OrderStatusDelivered, domain.OrderStatusCancelled},
-	domain.OrderStatusDelivered: {},
-	domain.OrderStatusCancelled: {},
+	domain.OrderStatusPending:        {domain.OrderStatusPacking, domain.OrderStatusCancelled},
+	domain.OrderStatusPacking:        {domain.OrderStatusShipping, domain.OrderStatusCancelled},
+	domain.OrderStatusShipping:       {domain.OrderStatusDelivered, domain.OrderStatusDeliveryFailed, domain.OrderStatusCancelled},
+	domain.OrderStatusDeliveryFailed: {domain.OrderStatusShipping, domain.OrderStatusCancelled},
+	domain.OrderStatusDelivered:      {},
+	domain.OrderStatusCancelled:      {},
 }
 
 func isValidTransition(from, to domain.OrderStatus) bool {
@@ -1260,8 +1269,8 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		}
 	}
 
-	// D5: Hoàn kho nếu đơn bị hủy sau khi đã duyệt PACKING/SHIPPING
-	if (o.Status == domain.OrderStatusPacking || o.Status == domain.OrderStatusShipping) && toStatus == domain.OrderStatusCancelled {
+	// D5: Hoàn kho nếu đơn bị hủy sau khi đã duyệt PACKING/SHIPPING/DELIVERY_FAILED
+	if (o.Status == domain.OrderStatusPacking || o.Status == domain.OrderStatusShipping || o.Status == domain.OrderStatusDeliveryFailed) && toStatus == domain.OrderStatusCancelled {
 		restoreRows, err := tx.QueryContext(ctx, `SELECT product_id, quantity FROM me_supplies.order_items WHERE order_id = $1`, o.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch order items for stock restoration: %w", err)
@@ -1395,6 +1404,21 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		} else if o.PaymentStatus == domain.PaymentStatusUnpaid || o.PaymentStatus == domain.PaymentStatusPending {
 			newPaymentStatus = domain.PaymentStatusCancelled
 		}
+	}
+
+	// 4d. -> DELIVERY_FAILED: record incident detail
+	if toStatus == domain.OrderStatusDeliveryFailed {
+		if req.GetIncidentDetail() != nil && strings.TrimSpace(*req.GetIncidentDetail()) != "" {
+			trimmedIncident := strings.TrimSpace(*req.GetIncidentDetail())
+			newIncidentDetail = &trimmedIncident
+		} else if req.GetCancellationReason() != nil && strings.TrimSpace(*req.GetCancellationReason()) != "" {
+			trimmedIncident := strings.TrimSpace(*req.GetCancellationReason())
+			newIncidentDetail = &trimmedIncident
+		}
+		if actorID != uuid.Nil {
+			newIncidentReportedBy = &actorID
+		}
+		newIncidentReportedAt = &now
 	}
 
 	// 5. Atomic UPDATE with version increment

@@ -180,8 +180,14 @@ export function OrderDetailModal({
               </div>
               <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
                 <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-                <span>{order.shippingAddress}</span>
+                <span className="break-words">{order.shippingAddress || order.deliveryAddress || 'Chưa cung cấp'}</span>
               </div>
+              {order.notes && (
+                <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <FileText className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                  <span><strong>Ghi chú:</strong> {order.notes}</span>
+                </div>
+              )}
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 space-y-2.5">

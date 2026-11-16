@@ -1,0 +1,7 @@
+tdtmaterial.id.vn {
+    reverse_proxy frontend:3000
+}
+
+http://47.129.119.94 {
+    reverse_proxy frontend:3000
+}

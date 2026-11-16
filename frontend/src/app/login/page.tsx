@@ -285,50 +285,44 @@ export default function LoginPage() {
         {/* Action Buttons: Google OAuth & Submit */}
         <AuthActionRow submitText="Đăng nhập" isLoading={isLoading} />
 
-        {/* Quick Mock Credentials Selection */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
-          <div className="text-[11px] font-semibold text-slate-400 mb-2 text-center">
-            Tài khoản thử nghiệm nhanh (Mock Login):
+        {/* Quick Mock Credentials Selection - STRICTLY DISABLED IN PRODUCTION */}
+        {process.env.NODE_ENV !== 'production' && (
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            <div className="text-[11px] font-semibold text-slate-400 mb-2 text-center">
+              Tài khoản thử nghiệm nội bộ (Development Only):
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => handleQuickMockLogin('MANAGER')}
+                className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all text-center truncate"
+              >
+                👔 Manager
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickMockLogin('SALE')}
+                className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 transition-all text-center truncate"
+              >
+                💼 Sale
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickMockLogin('SHIPPER')}
+                className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all text-center truncate"
+              >
+                🚚 Shipper
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickMockLogin('CUSTOMER')}
+                className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 transition-all text-center truncate"
+              >
+                👤 Customer
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickMockLogin('MANAGER')}
-              title="quanly@tdt.vn / Manager@123"
-              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all text-center truncate"
-            >
-              👔 Manager
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickMockLogin('SALE')}
-              title="sale@tdt.vn / Sale@123"
-              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 transition-all text-center truncate"
-            >
-              💼 Sale
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickMockLogin('SHIPPER')}
-              title="0901234567 / Shipper@123"
-              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all text-center truncate"
-            >
-              🚚 Shipper
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickMockLogin('CUSTOMER')}
-              title="khachhang@gmail.com / Customer@123"
-              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 transition-all text-center truncate"
-            >
-              👤 Customer
-            </button>
-          </div>
-          <div className="mt-2 text-[10px] text-slate-400 text-center space-y-0.5">
-            <div>Manager: <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">quanly@tdt.vn</span> | Sale: <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">sale@tdt.vn</span></div>
-            <div>Shipper: <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">0901234567</span> | Customer: <span className="font-mono text-slate-600 dark:text-slate-300 font-medium">khachhang@gmail.com</span></div>
-          </div>
-        </div>
+        )}
       </form>
 
       {/* Lối vào đăng ký shipper (GĐ1): form hồ sơ, chờ quản lý duyệt */}

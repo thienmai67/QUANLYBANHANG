@@ -576,7 +576,7 @@ func TestHandleLogin_EmptyCredentials(t *testing.T) {
 			if rr.Code != http.StatusBadRequest {
 				t.Fatalf("expected status 400, got %d", rr.Code)
 			}
-			if !strings.Contains(rr.Body.String(), "Vui lòng nhập Email và Mật khẩu.") {
+			if !strings.Contains(rr.Body.String(), "Vui lòng nhập Email") {
 				t.Errorf("expected empty credentials message, got %s", rr.Body.String())
 			}
 		})

@@ -271,9 +271,19 @@ export default function ShipperOrderDetailPage() {
                 <span className="font-semibold text-slate-900 dark:text-white block">
                   Địa chỉ giao tận nơi:
                 </span>
-                {order.shippingAddress}
+                {order.shippingAddress || (order as any).deliveryAddress || 'Chưa cung cấp'}
               </div>
             </div>
+
+            {(order.notes || (order as any).notes) && (
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-start gap-2 text-xs text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <span className="font-bold block">Ghi chú giao hàng:</span>
+                  {order.notes || (order as any).notes}
+                </div>
+              </div>
+            )}
 
             {/* Quick Tactical Call & Navigation Actions */}
             <div className="grid grid-cols-2 gap-2 pt-1">

@@ -251,8 +251,8 @@ export default function OrderSuccessPage() {
                   }`}
                 >
                   {order?.paymentStatus === 'PAID'
-                    ? '● Đã thanh toán (PayOS)'
-                    : '○ Chưa thanh toán (COD / Chờ thanh toán)'}
+                    ? (order?.paymentMethod === 'BANK_TRANSFER' ? '● Đã thanh toán (VietQR PayOS)' : '● Đã thanh toán (COD)')
+                    : (order?.paymentMethod === 'BANK_TRANSFER' ? '○ Chờ thanh toán (VietQR PayOS)' : '○ Chưa thanh toán (Thu tiền khi nhận - COD)')}
                 </div>
 
                 {order?.is2h && (
@@ -381,6 +381,16 @@ export default function OrderSuccessPage() {
                     </span>
                   </div>
                 </div>
+
+                {order?.notes && (
+                  <div className="flex items-start gap-2.5 text-slate-600 dark:text-slate-400 md:col-span-2">
+                    <FileText className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-slate-500">Ghi chú cho tài xế/kho:</span>{' '}
+                      <span className="text-slate-900 dark:text-white">{order.notes}</span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-start gap-2.5 text-slate-600 dark:text-slate-400 md:col-span-2">
                   {order?.paymentMethod === 'BANK_TRANSFER' ? (

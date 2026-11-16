@@ -30,11 +30,12 @@ const (
 type OrderStatus string
 
 const (
-	OrderStatusPending   OrderStatus = "PENDING"
-	OrderStatusPacking   OrderStatus = "PACKING"
-	OrderStatusShipping  OrderStatus = "SHIPPING"
-	OrderStatusDelivered OrderStatus = "DELIVERED"
-	OrderStatusCancelled OrderStatus = "CANCELLED"
+	OrderStatusPending        OrderStatus = "PENDING"
+	OrderStatusPacking        OrderStatus = "PACKING"
+	OrderStatusShipping       OrderStatus = "SHIPPING"
+	OrderStatusDelivered      OrderStatus = "DELIVERED"
+	OrderStatusCancelled      OrderStatus = "CANCELLED"
+	OrderStatusDeliveryFailed OrderStatus = "DELIVERY_FAILED"
 )
 
 type PaymentStatus string
@@ -146,6 +147,9 @@ type Order struct {
 	ShipperID          *uuid.UUID  `json:"shipperId,omitempty" db:"shipper_id"`
 	SaleID             *uuid.UUID  `json:"saleId,omitempty" db:"sale_id"`
 	PaymentMethod      *string     `json:"paymentMethod,omitempty" db:"payment_method"`
+	DeliveryAddress    *string     `json:"deliveryAddress,omitempty" db:"delivery_address"`
+	ShippingAddress    *string     `json:"shippingAddress,omitempty" db:"-"`
+	Notes              *string     `json:"notes,omitempty" db:"notes"`
 	Is2H               bool        `json:"is2h" db:"is_2h"`
 	Deadline2H         *time.Time  `json:"deadline2h,omitempty" db:"deadline_2h"`
 	DeliveredAt        *time.Time  `json:"deliveredAt,omitempty" db:"delivered_at"`

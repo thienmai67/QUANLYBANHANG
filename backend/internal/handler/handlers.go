@@ -514,10 +514,47 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
-	var order domain.Order
-	if err := json.NewDecoder(req.Body).Decode(&order); err != nil {
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid order data")
 		return
+	}
+
+	var order domain.Order
+	if err := json.Unmarshal(bodyBytes, &order); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid order data")
+		return
+	}
+
+	// Capture alias fields (shippingAddress, delivery_address, note, etc.)
+	var rawMap map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &rawMap); err == nil {
+		if order.DeliveryAddress == nil || strings.TrimSpace(*order.DeliveryAddress) == "" {
+			for _, key := range []string{"shippingAddress", "delivery_address", "shipping_address", "deliveryAddress", "address"} {
+				if val, ok := rawMap[key]; ok {
+					if strVal, isStr := val.(string); isStr && strings.TrimSpace(strVal) != "" {
+						trimmed := strings.TrimSpace(strVal)
+						order.DeliveryAddress = &trimmed
+						order.ShippingAddress = &trimmed
+						break
+					}
+				}
+			}
+		} else if order.ShippingAddress == nil {
+			order.ShippingAddress = order.DeliveryAddress
+		}
+
+		if order.Notes == nil || strings.TrimSpace(*order.Notes) == "" {
+			for _, key := range []string{"notes", "note", "ghi_chu", "orderNotes"} {
+				if val, ok := rawMap[key]; ok {
+					if strVal, isStr := val.(string); isStr && strings.TrimSpace(strVal) != "" {
+						trimmed := strings.TrimSpace(strVal)
+						order.Notes = &trimmed
+						break
+					}
+				}
+			}
+		}
 	}
 
 	if strings.TrimSpace(order.CustomerName) == "" {
