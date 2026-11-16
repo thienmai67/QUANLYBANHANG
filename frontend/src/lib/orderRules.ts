@@ -11,7 +11,8 @@ import { Order, OrderStatus, Shipper, StatusHistoryEntry } from '@/types/manager
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING: ['PACKING', 'CANCELLED'],
   PACKING: ['SHIPPING', 'CANCELLED'],
-  SHIPPING: ['DELIVERED', 'CANCELLED'],
+  SHIPPING: ['DELIVERED', 'DELIVERY_FAILED', 'CANCELLED'],
+  DELIVERY_FAILED: ['SHIPPING', 'CANCELLED'],
   DELIVERED: [],
   CANCELLED: [],
 };

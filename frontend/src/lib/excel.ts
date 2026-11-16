@@ -7,6 +7,7 @@ const STATUS_VIETNAMESE: Record<OrderStatus, string> = {
   SHIPPING: 'Đang giao',
   DELIVERED: 'Đã giao',
   CANCELLED: 'Đã hủy',
+  DELIVERY_FAILED: 'Sự cố / Thất bại',
 };
 
 /**

@@ -45,6 +45,7 @@ const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
   { id: 'PACKING', label: 'Đang đóng gói' },
   { id: 'SHIPPING', label: 'Đang giao' },
   { id: 'DELIVERED', label: 'Đã giao' },
+  { id: 'DELIVERY_FAILED', label: 'Sự cố / Giao thất bại' },
   { id: 'CANCELLED', label: 'Đã hủy' },
 ];
 
@@ -115,6 +116,7 @@ function OrdersManagementContent() {
       SHIPPING: 0,
       DELIVERED: 0,
       CANCELLED: 0,
+      DELIVERY_FAILED: 0,
     };
     for (const o of orders) {
       if (o.status in counts) {

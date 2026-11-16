@@ -48,6 +48,12 @@ const statusConfigs: Record<OrderStatus, StatusConfig> = {
     classes:
       'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60',
   },
+  DELIVERY_FAILED: {
+    label: 'Sự cố / Thất bại',
+    icon: XCircle,
+    classes:
+      'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/60',
+  },
 };
 
 const sizeClasses = {
