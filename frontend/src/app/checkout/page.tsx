@@ -232,7 +232,7 @@ export default function CheckoutPage() {
       const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
       if (!isAuth) {
         toast.error('Vui lòng đăng nhập tài khoản để tiến hành thanh toán đơn hàng!');
-        router.push('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
+        window.location.replace('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
         return;
       }
     }
@@ -244,7 +244,7 @@ export default function CheckoutPage() {
         setCustomerPhone(user.phone);
       }
     }
-  }, [user, router, toast]);
+  }, [user]);
 
   // Keep snapshot of items for order summary
   useEffect(() => {
