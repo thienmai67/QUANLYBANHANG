@@ -31,6 +31,9 @@ export default function CartDrawer() {
     getTotalItems,
   } = useCartStore();
 
+  const isAuthStore = useAuthStore((state) => state.isAuthenticated);
+  const isAuth = isAuthStore || (typeof window !== 'undefined' && !!getAccessToken());
+
   // If triggered with openToCheckout flag, directly navigate to /checkout
   React.useEffect(() => {
     if (isOpen && openToCheckout) {
@@ -58,7 +61,6 @@ export default function CartDrawer() {
 
   const totalItemsCount = getTotalItems();
   const totalPrice = getTotalPrice();
-  const isAuth = useAuthStore((state) => state.isAuthenticated) || (typeof window !== 'undefined' && !!getAccessToken());
 
   return (
     <div className="fixed inset-0 z-[100] overflow-hidden">
