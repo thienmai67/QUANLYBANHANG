@@ -46,9 +46,10 @@ func NewAuthHandler(userRepo domain.UserRepository, jwtService *auth.JWTService)
 }
 
 type RegisterRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	FullName string `json:"fullName"`
+	Email    string  `json:"email"`
+	Phone    *string `json:"phone,omitempty"`
+	Password string  `json:"password"`
+	FullName string  `json:"fullName"`
 }
 
 func writeJSONError(w http.ResponseWriter, statusCode int, message string, code ...string) {
@@ -176,6 +177,10 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		AuthProvider: domain.AuthProviderLocal,
 		IsActive:     true,
 	}
+	if req.Phone != nil && strings.TrimSpace(*req.Phone) != "" {
+		cleanedPhone := strings.TrimSpace(*req.Phone)
+		user.Phone = &cleanedPhone
+	}
 
 	if err := h.userRepo.CreateUser(r.Context(), user); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "Không thể tạo tài khoản mới")
@@ -203,6 +208,16 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	loginIdentifier := strings.TrimSpace(req.Email)
 	if loginIdentifier == "" {
 		loginIdentifier = strings.TrimSpace(req.Phone)
+	}
+
+	// Normalize phone format if input looks like a phone number (+84..., 090 123 4567, etc.)
+	digitsOnly := regexp.MustCompile(`\D`).ReplaceAllString(loginIdentifier, "")
+	if !strings.Contains(loginIdentifier, "@") && digitsOnly != "" {
+		if strings.HasPrefix(digitsOnly, "84") && len(digitsOnly) >= 11 {
+			loginIdentifier = "0" + digitsOnly[2:]
+		} else if strings.HasPrefix(digitsOnly, "0") {
+			loginIdentifier = digitsOnly
+		}
 	}
 	cleanEmail := strings.ToLower(loginIdentifier)
 

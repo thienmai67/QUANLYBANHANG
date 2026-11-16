@@ -9,7 +9,7 @@ import AuthActionRow from "@/components/auth/AuthActionRow";
 import AuthModal from "@/components/auth/AuthModal";
 import { saveTokens, decodeToken } from "@/lib/auth";
 import { useAuthStore } from "@/store/useAuthStore";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getFriendlyErrorMessage } from "@/lib/api";
 
 const MOCK_ACCOUNTS: Record<
   string,
@@ -167,11 +167,27 @@ export default function LoginPage() {
     const mockMatch = MOCK_ACCOUNTS[cleanEmail];
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, password }),
-      });
+      let res: Response | null = null;
+      let lastFetchErr: any = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          res = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: cleanEmail, password }),
+          });
+          break;
+        } catch (fetchErr) {
+          lastFetchErr = fetchErr;
+          if (attempt === 0) {
+            await new Promise((r) => setTimeout(r, 600));
+          }
+        }
+      }
+
+      if (!res) {
+        throw new Error(getFriendlyErrorMessage(lastFetchErr));
+      }
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
@@ -196,11 +212,7 @@ export default function LoginPage() {
         data.user?.mustChangePassword === true
       );
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMsg(err.message);
-      } else {
-        setErrorMsg("Không thể kết nối đến máy chủ xác thực.");
-      }
+      setErrorMsg(getFriendlyErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

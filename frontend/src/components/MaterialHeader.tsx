@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   ShoppingCart,
@@ -31,6 +32,7 @@ interface MaterialHeaderProps {
 }
 
 export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: string; name: string; sku: string; brand: string; price: string; image: string }[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -124,6 +126,17 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    setIsSearchFocused(false);
+                    if (searchQuery.trim()) {
+                      router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+                    } else {
+                      router.push('/shop');
+                    }
+                  }
+                }}
                 placeholder="Tìm mua: ống uPVC, cadivi, aptomat, van đồng, đèn LED..."
                 className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900/50 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-[#070b14] text-sm text-slate-900 dark:text-slate-100 transition-all font-medium placeholder:text-slate-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
               />
@@ -153,9 +166,21 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                           {prod.sku} • {prod.brand}
                         </p>
                       </div>
-                      <span className="text-sm font-bold text-orange-500">{prod.price}</span>
+                      <span className="text-sm font-bold text-orange-500 whitespace-nowrap shrink-0 ml-2">{prod.price}</span>
                     </Link>
                   ))}
+                </div>
+                <div className="p-2.5 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-800 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSearchFocused(false);
+                      router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+                    }}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                  >
+                    Xem tất cả kết quả cho &quot;{searchQuery}&quot; &rarr;
+                  </button>
                 </div>
               </div>
             )}
@@ -247,8 +272,8 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
             >
               <ShoppingCart className="w-5 h-5 text-slate-700 dark:text-slate-300 group-hover:text-blue-600 transition-colors" />
               {mounted && cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-[#0c1322] animate-bounce">
-                  {cartCount}
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-[#0c1322] animate-bounce">
+                  {cartCount > 99 ? '99+' : cartCount}
                 </span>
               )}
             </button>

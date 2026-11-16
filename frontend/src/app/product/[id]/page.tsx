@@ -10,6 +10,7 @@ import { getAccessToken } from '@/lib/auth';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 import { useToast } from '@/hooks/useToast';
+import { MATERIAL_PRODUCTS } from '@/data/materialData';
 import {
   ChevronRight,
   ShoppingBag,
@@ -206,7 +207,7 @@ function getInstallationAdvice(product: ProductDetailData): { title: string; tip
       title: '💡 Hướng Dẫn Lắp Đặt Aptomat / Ổ Cắm Gia Đình',
       tips: [
         'Nguồn điện vào bắt buộc đấu ở cực trên (LINE / TOP), tải ra thiết bị đấu ở cực dưới (LOAD / BOTTOM).',
-        'Dùng tua-vít đúng cỡ siết chặt chân ốc để tránh bị đánh tia lửa điện và sinh nhiệt move tiếp điểm.',
+        'Dùng tua-vít đúng cỡ siết chặt chân ốc để tránh bị đánh tia lửa điện và sinh nhiệt làm lỏng tiếp điểm.',
         'Với bình nóng lạnh hoặc khu vực ẩm ướt phòng tắm, ưu tiên dùng Aptomat chống giật (RCBO độ nhạy 30mA).',
       ],
     };
@@ -257,18 +258,35 @@ export default function ProductDetailPage() {
           return;
         }
       } catch {
-        // Only try SKU lookup if productId is not a UUID
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(productId)) {
-          try {
-            const bySku = await api.get<any>(`/products/sku/${encodeURIComponent(productId)}`);
-            if (!cancelled && bySku && bySku.id) {
-              setProduct(normalizeProductDetail(bySku));
-              setLoading(false);
-              return;
-            }
-          } catch {
-            // fall through to 404
+        // Try SKU lookup
+        try {
+          const bySku = await api.get<any>(`/products/sku/${encodeURIComponent(productId)}`);
+          if (!cancelled && bySku && bySku.id) {
+            setProduct(normalizeProductDetail(bySku));
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // Try local fallback from MATERIAL_PRODUCTS
+          const localMatch = MATERIAL_PRODUCTS.find(
+            (m) => m.id === productId || m.sku.toLowerCase() === productId.toLowerCase()
+          );
+          if (!cancelled && localMatch) {
+            setProduct(normalizeProductDetail({
+              id: localMatch.id,
+              sku: localMatch.sku,
+              name: localMatch.name,
+              brand: localMatch.brand,
+              category: localMatch.category,
+              basePrice: localMatch.rawPrice || 50000,
+              stock: 500,
+              image: localMatch.image,
+              description: localMatch.description,
+              specs: localMatch.specs,
+              unit: localMatch.unit,
+            }));
+            setLoading(false);
+            return;
           }
         }
       }

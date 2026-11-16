@@ -119,6 +119,49 @@ export default function CheckoutPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
   const [pickupStore, setPickupStore] = useState<'HOC_MON' | 'GO_VAP'>('HOC_MON');
 
+  // Restore draft from localStorage on mount (BUG-36)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('tdt_checkout_draft');
+        if (saved) {
+          const draft = JSON.parse(saved);
+          if (draft.customerName) setCustomerName(draft.customerName);
+          if (draft.customerPhone) setCustomerPhone(draft.customerPhone);
+          if (draft.streetAddress) setStreetAddress(draft.streetAddress);
+          if (draft.notes) setNotes(draft.notes);
+          if (draft.selectedProvince) setSelectedProvince(draft.selectedProvince);
+          if (draft.selectedDistrict) setSelectedDistrict(draft.selectedDistrict);
+          if (draft.selectedWard) setSelectedWard(draft.selectedWard);
+          if (draft.deliveryMethod) setDeliveryMethod(draft.deliveryMethod);
+          if (draft.pickupStore) setPickupStore(draft.pickupStore);
+        }
+      } catch {}
+    }
+  }, []);
+
+  // Save draft on change (BUG-36)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(
+          'tdt_checkout_draft',
+          JSON.stringify({
+            customerName,
+            customerPhone,
+            streetAddress,
+            notes,
+            selectedProvince,
+            selectedDistrict,
+            selectedWard,
+            deliveryMethod,
+            pickupStore,
+          })
+        );
+      } catch {}
+    }
+  }, [customerName, customerPhone, streetAddress, notes, selectedProvince, selectedDistrict, selectedWard, deliveryMethod, pickupStore]);
+
   const availableDistricts = useMemo(() => {
     return VN_PROVINCES[selectedProvince] ? Object.keys(VN_PROVINCES[selectedProvince]) : [];
   }, [selectedProvince]);
@@ -537,12 +580,18 @@ export default function CheckoutPage() {
           setUnderpaidMessage(null);
           setExistingCreatedOrderId(null);
           clearCart();
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('tdt_checkout_draft');
+          }
           toast.success('Đã tạo mã QR chuyển khoản VietQR cho đơn hàng!');
         }
       } else {
         toast.success('Đặt hàng thành công! Đơn hàng đang được xử lý.');
         setExistingCreatedOrderId(null);
         clearCart();
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('tdt_checkout_draft');
+        }
         router.push(`/order-success/${validOrderId}`);
       }
     } catch (err: any) {
@@ -1318,6 +1367,13 @@ export default function CheckoutPage() {
                     <span>Giảm giá:</span>
                     <span className="font-mono font-semibold text-emerald-600">
                       0 VND
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                    <span>Thuế VAT (8%):</span>
+                    <span className="font-mono text-xs text-slate-500">
+                      Đã bao gồm trong giá
                     </span>
                   </div>
 

@@ -53,15 +53,15 @@ export function middleware(request: NextRequest) {
 
     // Check required role
     if (isManagerRoute && role !== 'MANAGER' && role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/403', request.url));
+      return NextResponse.redirect(new URL('/403?required=MANAGER', request.url));
     }
 
-    if (isShipperRoute && role !== 'SHIPPER' && role !== 'MANAGER' && role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/403', request.url));
+    if (isShipperRoute && role !== 'SHIPPER') {
+      return NextResponse.redirect(new URL('/403?required=SHIPPER', request.url));
     }
 
     if (isSaleRoute && role !== 'SALE' && role !== 'MANAGER' && role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/403', request.url));
+      return NextResponse.redirect(new URL('/403?required=SALE', request.url));
     }
   }
 

@@ -29,7 +29,7 @@ export default function RouteGuard({
 
     if (!token && !isAuthenticated && !user) {
       setIsAuthorized(false);
-      router.replace(`${fallbackUrl}?reason=unauthenticated`);
+      router.replace(fallbackUrl);
       return;
     }
 
@@ -51,7 +51,7 @@ export default function RouteGuard({
 
     if (!currentRole) {
       setIsAuthorized(false);
-      router.replace(`${fallbackUrl}?reason=unauthenticated`);
+      router.replace(fallbackUrl);
       return;
     }
 
@@ -61,7 +61,7 @@ export default function RouteGuard({
 
     if (!hasRole) {
       setIsAuthorized(false);
-      router.replace(forbiddenUrl);
+      router.replace(`${forbiddenUrl}?required=${encodeURIComponent(allowedRoles.join('/'))}`);
       return;
     }
 

@@ -665,6 +665,16 @@ export default function SaleOrdersPage() {
 
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-xs space-y-1">
               <div className="flex justify-between">
+                <span className="text-slate-400">Trạng thái đơn:</span>
+                <span className={`font-bold ${confirmMarkPaidOrder.status === 'CANCELLED' ? 'text-rose-600' : 'text-slate-800 dark:text-slate-200'}`}>
+                  {confirmMarkPaidOrder.status === 'CANCELLED' ? 'Đã hủy' :
+                   confirmMarkPaidOrder.status === 'DELIVERED' ? 'Đã giao' :
+                   confirmMarkPaidOrder.status === 'SHIPPING' ? 'Đang giao' :
+                   confirmMarkPaidOrder.status === 'PACKING' ? 'Đang đóng gói' :
+                   confirmMarkPaidOrder.status === 'DELIVERY_FAILED' ? 'Giao thất bại' : 'Chờ xử lý'}
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-slate-400">Khách hàng:</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{confirmMarkPaidOrder.customerName}</span>
               </div>
@@ -678,10 +688,16 @@ export default function SaleOrdersPage() {
               </div>
             </div>
 
+            {confirmMarkPaidOrder.status === 'CANCELLED' && (
+              <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 text-xs text-rose-700 dark:text-rose-300 font-medium text-center">
+                Cảnh báo: Đơn hàng này đã bị hủy, không thể thu tiền.
+              </div>
+            )}
+
             <div className="flex items-center gap-2 pt-2">
               <button
                 type="button"
-                disabled={isMarkingPaid}
+                disabled={isMarkingPaid || confirmMarkPaidOrder.status === "CANCELLED"}
                 onClick={() => setConfirmMarkPaidOrder(null)}
                 className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors"
               >
@@ -689,7 +705,7 @@ export default function SaleOrdersPage() {
               </button>
               <button
                 type="button"
-                disabled={isMarkingPaid}
+                disabled={isMarkingPaid || confirmMarkPaidOrder.status === "CANCELLED"}
                 onClick={handleConfirmMarkPaid}
                 className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md shadow-emerald-600/30"
               >

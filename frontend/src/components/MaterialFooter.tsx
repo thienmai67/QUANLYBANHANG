@@ -9,9 +9,9 @@ export default function MaterialFooter() {
   return (
     <footer className="w-full bg-white dark:bg-[#0c1322] border-t border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 transition-colors mt-auto">
       {/* 1. Continuous Marquee */}
-      <div className="w-full overflow-hidden border-b border-slate-200 dark:border-slate-800 py-6 bg-slate-50 dark:bg-slate-900">
-        <div className="animate-marquee flex gap-12 items-center">
-          {[...MATERIAL_PARTNERS, ...MATERIAL_PARTNERS].map((partner, idx) => (
+      <div className="w-full overflow-hidden border-b border-slate-200 dark:border-slate-800 py-6 bg-slate-50 dark:bg-slate-900 px-4">
+        <div className="animate-marquee flex gap-16 items-center whitespace-nowrap pl-8">
+          {[...MATERIAL_PARTNERS, ...MATERIAL_PARTNERS, ...MATERIAL_PARTNERS].map((partner, idx) => (
             <div key={`${partner.id}-${idx}`} className="flex items-center gap-3 shrink-0 opacity-60 hover:opacity-100 transition-opacity grayscale hover:grayscale-0">
               <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-slate-400">
                 {partner.name}
@@ -66,9 +66,9 @@ export default function MaterialFooter() {
           <div className="space-y-6">
             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Liên Hệ Trực Tiếp</h4>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400 font-medium">
-              <li className="flex items-center gap-3">
-                <MapPin className="w-4 h-4 shrink-0" />
-                <span>Tòa nhà Icon 4, Đống Đa, Hà Nội, Việt Nam</span>
+              <li className="flex items-start gap-3">
+                <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>CN1: 120/4 Lý Thường Kiệt, TT. Hóc Môn, TP.HCM<br />CN2: 45 Lê Đức Thọ, P.7, Q. Gò Vấp, TP.HCM</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-4 h-4 shrink-0" />

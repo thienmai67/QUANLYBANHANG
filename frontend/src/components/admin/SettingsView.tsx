@@ -36,9 +36,9 @@ export function SettingsView() {
   };
 
   const profileData = {
-    name: user?.name || 'Quản Lý Vận Hành TDT',
-    email: user?.email || 'manager@tdt.vn',
-    phone: user?.phone || '0908888999',
+    name: user?.name || (user as any)?.fullName || 'Quản Lý Vận Hành TDT',
+    email: user?.email || 'quanly@tdt.vn',
+    phone: user?.phone || '0909000111',
     role: 'Quản Lý Hệ Thống M&E (MANAGER)',
   };
 

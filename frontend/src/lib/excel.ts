@@ -111,12 +111,22 @@ export function buildOrdersWorkbook(orders: Order[], XLSX: any) {
           ? item.total
           : Math.round(item.quantity * item.unitPrice);
 
+      const text = `${item.productName || ''} ${item.sku || ''}`.toLowerCase();
+      let resolvedUnit = item.unit || 'Cái';
+      if (!item.unit || item.unit === 'Cái') {
+        if (text.includes('dây') || text.includes('cáp') || text.includes('cadivi') || text.startsWith('cad-') || text.startsWith('cv-')) {
+          resolvedUnit = 'Mét';
+        } else if (text.includes('ống') || text.includes('upvc') || text.includes('ppr') || text.startsWith('bm-')) {
+          resolvedUnit = 'Cây';
+        }
+      }
+
       itemRows.push([
         o.code,
         item.sku || item.productId,
         item.productName,
         item.brand,
-        item.unit,
+        resolvedUnit,
         item.quantity,
         item.unitPrice,
         item.discountRate ?? 0,

@@ -32,32 +32,22 @@ const BRAND_TABS: Array<{ id: BrandTab; label: string }> = [
   { id: 'Bình Minh', label: 'Bình Minh' },
   { id: 'Schneider', label: 'Schneider' },
   { id: 'Panasonic', label: 'Panasonic' },
+  { id: 'Rạng Đông', label: 'Rạng Đông' },
+  { id: 'Khác', label: 'Khác' },
 ];
 
 export default function ManagerProductsPage() {
   const toast = useToast();
   const { products, getDiscountedPrice, fetchProducts, deleteProduct } = useManagerStore();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const handleDelete = async (prod: Product) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prod.name}" (${prod.code})?`)) {
-      return;
-    }
-    setDeletingId(prod.id);
-    try {
-      const res = await deleteProduct(prod.id);
-      if (res.success) {
-        toast.success(`Đã xóa sản phẩm ${prod.name} thành công`);
-      } else {
-        toast.error(res.error || 'Xóa sản phẩm thất bại');
-      }
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDelete = (prod: Product) => {
+    setConfirmDeleteProduct(prod);
   };
 
   const [selectedBrand, setSelectedBrand] = useState<BrandTab>('ALL');
@@ -82,16 +72,20 @@ export default function ManagerProductsPage() {
 
   // Brand product counts
   const brandCounts = useMemo(() => {
-    const counts: Record<BrandTab, number> = {
+    const counts: Record<string, number> = {
       ALL: products.length,
       Cadivi: 0,
       'Bình Minh': 0,
       Schneider: 0,
       Panasonic: 0,
+      'Rạng Đông': 0,
+      'Khác': 0,
     };
     for (const p of products) {
-      if (p.brand in counts) {
+      if (counts[p.brand] !== undefined) {
         counts[p.brand] += 1;
+      } else {
+        counts['Khác'] = (counts['Khác'] || 0) + 1;
       }
     }
     return counts;
@@ -536,6 +530,57 @@ export default function ManagerProductsPage() {
         }}
         onSuccess={() => fetchProducts()}
       />
+
+      {confirmDeleteProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">Xác nhận xóa vật tư</h3>
+                <p className="text-xs text-slate-500">Mã SKU: <span className="font-mono font-bold text-rose-600">{confirmDeleteProduct.code}</span></p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Bạn có chắc chắn muốn xóa vật tư <strong className="text-slate-900 dark:text-white">{confirmDeleteProduct.name}</strong> khỏi hệ thống kho?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteProduct(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const target = confirmDeleteProduct;
+                  setConfirmDeleteProduct(null);
+                  setDeletingId(target.id);
+                  try {
+                    const res = await deleteProduct(target.id);
+                    if (res.success) {
+                      toast.success(`Đã xóa sản phẩm ${target.name} thành công`);
+                    } else {
+                      toast.error(res.error || 'Xóa sản phẩm thất bại');
+                    }
+                  } finally {
+                    setDeletingId(null);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-colors"
+              >
+                Xác nhận xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

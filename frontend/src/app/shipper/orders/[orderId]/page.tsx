@@ -116,7 +116,7 @@ export default function ShipperOrderDetailPage() {
 
   if (!order || !isAuthorizedShipper) {
     return (
-      <RouteGuard allowedRoles={['SHIPPER', 'MANAGER']}>
+      <RouteGuard allowedRoles={['SHIPPER']}>
         <ShipperShell>
           <div className="p-8 text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
@@ -222,7 +222,7 @@ export default function ShipperOrderDetailPage() {
   };
 
   return (
-    <RouteGuard allowedRoles={['SHIPPER', 'MANAGER']}>
+    <RouteGuard allowedRoles={['SHIPPER']}>
       <ShipperShell>
         <div className="px-4 py-3.5 space-y-4">
           {/* 1. Top Bar: Back Button + Code + Status */}

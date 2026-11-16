@@ -2,17 +2,20 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertCircle, Mail, Phone, Lock, User, ShieldCheck } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import AuthField from "@/components/auth/AuthField";
 import AuthActionRow from "@/components/auth/AuthActionRow";
 import AuthModal from "@/components/auth/AuthModal";
-import { saveTokens } from "@/lib/auth";
+import { saveTokens, getAccessToken } from "@/lib/auth";
+import { useAuthStore } from "@/store/useAuthStore";
 import { API_BASE_URL } from "@/lib/api";
 import { shipperApi } from "@/services/shipperApi";
 import { validateRegisterForm, combineFullName, type ValidationError } from "@/lib/auth/validators";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
@@ -49,12 +52,19 @@ export default function RegisterPage() {
   const [lookupCode, setLookupCode] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Mở bằng link /register?role=shipper thì chọn sẵn tab Shipper.
+  // Mở bằng link /register?role=shipper thì chọn sẵn tab Shipper. Nếu đã đăng nhập, chuyển về /profile.
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.search.includes("role=shipper")) {
-      setAccountType("SHIPPER");
+    if (typeof window !== "undefined") {
+      const isAuth = Boolean(getAccessToken() || useAuthStore.getState().isAuthenticated);
+      if (isAuth) {
+        router.replace('/profile');
+        return;
+      }
+      if (window.location.search.includes("role=shipper")) {
+        setAccountType("SHIPPER");
+      }
     }
-  }, []);
+  }, [router]);
 
   const handleSubmitShipper = async (e: React.FormEvent) => {
     e.preventDefault();

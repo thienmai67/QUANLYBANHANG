@@ -8,7 +8,7 @@ export type PaymentStatus =
   | 'REFUND_PENDING'
   | 'REFUNDED';
 
-export type Brand = 'Cadivi' | 'Bình Minh' | 'Schneider' | 'Panasonic';
+export type Brand = 'Cadivi' | 'Bình Minh' | 'Schneider' | 'Panasonic' | 'Rạng Đông' | 'Zenner' | 'Khác' | string;
 
 export const CORE_BRANDS: readonly Brand[] = ['Cadivi', 'Bình Minh', 'Schneider', 'Panasonic'] as const;
 

@@ -183,14 +183,27 @@ function mapApiProductToManagerProduct(raw: any): Product {
     typeof raw.brand === 'object' && raw.brand !== null
       ? raw.brand.name
       : raw.brand;
-  const brandStr = String(brandRaw || '');
+  const brandLower = String(brandRaw || '').toLowerCase();
+  const skuLower = String(raw.sku || raw.code || '').toLowerCase();
+  const nameLower = String(raw.name || '').toLowerCase();
+
   let brand: Brand = 'Cadivi';
-  if (brandStr.includes('Bình Minh')) {
+  if (brandLower.includes('bình minh') || brandLower.includes('binh minh') || skuLower.startsWith('bm-') || nameLower.includes('bình minh')) {
     brand = 'Bình Minh';
-  } else if (brandStr.includes('Schneider')) {
+  } else if (brandLower.includes('schneider') || skuLower.startsWith('sch-') || nameLower.includes('schneider') || skuLower.includes('ez9')) {
     brand = 'Schneider';
-  } else if (brandStr.includes('Panasonic')) {
+  } else if (brandLower.includes('panasonic') || skuLower.startsWith('pan-') || skuLower.startsWith('pana-') || nameLower.includes('panasonic')) {
     brand = 'Panasonic';
+  } else if (brandLower.includes('rạng đông') || skuLower.startsWith('led-') || nameLower.includes('đèn led') || nameLower.includes('pha 10w')) {
+    brand = 'Rạng Đông';
+  } else if (brandLower.includes('zenner') || skuLower.startsWith('zn-') || nameLower.includes('zenner')) {
+    brand = 'Zenner';
+  } else if (brandLower.includes('cadivi') || skuLower.startsWith('cad-') || skuLower.startsWith('cv-') || nameLower.includes('cadivi')) {
+    brand = 'Cadivi';
+  } else if (brandRaw && brandRaw !== 'OTHER') {
+    brand = brandRaw;
+  } else {
+    brand = 'Khác';
   }
   const discountPercent =
     typeof specsObj.discountRate === 'number'

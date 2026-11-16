@@ -105,7 +105,18 @@ export function mapOrderFromApi(raw: any): Order {
             ? Math.round(it.unit_price)
             : 0,
         quantity: typeof it.quantity === 'number' ? it.quantity : 1,
-        unit: it.unit || it.product?.unit?.name || 'Cái',
+        unit: (() => {
+          const u = it.unit || it.product?.unit?.name;
+          if (u && u !== 'Cái') return u;
+          const text = `${it.productName || it.name || it.product?.name || ''} ${it.sku || it.product?.sku || ''}`.toLowerCase();
+          if (text.includes('dây') || text.includes('cáp') || text.includes('cadivi') || text.startsWith('cad-') || text.startsWith('cv-')) {
+            return 'Mét';
+          }
+          if (text.includes('ống') || text.includes('upvc') || text.includes('ppr') || text.startsWith('bm-')) {
+            return 'Cây';
+          }
+          return u || 'Cái';
+        })(),
         total:
           typeof it.total === 'number'
             ? Math.round(it.total)

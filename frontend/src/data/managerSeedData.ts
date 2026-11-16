@@ -1784,11 +1784,11 @@ export const SEED_SHIPPER_ORDERS: Order[] = ([
     code: 'DH-2026-100806',
     customerId: 'cust-ret-06',
     customerName: 'Trịnh Đình Quang',
-    customerPhone: '0901234567',
+    customerPhone: '0988776655',
     shippingAddress: 'Xưởng cơ khí Tân Bình, 45 Cộng Hòa, Phường 4, Tân Bình, TP.HCM',
     siteContact: {
       name: 'Anh Quang',
-      phone: '0901234567',
+      phone: '0988776655',
     },
     deliveryCoords: {
       lat: 10.8012,

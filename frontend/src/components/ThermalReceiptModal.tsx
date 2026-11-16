@@ -99,16 +99,16 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
           {/* Shop Header */}
           <div className="text-center pb-3 border-b-2 border-dashed border-slate-400">
             <h1 className="text-base font-extrabold uppercase tracking-wide">
-              ĐIỆN NƯỚC DÂN DỤNG MINH LÝ
+              CÔNG TY TNHH THƯƠNG MẠI & KỸ THUẬT TDT M&E
             </h1>
             <p className="text-[11px] text-slate-600 mt-1 font-sans">
               Chuyên thiết bị điện dân dụng, ống nước PVC/PPR, phụ kiện ngành nước
             </p>
             <div className="text-[11px] text-slate-700 mt-2 space-y-0.5 font-sans">
-              <p>📍 CN1: 120/4 Lý Thường Kiệt, TT. Hóc Môn</p>
-              <p>📍 CN2: 45 Lê Đức Thọ, P.7, Q. Gò Vấp</p>
+              <p>📍 CN1: 120/4 Lý Thường Kiệt, TT. Hóc Môn, TP.HCM</p>
+              <p>📍 CN2: 45 Lê Đức Thọ, P.7, Q. Gò Vấp, TP.HCM</p>
               <p className="font-bold text-slate-900">
-                📞 Hotline kỹ thuật: 0937.292.769
+                📞 Hotline: 0909 123 456
               </p>
             </div>
           </div>

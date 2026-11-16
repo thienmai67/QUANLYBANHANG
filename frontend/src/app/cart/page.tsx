@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { getAccessToken } from '@/lib/auth';
 import { useAdminStore } from '@/store/useAdminStore';
 import { MATERIAL_PRODUCTS } from '@/data/materialData';
+import { useToast } from '@/hooks/useToast';
 import {
   ShoppingBag,
   Trash2,
@@ -25,6 +26,7 @@ import {
 
 export default function CartPage() {
   const router = useRouter();
+  const toast = useToast();
   const [mounted, setMounted] = useState(false);
   const [qtyInputs, setQtyInputs] = useState<Record<string, string>>({});
   const isAuth = useAuthStore((state) => state.isAuthenticated) || (typeof window !== 'undefined' && !!getAccessToken());
@@ -37,27 +39,6 @@ export default function CartPage() {
     getTotalPrice,
     getTotalItems,
   } = useCartStore();
-
-  const commitQuantity = (id: string, currentQty: number) => {
-    const raw = qtyInputs[id];
-    let finalQty = currentQty;
-    if (raw !== undefined) {
-      if (raw.trim() === '') {
-        finalQty = 1;
-      } else {
-        const parsed = parseInt(raw, 10);
-        finalQty = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(9999, parsed));
-      }
-    } else {
-      finalQty = Math.max(1, Math.min(9999, currentQty));
-    }
-    setQuantity(id, finalQty);
-    setQtyInputs((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-  };
 
   const adminProducts = useAdminStore((state) => state.products);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
@@ -84,7 +65,7 @@ export default function CartPage() {
         ? adminProd.specs
         : '';
       const unitStr = (adminProd as any).unit || 'Bộ';
-      return { brand: brandStr, specs: specsArr, unit: unitStr };
+      return { brand: brandStr, specs: specsArr, unit: unitStr, stock: adminProd.stock };
     }
 
     // 2. Try static MATERIAL_PRODUCTS
@@ -96,26 +77,74 @@ export default function CartPage() {
         brand: matProd.brand || 'Chính hãng',
         specs: Array.isArray(matProd.specs) ? matProd.specs.join(', ') : '',
         unit: matProd.unit || 'Bộ',
+        stock: 500,
       };
     }
 
-    // 3. Fallback heuristic from SKU / name
-    let fallbackUnit = 'Bộ';
-    const lowerName = sku.toLowerCase();
-    if (lowerName.includes('upvc') || lowerName.includes('ppr') || lowerName.includes('cay')) {
-      fallbackUnit = 'Cây';
-    } else if (lowerName.includes('cad') || lowerName.includes('cv') || lowerName.includes('cuon')) {
-      fallbackUnit = 'Cuộn';
-    } else if (lowerName.includes('mcb') || lowerName.includes('pana') || lowerName.includes('van')) {
-      fallbackUnit = 'Cái';
-    }
-
-    return {
-      brand: 'Chính hãng',
-      specs: 'Tiêu chuẩn TCVN',
-      unit: fallbackUnit,
-    };
+    return { brand: 'Chính hãng', specs: '', unit: 'Bộ', stock: 500 };
   };
+
+  const commitQuantity = (id: string, currentQty: number) => {
+    const raw = qtyInputs[id];
+    const targetItem = items.find((i) => i.id === id);
+    const meta = targetItem ? getProductMeta(targetItem.id, targetItem.sku) : { stock: 500 };
+    const maxStock = meta.stock > 0 ? meta.stock : 9999;
+
+    let finalQty = currentQty;
+    if (raw !== undefined) {
+      const trimmed = raw.trim();
+      if (trimmed === '' || isNaN(Number(trimmed))) {
+        toast.error('Số lượng không hợp lệ. Vui lòng nhập số nguyên dương!');
+        finalQty = 1;
+      } else {
+        const num = Number(trimmed);
+        if (num <= 0 || !Number.isInteger(num)) {
+          toast.error(`Số lượng "${raw}" không hợp lệ. Vui lòng nhập số nguyên dương lớn hơn 0!`);
+          finalQty = 1;
+        } else if (num > maxStock) {
+          toast.warning(`Số lượng nhập (${num}) vượt quá tồn kho khả dụng (${maxStock}). Đã điều chỉnh về tối đa ${maxStock}!`);
+          finalQty = maxStock;
+        } else if (num > 9999) {
+          toast.warning('Số lượng tối đa cho phép là 9.999!');
+          finalQty = 9999;
+        } else {
+          finalQty = num;
+        }
+      }
+    } else {
+      finalQty = Math.max(1, Math.min(maxStock, currentQty));
+    }
+    setQuantity(id, finalQty);
+    setQtyInputs((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleIncrease = (id: string, currentQty: number) => {
+    const targetItem = items.find((i) => i.id === id);
+    const meta = targetItem ? getProductMeta(targetItem.id, targetItem.sku) : { stock: 500 };
+    const maxStock = meta.stock > 0 ? meta.stock : 9999;
+    if (currentQty >= maxStock) {
+      toast.warning(`Đã đạt số lượng tồn kho tối đa (${maxStock}) của sản phẩm này!`);
+      return;
+    }
+    const next = Math.min(maxStock, currentQty + 1);
+    setQuantity(id, next);
+    setQtyInputs((prev) => ({ ...prev, [id]: String(next) }));
+  };
+
+  const handleDecrease = (id: string, currentQty: number) => {
+    if (currentQty <= 1) {
+      return;
+    }
+    const next = currentQty - 1;
+    setQuantity(id, next);
+    setQtyInputs((prev) => ({ ...prev, [id]: String(next) }));
+  };
+
+
 
   const totalPrice = getTotalPrice();
   const totalItemsCount = getTotalItems();
@@ -221,47 +250,18 @@ export default function CartPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Free Shipping Progress Indicator */}
-            {(() => {
-              const freeShipThreshold = 500000;
-              const isEligible = totalPrice >= freeShipThreshold;
-              const remaining = Math.max(0, freeShipThreshold - totalPrice);
-              const progressPercent = Math.min(100, Math.round((totalPrice / freeShipThreshold) * 100));
-
-              return (
-                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5">
-                  <div className="flex items-center justify-between text-xs sm:text-sm">
-                    <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
-                      <Truck className={`w-4 h-4 ${isEligible ? 'text-emerald-500' : 'text-orange-500'}`} />
-                      {isEligible ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                          🎉 Đơn hàng của bạn đã đủ điều kiện MIỄN PHÍ VẬN CHUYỂN!
-                        </span>
-                      ) : (
-                        <span>
-                          Mua thêm <strong className="text-orange-500 font-mono font-black">{remaining.toLocaleString('vi-VN')} ₫</strong> để nhận <strong className="text-emerald-600 dark:text-emerald-400">Miễn Phí Giao Hàng</strong>!
-                        </span>
-                      )}
-                    </div>
-                    <span className="font-mono text-xs font-bold text-slate-400 hidden sm:inline">
-                      {progressPercent}%
-                    </span>
-                  </div>
-
-                  {/* Progress track */}
-                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        isEligible
-                          ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                          : 'bg-gradient-to-r from-amber-500 to-orange-500'
-                      }`}
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Free Shipping Policy Indicator - Synchronized with Checkout */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 shadow-sm space-y-1.5">
+              <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                <Truck className="w-4 h-4 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                  🎉 Miễn phí giao hàng tiêu chuẩn cho toàn bộ đơn hàng!
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 pl-6">
+                Chính sách vận chuyển đồng bộ: Đơn hàng giao tận nơi hoặc ghé tiệm lấy đều được hỗ trợ giao hàng miễn phí theo chính sách hiện hành của TDT M&amp;E.
+              </p>
+            </div>
 
             {/* Two Column Layout on Desktop, 1 Column on Mobile */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -334,11 +334,7 @@ export default function CartPage() {
                           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 shadow-sm">
                             <button
                               type="button"
-                              onClick={() => {
-                                const next = Math.max(1, item.quantity - 1);
-                                setQuantity(item.id, next);
-                                setQtyInputs((prev) => ({ ...prev, [item.id]: String(next) }));
-                              }}
+                              onClick={() => handleDecrease(item.id, item.quantity)}
                               className="w-8 h-8 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-l-xl transition-colors active:scale-95"
                               title="Giảm số lượng"
                             >
@@ -352,14 +348,6 @@ export default function CartPage() {
                               onChange={(e) => {
                                 const raw = e.target.value;
                                 setQtyInputs((prev) => ({ ...prev, [item.id]: raw }));
-                                if (raw === '') {
-                                  return;
-                                }
-                                const val = parseInt(raw, 10);
-                                if (!isNaN(val)) {
-                                  const clamped = Math.max(1, Math.min(9999, val));
-                                  setQuantity(item.id, clamped);
-                                }
                               }}
                               onBlur={() => commitQuantity(item.id, item.quantity)}
                               onKeyDown={(e) => {
@@ -372,11 +360,7 @@ export default function CartPage() {
                             />
                             <button
                               type="button"
-                              onClick={() => {
-                                const next = Math.min(9999, item.quantity + 1);
-                                setQuantity(item.id, next);
-                                setQtyInputs((prev) => ({ ...prev, [item.id]: String(next) }));
-                              }}
+                              onClick={() => handleIncrease(item.id, item.quantity)}
                               className="w-8 h-8 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-r-xl transition-colors active:scale-95"
                               title="Tăng số lượng"
                             >

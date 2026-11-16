@@ -77,12 +77,12 @@ func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 
 func (r *userRepository) CreateUser(ctx context.Context, user *domain.User) error {
 	const query = `
-		INSERT INTO me_supplies.users (id, email, full_name, password_hash, role, auth_provider)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO me_supplies.users (id, email, full_name, phone, password_hash, role, auth_provider)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING created_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
-		user.ID, user.Email, user.FullName, user.PasswordHash, user.Role, user.AuthProvider,
+		user.ID, user.Email, user.FullName, user.Phone, user.PasswordHash, user.Role, user.AuthProvider,
 	).Scan(&user.CreatedAt, &user.UpdatedAt)
 }
 

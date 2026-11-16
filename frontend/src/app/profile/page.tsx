@@ -647,9 +647,9 @@ export default function CustomerProfilePage() {
     }
   };
 
-  // Calculate Spend & Status breakdown
+  // Calculate Spend & Status breakdown - Include all valid active/placed orders
   const totalSpend = orders
-    .filter((o) => o.status === 'DELIVERED' || o.paymentStatus === 'PAID')
+    .filter((o) => o.status !== 'CANCELLED')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   const countPending = orders.filter((o) => o.status === 'PENDING').length;
   const countPacking = orders.filter((o) => o.status === 'PACKING').length;
@@ -662,7 +662,7 @@ export default function CustomerProfilePage() {
     const spendMap: Record<string, { amount: number; count: number }> = {};
 
     orders
-      .filter((o) => o.status === 'DELIVERED' || o.paymentStatus === 'PAID')
+      .filter((o) => o.status !== 'CANCELLED')
       .forEach((o) => {
         const d = new Date(o.createdAt);
         const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1035,7 +1035,7 @@ export default function CustomerProfilePage() {
                       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                     </svg>
                   </div>
-                  <div className="profile-stat-number">{orders.length}</div>
+                  <div className="profile-stat-number">{loadingOrders && orders.length === 0 ? '...' : orders.length}</div>
                   <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>
                     Tổng số đơn hàng của bạn trên hệ thống
                   </div>
@@ -1055,7 +1055,11 @@ export default function CustomerProfilePage() {
                     <span>TỔNG CHI TIÊU</span>
                   </div>
                   <div className="profile-stat-number money-val">
-                    {totalSpend.toLocaleString('vi-VN')} <small>đ</small>
+                    {loadingOrders && orders.length === 0 ? '...' : (
+                      <>
+                        {totalSpend.toLocaleString('vi-VN')} <small>đ</small>
+                      </>
+                    )}
                   </div>
                   <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>
                     Tổng giá trị các đơn hàng đã đặt

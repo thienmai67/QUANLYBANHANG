@@ -4,6 +4,7 @@ import { ThemeProvider } from "./providers";
 import ChatBotWidget from "@/components/chat/ChatBotWidget";
 import FloatingContactDock from "@/components/FloatingContactDock";
 import SmoothScroll from "@/components/SmoothScroll";
+import { ToastContainer } from "@/components/common/ToastContainer";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-sans" });
@@ -31,6 +32,7 @@ export default function RootLayout({
     <html lang="vi" suppressHydrationWarning>
       <body className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased min-h-screen bg-background text-foreground font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ToastContainer />
           <SmoothScroll>
             {children}
             <FloatingContactDock />

@@ -50,8 +50,8 @@ export default function PodModal({
     setReceiverName(defaultReceiver);
     setPhotos([
       {
-        name: 'bien-ban-giao-hang.jpg',
-        thumbnail: '/images/products/day-cap-don-1.jpg',
+        name: 'bien-ban-giao-hang-tai-cong-trinh.jpg',
+        thumbnail: '/images/products/day-dien-cong-trinh.jpg',
       },
     ]);
     if (isCod) {

@@ -85,11 +85,6 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           clearTokens();
         }
-        try {
-          useCartStore.getState().clearCart();
-        } catch {
-          // ignore if store not yet initialized
-        }
         set({
           token: null,
           refreshToken: null,
