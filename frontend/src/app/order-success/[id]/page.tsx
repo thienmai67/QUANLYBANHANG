@@ -37,6 +37,7 @@ interface OrderDetail {
   customerPhone?: string;
   shippingAddress?: string;
   deliveryAddress?: string;
+  notes?: string;
   paymentMethod?: string;
   paymentStatus?: string;
   status?: string;
