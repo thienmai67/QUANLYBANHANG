@@ -306,7 +306,7 @@ export default function SaleOrdersPage() {
                     </a>
                   )}
 
-                  {order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' && order.status !== 'Cancelled' && (
+                  {order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' && (
                     <button
                       type="button"
                       onClick={() => handleMarkPaid(order)}
@@ -409,7 +409,7 @@ export default function SaleOrdersPage() {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="inline-flex items-center gap-1.5">
-                        {order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' && order.status !== 'Cancelled' && (
+                        {order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' && (
                           <button
                             type="button"
                             onClick={() => handleMarkPaid(order)}
@@ -622,7 +622,7 @@ export default function SaleOrdersPage() {
                 Quyền hạn Sale: Xem chi tiết &amp; Đánh dấu thu tiền
               </span>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                {selectedOrder.paymentStatus !== 'PAID' && selectedOrder.status !== 'CANCELLED' && selectedOrder.status !== 'Cancelled' && (
+                {selectedOrder.paymentStatus !== 'PAID' && selectedOrder.status !== 'CANCELLED' && (
                   <button
                     type="button"
                     onClick={() => {

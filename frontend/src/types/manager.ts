@@ -1,4 +1,4 @@
-export type OrderStatus = 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED' | 'DELIVERY_FAILED';
 
 export type PaymentStatus =
   | 'UNPAID'
