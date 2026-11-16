@@ -182,7 +182,7 @@ export default function CartPage() {
           {mounted && items.length > 0 && (
             <div className="flex items-center gap-3">
               <span className="text-xs text-slate-500 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 font-medium">
-                Tổng cộng: <strong className="text-slate-900 dark:text-white font-mono">{totalItemsCount}</strong> món
+                Tổng cộng: <strong className="text-slate-900 dark:text-white font-mono">{totalItemsCount}</strong>&nbsp;món
               </span>
               <button
                 onClick={() => {
@@ -436,7 +436,7 @@ export default function CartPage() {
                   <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                     <span>Số lượng sản phẩm:</span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white">
-                      {totalItemsCount} món
+                      {totalItemsCount}&nbsp;món
                     </span>
                   </div>
 

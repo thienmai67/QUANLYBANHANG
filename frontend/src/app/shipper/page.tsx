@@ -22,6 +22,27 @@ export default function ShipperDispatchFeedPage() {
   const [selectedPodOrder, setSelectedPodOrder] = useState<Order | null>(null);
   const [selectedIncidentOrder, setSelectedIncidentOrder] = useState<Order | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInShift, setIsInShift] = useState(true);
+  const [shiftCheckInTime, setShiftCheckInTime] = useState<string>('07:30');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('tdt_shipper_shift');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setIsInShift(parsed.inShift ?? true);
+        if (parsed.time) setShiftCheckInTime(parsed.time);
+      } catch {}
+    }
+  }, []);
+
+  const handleToggleShift = () => {
+    const nextState = !isInShift;
+    const nowTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    setIsInShift(nextState);
+    if (nextState) setShiftCheckInTime(nowTime);
+    localStorage.setItem('tdt_shipper_shift', JSON.stringify({ inShift: nextState, time: nowTime }));
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -129,16 +150,32 @@ export default function ShipperDispatchFeedPage() {
                 </h1>
               </div>
 
-              <button
-                type="button"
-                onClick={handleManualRefresh}
-                title="Làm mới danh sách đơn"
-                className={`w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all ${
-                  isRefreshing ? 'animate-spin text-blue-400' : ''
-                }`}
-              >
-                <RotateCw className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleShift}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    isInShift
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                  }`}
+                  title={isInShift ? 'Bấm để kết thúc ca trực (Check-out)' : 'Bấm để vào ca trực mới (Check-in)'}
+                >
+                  <span className={`w-2 h-2 rounded-full ${isInShift ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                  <span>{isInShift ? `Trực ca (${shiftCheckInTime})` : 'Chưa nhận ca'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleManualRefresh}
+                  title="Làm mới danh sách đơn"
+                  className={`w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all ${
+                    isRefreshing ? 'animate-spin text-blue-400' : ''
+                  }`}
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Metrics Row: 2 Quick Stats */}

@@ -267,7 +267,7 @@ export function QuoteForm() {
           : parseFloat(String(item.quantity)) || 0;
       const lineSub = item.unitPrice * qtyNum;
       const effectiveRate = Math.min(100, item.brandDiscountRate + item.additionalDiscountRate);
-      const lineDisc = (lineSub * effectiveRate) / 100;
+      const lineDisc = Math.round((lineSub * effectiveRate) / 100);
       sub += lineSub;
       disc += lineDisc;
       if (item.additionalDiscountRate > SALE_MAX_ADDITIONAL_DISCOUNT) {

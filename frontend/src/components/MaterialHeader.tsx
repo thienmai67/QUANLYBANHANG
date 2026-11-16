@@ -192,15 +192,15 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
 
             {/* Direct Technician Hotline */}
             <a
-              href="tel:0937292769"
+              href="tel:0909123456"
               className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 text-xs hover:border-blue-400 transition-all"
-              title="Gọi tư vấn kỹ thuật trực tiếp"
+              title="Gọi hotline tư vấn trực tiếp"
             >
               <Phone className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
               <div>
-                <span className="text-[10px] text-slate-400 block leading-none">Hỗ trợ kỹ thuật tại quầy</span>
+                <span className="text-[10px] text-slate-400 block leading-none">Hotline vật tư</span>
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                  0937.292.769
+                  0909 123 456
                 </span>
               </div>
             </a>

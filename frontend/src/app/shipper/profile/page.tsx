@@ -31,7 +31,7 @@ export default function ShipperProfilePage() {
   const currentShipperId = user?.shipperId || user?.id || '';
   const currentShipperName =
     user?.fullName || user?.name || 'Trần Quốc Toản';
-  const shipperPhone = user?.phone || '0912.345.678';
+  const shipperPhone = user?.phone || '0901234567';
 
   const myOrders = orders.filter((o) => o.shipperId === currentShipperId);
   const deliveredCount = myOrders.filter((o) => o.status === 'DELIVERED').length;
@@ -92,14 +92,18 @@ export default function ShipperProfilePage() {
             </div>
 
             {/* Quick Contact & Vehicle Specs */}
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-2 gap-2 text-xs">
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-[10px] text-slate-400 block font-medium">Số điện thoại</span>
+                <span className="text-[10px] text-slate-400 block font-medium">Số điện thoại đăng nhập</span>
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{shipperPhone}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-[10px] text-slate-400 block font-medium">Phương tiện</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">59X3-128.45</span>
+                <span className="text-[10px] text-slate-400 block font-medium">Phương tiện vận chuyển</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">Xe máy (Giá chở ống M&E) • 59X3-128.45</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 sm:col-span-2">
+                <span className="text-[10px] text-slate-400 block font-medium">Trụ sở phân công nhận hàng</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200">Kho TDT 120/4 Lý Thường Kiệt, TT. Hóc Môn, TP.HCM</span>
               </div>
             </div>
           </div>

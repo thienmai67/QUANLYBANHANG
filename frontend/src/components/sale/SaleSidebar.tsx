@@ -193,7 +193,7 @@ export function SaleSidebar() {
               </div>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="px-1.5 py-0.2 text-[9px] font-bold rounded-md bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                  SALE
+                  {user?.role === 'MANAGER' ? 'MANAGER' : 'SALE'}
                 </span>
               </div>
             </div>

@@ -1186,7 +1186,15 @@ export default function CustomerProfilePage() {
                         {orders.slice(0, 5).map((ord) => (
                           <tr key={ord.id}>
                             <td>
-                              <b style={{ fontFamily: 'var(--font-mono)' }}>{ord.orderNumber}</b>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedOrder(ord)}
+                                className="profile-order-link text-blue-600 hover:underline text-left cursor-pointer font-bold inline-flex items-center gap-1"
+                                style={{ fontFamily: 'var(--font-mono)' }}
+                                title="Bấm để xem chi tiết đơn hàng"
+                              >
+                                {ord.orderNumber}
+                              </button>
                             </td>
                             <td>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</td>
                             <td>

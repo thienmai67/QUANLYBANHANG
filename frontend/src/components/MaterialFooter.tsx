@@ -9,8 +9,8 @@ export default function MaterialFooter() {
   return (
     <footer className="w-full bg-white dark:bg-[#0c1322] border-t border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 transition-colors mt-auto">
       {/* 1. Continuous Marquee */}
-      <div className="w-full overflow-hidden border-b border-slate-200 dark:border-slate-800 py-6 bg-slate-50 dark:bg-slate-900 px-4">
-        <div className="animate-marquee flex gap-16 items-center whitespace-nowrap pl-8">
+      <div className="w-full overflow-hidden border-b border-slate-200 dark:border-slate-800 py-6 bg-slate-50 dark:bg-slate-900 px-4 relative [mask-image:linear-gradient(to_right,transparent,black_48px,black_calc(100%-48px),transparent)]">
+        <div className="animate-marquee flex gap-20 items-center whitespace-nowrap px-8">
           {[...MATERIAL_PARTNERS, ...MATERIAL_PARTNERS, ...MATERIAL_PARTNERS].map((partner, idx) => (
             <div key={`${partner.id}-${idx}`} className="flex items-center gap-3 shrink-0 opacity-60 hover:opacity-100 transition-opacity grayscale hover:grayscale-0">
               <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-slate-400">
@@ -55,10 +55,10 @@ export default function MaterialFooter() {
           <div className="space-y-6">
             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Tiêu Chuẩn &amp; Pháp Lý</h4>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400 font-medium">
-              <li><Link href="/shop" className="hover:text-blue-600 transition-colors flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500"/> 100% Hàng Chính Hãng CO/CQ</Link></li>
-              <li><Link href="/shop" className="hover:text-blue-600 transition-colors">Hóa Đơn Điện Tử Đầy Đủ</Link></li>
+              <li><Link href="/tra-cuu-ho-so" className="hover:text-blue-600 transition-colors flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500"/> 100% Hàng Chính Hãng CO/CQ</Link></li>
+              <li><Link href="/tra-cuu-don-hang" className="hover:text-blue-600 transition-colors">Hóa Đơn Điện Tử Đầy Đủ</Link></li>
               <li><Link href="/cong-trinh" className="hover:text-blue-600 transition-colors">Quy Chuẩn An Toàn TCVN / IEC</Link></li>
-              <li><Link href="/shop" className="hover:text-blue-600 transition-colors text-emerald-600 dark:text-emerald-400 font-semibold">Đổi Trả Dễ Dàng Trong 7 Ngày</Link></li>
+              <li><Link href="/tra-cuu" className="hover:text-blue-600 transition-colors text-emerald-600 dark:text-emerald-400 font-semibold">Đổi Trả Dễ Dàng Trong 7 Ngày</Link></li>
             </ul>
           </div>
 

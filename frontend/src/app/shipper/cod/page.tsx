@@ -339,7 +339,7 @@ export default function ShipperCodLedgerPage() {
                     <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                       <span className="font-mono truncate max-w-[200px]">Mã phiếu: {s.id}</span>
                       <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        {s.orderIds.length} đơn hàng
+                        {((s as any).orderCount || s.orderIds?.length || 1)} đơn hàng
                       </span>
                     </div>
                   </div>
