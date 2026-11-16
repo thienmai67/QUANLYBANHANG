@@ -2,8 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAdminStore } from "@/store/useAdminStore";
 import { useCartStore } from "@/store/useCartStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { getAccessToken } from "@/lib/auth";
+import { useToast } from "@/hooks/useToast";
 import { ShoppingBag, Package, ChevronRight, Sparkles, Layers } from "lucide-react";
 import * as motion from "motion/react-client";
 
@@ -22,6 +26,8 @@ const BRAND_TABS: Array<{ id: BrandFilter; label: string; badge: string }> = [
 ];
 
 export default function MaterialProductShowcase(_props: MaterialProductShowcaseProps) {
+  const router = useRouter();
+  const toast = useToast();
   const adminProducts = useAdminStore((state) => state.products);
   const productsLoading = useAdminStore((state) => state.productsLoading);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
@@ -199,6 +205,12 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
+                        if (!isAuth) {
+                          toast.error('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng!');
+                          router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+                          return;
+                        }
                         addItem(
                           {
                             id: prod.id,
@@ -211,6 +223,7 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
                           },
                           true
                         );
+                        toast.success(`Đã thêm "${prod.name}" vào giỏ hàng!`);
                       }}
                       className="py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-lg shadow-orange-500/30 flex items-center justify-center gap-1.5 transition-all transform hover:scale-105 active:scale-95"
                       title="Thêm nhanh vào giỏ"

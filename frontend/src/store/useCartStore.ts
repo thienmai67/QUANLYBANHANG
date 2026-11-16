@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getAccessToken } from '@/lib/auth';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export interface CartItem {
   id: string;
@@ -37,6 +39,20 @@ export const useCartStore = create<CartState>()(
       setOpenToCheckout: (openToCheckout) => set({ openToCheckout }),
 
       addItem: (newItem, openDrawer = true) => {
+        // Enforce authentication policy: Guests are not allowed to add to cart
+        if (typeof window !== 'undefined') {
+          let isAuth = false;
+          try {
+            isAuth = Boolean(getAccessToken() || useAuthStore.getState().isAuthenticated);
+          } catch {
+            isAuth = Boolean(getAccessToken());
+          }
+          if (!isAuth) {
+            console.warn('[CartStore] Blocked addItem: User is not authenticated.');
+            return;
+          }
+        }
+
         const rawQty = newItem.quantity;
         const addQty =
           typeof rawQty === 'number' && !isNaN(rawQty) && isFinite(rawQty) && rawQty > 0

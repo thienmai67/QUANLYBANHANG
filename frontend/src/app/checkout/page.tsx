@@ -225,9 +225,17 @@ export default function CheckoutPage() {
     total: number;
   }>({ items: [], total: 0 });
 
-  // Autofill user info if authenticated
+  // Autofill user info if authenticated & guard checkout for logged in users
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined') {
+      const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
+      if (!isAuth) {
+        toast.error('Vui lòng đăng nhập tài khoản để tiến hành thanh toán đơn hàng!');
+        router.push('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
+        return;
+      }
+    }
     if (user) {
       if (user.fullName || user.name) {
         setCustomerName(user.fullName || user.name);
@@ -236,7 +244,7 @@ export default function CheckoutPage() {
         setCustomerPhone(user.phone);
       }
     }
-  }, [user]);
+  }, [user, router, toast]);
 
   // Keep snapshot of items for order summary
   useEffect(() => {
@@ -359,6 +367,15 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (typeof window !== 'undefined') {
+      const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
+      if (!isAuth) {
+        toast.error('Vui lòng đăng nhập tài khoản để tiến hành thanh toán đơn hàng!');
+        router.push('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
+        return;
+      }
+    }
 
     if (items.length === 0) {
       toast.warning('Giỏ hàng của bạn đang trống');

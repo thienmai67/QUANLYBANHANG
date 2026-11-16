@@ -2,9 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
 import {
   Home,
@@ -181,11 +184,20 @@ export default function CongTrinhPage() {
   });
   const [addedCombos, setAddedCombos] = useState<Record<string, boolean>>({});
 
+  const router = useRouter();
+
   const toggleExpand = (comboId: string) => {
     setExpandedCombos((prev) => ({ ...prev, [comboId]: !prev[comboId] }));
   };
 
   const handleAddComboToCart = (combo: ComboPackage) => {
+    const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
+    if (!isAuth) {
+      toast.error('Vui lòng đăng nhập để thêm gói combo vào giỏ hàng!');
+      router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
+
     combo.items.forEach((item) => {
       addItem(
         {

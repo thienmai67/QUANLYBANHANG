@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/auth';
 import { useAdminStore } from '@/store/useAdminStore';
 import { MATERIAL_PRODUCTS } from '@/data/materialData';
 import {
@@ -25,6 +27,7 @@ export default function CartPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [qtyInputs, setQtyInputs] = useState<Record<string, string>>({});
+  const isAuth = useAuthStore((state) => state.isAuthenticated) || (typeof window !== 'undefined' && !!getAccessToken());
   const {
     items,
     removeItem,
@@ -173,6 +176,28 @@ export default function CartPage() {
           <div className="py-20 text-center text-slate-400">
             <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm">Đang tải giỏ hàng...</p>
+          </div>
+        ) : !isAuth ? (
+          /* Unauthenticated State */
+          <div className="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-slate-800 p-8 md:p-16 text-center shadow-sm max-w-xl mx-auto my-8 space-y-4">
+            <div className="w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center mx-auto mb-2 border border-amber-500/20">
+              <ShieldCheck className="w-10 h-10" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              Vui Lòng Đăng Nhập Tài Khoản
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              Bạn cần đăng nhập để xem, thêm và quản lý sản phẩm trong giỏ hàng.
+            </p>
+            <div className="pt-2">
+              <Link
+                href="/login?redirect=/cart"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all text-sm"
+              >
+                <span>Đăng nhập ngay</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         ) : items.length === 0 ? (
           /* Empty Cart State */
@@ -401,7 +426,13 @@ export default function CartPage() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => router.push('/checkout')}
+                  onClick={() => {
+                    if (!isAuth) {
+                      router.push('/login?redirect=/checkout');
+                      return;
+                    }
+                    router.push('/checkout');
+                  }}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all text-sm active:scale-98"
                 >
                   <span>Tiến hành đặt hàng</span>
@@ -455,7 +486,13 @@ export default function CartPage() {
                 {/* Primary CTA */}
                 <button
                   type="button"
-                  onClick={() => router.push('/checkout')}
+                  onClick={() => {
+                    if (!isAuth) {
+                      router.push('/login?redirect=/checkout');
+                      return;
+                    }
+                    router.push('/checkout');
+                  }}
                   className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all text-sm flex items-center justify-center gap-2 active:scale-98"
                 >
                   <span>Tiến hành đặt hàng</span>

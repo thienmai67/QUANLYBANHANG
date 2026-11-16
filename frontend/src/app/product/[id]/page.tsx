@@ -288,6 +288,12 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
+    const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
+    if (!isAuth) {
+      toast.error('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng!');
+      router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
     const maxStock = product.stock > 0 ? product.stock : 9999;
     const parsed = parseInt(qtyInput, 10);
     const effectiveQty = Number.isNaN(parsed) ? quantity : Math.max(1, Math.min(maxStock, parsed));
@@ -333,6 +339,12 @@ export default function ProductDetailPage() {
 
   const handleBuyNow = () => {
     if (!product) return;
+    const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
+    if (!isAuth) {
+      toast.error('Vui lòng đăng nhập để tiến hành mua hàng!');
+      router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
     const maxStock = product.stock > 0 ? product.stock : 9999;
     const parsed = parseInt(qtyInput, 10);
     const effectiveQty = Number.isNaN(parsed) ? quantity : Math.max(1, Math.min(maxStock, parsed));

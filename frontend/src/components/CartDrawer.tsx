@@ -4,6 +4,8 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/auth';
 import {
   X,
   Trash2,
@@ -12,6 +14,7 @@ import {
   ShoppingBag,
   ArrowRight,
   CreditCard,
+  Lock,
 } from 'lucide-react';
 
 export default function CartDrawer() {
@@ -55,6 +58,7 @@ export default function CartDrawer() {
 
   const totalItemsCount = getTotalItems();
   const totalPrice = getTotalPrice();
+  const isAuth = useAuthStore((state) => state.isAuthenticated) || (typeof window !== 'undefined' && !!getAccessToken());
 
   return (
     <div className="fixed inset-0 z-[100] overflow-hidden">
@@ -92,7 +96,34 @@ export default function CartDrawer() {
 
           {/* Body: Items Mini List */}
           <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-3">
-            {items.length === 0 ? (
+            {!isAuth ? (
+              <div className="py-16 text-center text-slate-400 space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 mx-auto flex items-center justify-center border border-amber-500/20">
+                  <Lock className="w-8 h-8" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-sm text-slate-900 dark:text-white">
+                    Vui Lòng Đăng Nhập
+                  </p>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                    Bạn cần đăng nhập tài khoản để thêm và quản lý sản phẩm trong giỏ hàng.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleClose();
+                      router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+                    }}
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition-colors shadow-lg shadow-orange-500/25"
+                  >
+                    <span>Đăng nhập ngay</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : items.length === 0 ? (
               <div className="py-16 text-center text-slate-400 space-y-3">
                 <ShoppingBag className="w-12 h-12 mx-auto opacity-30 text-slate-400" />
                 <p className="font-bold text-sm text-slate-700 dark:text-slate-300">
@@ -179,7 +210,7 @@ export default function CartDrawer() {
           </div>
 
           {/* Footer: Totals and Two Main Action Buttons */}
-          {items.length > 0 && (
+          {isAuth && items.length > 0 && (
             <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-600 dark:text-slate-400">

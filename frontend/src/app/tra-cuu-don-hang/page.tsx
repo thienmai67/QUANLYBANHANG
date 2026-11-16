@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/auth';
 import { ThermalReceiptModal, ThermalOrderData } from '@/components/ThermalReceiptModal';
 import { useToast } from '@/hooks/useToast';
 import { api, getFriendlyErrorMessage } from '@/lib/api';
@@ -140,6 +142,13 @@ function OrderLookupContent() {
   };
 
   const handleReorder = (order: LookupOrder) => {
+    const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
+    if (!isAuth) {
+      toast.error('Vui lòng đăng nhập để mua lại đơn hàng này!');
+      router.push('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
+      return;
+    }
+
     const itemsList = Array.isArray(order.items) ? order.items : [];
     if (itemsList.length === 0) {
       toast.warning('Đơn hàng này không có danh sách sản phẩm để mua lại');

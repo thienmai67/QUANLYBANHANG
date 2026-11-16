@@ -8,6 +8,8 @@ import MaterialFooter from '@/components/MaterialFooter';
 import { MaterialProduct } from '@/data/materialData';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
 import { Search, Filter, ShoppingBag, Check, Zap, Sparkles } from 'lucide-react';
 
@@ -180,6 +182,13 @@ export default function ShopPage() {
   }, [allProducts, search, selectedBrand, selectedCat, selectedDiy]);
 
   const handleAddToCart = (prod: MaterialProduct) => {
+    const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
+    if (!isAuth) {
+      toast.error('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng!');
+      router.push('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
+      return;
+    }
+
     const rawPrice = prod.rawPrice || parseInt(prod.price.replace(/[^\d]/g, ''), 10) || 100000;
 
     addItem(
