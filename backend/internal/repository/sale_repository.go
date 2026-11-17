@@ -1087,12 +1087,8 @@ func (r *saleRepository) CreateQuote(ctx context.Context, saleID uuid.UUID, req 
 
 		// Additional discount proposed by sale
 		additionalDiscount := item.AdditionalDiscountRate
-		if additionalDiscount == 0 && item.DiscountRate > 0 {
-			if item.DiscountRate > brandDiscount {
-				additionalDiscount = item.DiscountRate - brandDiscount
-			} else {
-				additionalDiscount = item.DiscountRate
-			}
+		if additionalDiscount == 0 && item.DiscountRate > brandDiscount {
+			additionalDiscount = item.DiscountRate - brandDiscount
 		}
 
 		// Floor check on unitPrice: cannot be lower than 10% basePrice
@@ -1297,12 +1293,8 @@ func (r *saleRepository) UpdateQuote(ctx context.Context, quoteID uuid.UUID, sal
 		}
 
 		additionalDiscount := item.AdditionalDiscountRate
-		if additionalDiscount == 0 && item.DiscountRate > 0 {
-			if item.DiscountRate > brandDiscount {
-				additionalDiscount = item.DiscountRate - brandDiscount
-			} else {
-				additionalDiscount = item.DiscountRate
-			}
+		if additionalDiscount == 0 && item.DiscountRate > brandDiscount {
+			additionalDiscount = item.DiscountRate - brandDiscount
 		}
 
 		unitPrice := item.UnitPrice

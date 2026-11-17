@@ -110,7 +110,13 @@ function mapApiProductToAdminProduct(raw: any): Product {
     basePrice,
     discountRate,
     unit,
-    stock: typeof raw.stock === 'number' ? raw.stock : 100,
+    stock: typeof raw.stockQuantity === 'number'
+      ? raw.stockQuantity
+      : typeof raw.stock_quantity === 'number'
+        ? raw.stock_quantity
+        : typeof raw.stock === 'number'
+          ? raw.stock
+          : 0,
     status: 'InStock',
     image,
     description,

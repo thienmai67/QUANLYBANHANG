@@ -344,6 +344,19 @@ export function canActorTransition(
       return { allowed: true };
     }
 
+    // SHIPPING -> DELIVERY_FAILED (Incident report from Shipper)
+    if (order.status === 'SHIPPING' && to === 'DELIVERY_FAILED') {
+      const reason = extra?.cancelReason || extra?.incidentCategory;
+      if (!reason || reason.trim().length < 5) {
+        return {
+          allowed: false,
+          errorCode: 'INVALID_CANCEL_REASON',
+          error: 'Chi tiết sự cố giao hàng phải có ít nhất 5 ký tự',
+        };
+      }
+      return { allowed: true };
+    }
+
     // SHIPPING -> CANCELLED (Incident report)
     if (order.status === 'SHIPPING' && to === 'CANCELLED') {
       const reasonVal = validateCancellation(extra?.cancelReason);

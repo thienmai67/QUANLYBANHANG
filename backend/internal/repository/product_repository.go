@@ -81,7 +81,7 @@ func (r *productRepository) ListProducts(ctx context.Context, limit, offset int)
         INNER JOIN brands b ON p.brand_id = b.id
         INNER JOIN categories c ON p.category_id = c.id
         WHERE COALESCE(p.is_active, TRUE) = TRUE
-        ORDER BY p.name
+        ORDER BY p.name ASC, p.sku ASC, p.id ASC
         LIMIT $1 OFFSET $2
     `
 	rows, err := r.db.QueryContext(ctx, query, limit, offset)
@@ -768,10 +768,51 @@ func (r *productRepository) ListOrders(ctx context.Context, customerID *uuid.UUI
 		orders[i].Items = r.loadOrderItems(ctx, orders[i].ID)
 	}
 
+	r.populateShipperNames(ctx, orders)
+
 	if orders == nil {
 		orders = []domain.Order{}
 	}
 	return orders, nil
+}
+
+func (r *productRepository) populateShipperNames(ctx context.Context, orders []domain.Order) {
+	if len(orders) == 0 {
+		return
+	}
+	idMap := make(map[uuid.UUID]string)
+	var ids []uuid.UUID
+	for _, o := range orders {
+		if o.ShipperID != nil && *o.ShipperID != uuid.Nil {
+			if _, exists := idMap[*o.ShipperID]; !exists {
+				idMap[*o.ShipperID] = ""
+				ids = append(ids, *o.ShipperID)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT id, full_name FROM me_supplies.users WHERE id = ANY($1)`, pq.Array(ids))
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var uid uuid.UUID
+		var name string
+		if err := rows.Scan(&uid, &name); err == nil {
+			idMap[uid] = name
+		}
+	}
+	for i := range orders {
+		if orders[i].ShipperID != nil {
+			if name, ok := idMap[*orders[i].ShipperID]; ok && name != "" {
+				nameCopy := name
+				orders[i].ShipperName = &nameCopy
+			}
+		}
+	}
 }
 
 func (r *productRepository) ListOrdersByShipper(ctx context.Context, shipperID uuid.UUID, limit, offset int) ([]domain.Order, error) {
@@ -805,6 +846,8 @@ func (r *productRepository) ListOrdersByShipper(ctx context.Context, shipperID u
 	for i := range orders {
 		orders[i].Items = r.loadOrderItems(ctx, orders[i].ID)
 	}
+
+	r.populateShipperNames(ctx, orders)
 
 	if orders == nil {
 		orders = []domain.Order{}
@@ -873,6 +916,12 @@ func (r *productRepository) GetOrderByID(ctx context.Context, orderID uuid.UUID)
 	}
 
 	o.Items = r.loadOrderItems(ctx, o.ID)
+	if o.ShipperID != nil && *o.ShipperID != uuid.Nil {
+		var sName string
+		if err := r.db.QueryRowContext(ctx, `SELECT full_name FROM me_supplies.users WHERE id = $1`, *o.ShipperID).Scan(&sName); err == nil && sName != "" {
+			o.ShipperName = &sName
+		}
+	}
 	return o, nil
 }
 
@@ -933,6 +982,7 @@ func (r *productRepository) LookupOrderByNumberOrPhone(ctx context.Context, orde
 		o.Items = r.loadOrderItems(ctx, o.ID)
 		orders = append(orders, *o)
 	}
+	r.populateShipperNames(ctx, orders)
 	if orders == nil {
 		orders = []domain.Order{}
 	}
@@ -998,17 +1048,18 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 			return fmt.Errorf("fetch product base price: %w", err)
 		}
 
-		// D5 (F06): Kiểm tra tồn kho khi tạo đơn:
-		// Quá kho hoặc vượt trần tạm thời 5000 khi kho chưa seed thì từ chối
 		if (stockQuantity > 0 && item.Quantity > float64(stockQuantity)) || (stockQuantity == 0 && item.Quantity >= 5000) {
 			_ = tx.Rollback()
 			return domain.ErrInsufficientStock
 		}
 
-		// Round unit_price to integer VND
-		roundedUnitPrice := math.Round(basePrice)
-		item.UnitPrice = roundedUnitPrice
-		computedTotal += float64(item.Quantity) * roundedUnitPrice
+		// Round unit_price to integer VND - preserve discounted unit price if provided (e.g. POS)
+		effectiveUnitPrice := math.Round(basePrice)
+		if item.UnitPrice > 0 && item.UnitPrice >= basePrice*0.10 {
+			effectiveUnitPrice = math.Round(item.UnitPrice)
+		}
+		item.UnitPrice = effectiveUnitPrice
+		computedTotal += float64(item.Quantity) * effectiveUnitPrice
 	}
 
 	// Round total to integer VND
@@ -1082,7 +1133,7 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 var validTransitions = map[domain.OrderStatus][]domain.OrderStatus{
 	domain.OrderStatusPending:        {domain.OrderStatusPacking, domain.OrderStatusCancelled},
 	domain.OrderStatusPacking:        {domain.OrderStatusShipping, domain.OrderStatusCancelled},
-	domain.OrderStatusShipping:       {domain.OrderStatusDelivered, domain.OrderStatusDeliveryFailed, domain.OrderStatusCancelled},
+	domain.OrderStatusShipping:       {domain.OrderStatusDelivered, domain.OrderStatusDeliveryFailed, domain.OrderStatusCancelled, domain.OrderStatusShipping},
 	domain.OrderStatusDeliveryFailed: {domain.OrderStatusShipping, domain.OrderStatusCancelled},
 	domain.OrderStatusDelivered:      {},
 	domain.OrderStatusCancelled:      {},
@@ -1270,7 +1321,7 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 	}
 
 	// D5: Hoàn kho nếu đơn bị hủy sau khi đã duyệt PACKING/SHIPPING/DELIVERY_FAILED
-	if (o.Status == domain.OrderStatusPacking || o.Status == domain.OrderStatusShipping || o.Status == domain.OrderStatusDeliveryFailed) && toStatus == domain.OrderStatusCancelled {
+	if (o.Status == domain.OrderStatusPacking || o.Status == domain.OrderStatusShipping || o.Status == domain.OrderStatusDeliveryFailed) && (toStatus == domain.OrderStatusCancelled || toStatus == domain.OrderStatus("REJECTED")) {
 		restoreRows, err := tx.QueryContext(ctx, `SELECT product_id, quantity FROM me_supplies.order_items WHERE order_id = $1`, o.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch order items for stock restoration: %w", err)
@@ -1305,8 +1356,8 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 		}
 	}
 
-	// 4a. PACKING -> SHIPPING: require shipper_id and validate shipper role
-	if o.Status == domain.OrderStatusPacking && toStatus == domain.OrderStatusShipping {
+	// 4a. Transition to SHIPPING (from PACKING, DELIVERY_FAILED, or SHIPPING reassign)
+	if (o.Status == domain.OrderStatusPacking || o.Status == domain.OrderStatusDeliveryFailed || o.Status == domain.OrderStatusShipping) && toStatus == domain.OrderStatusShipping {
 		shipperIDStr := req.GetShipperID()
 		if shipperIDStr == nil || strings.TrimSpace(*shipperIDStr) == "" {
 			if o.ShipperID == nil {
@@ -1342,9 +1393,9 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 			}
 		}
 
-		// D1.4: Kiểm tra shipper không quá 5 đơn đang giao (SHIPPING)
+		// D1.4: Kiểm tra shipper không quá 5 đơn đang giao (SHIPPING), loại trừ chính đơn này nếu là reassign
 		var activeShippingCount int
-		err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM me_supplies.orders WHERE shipper_id = $1 AND status = 'SHIPPING'`, *newShipperID).Scan(&activeShippingCount)
+		err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM me_supplies.orders WHERE shipper_id = $1 AND status = 'SHIPPING' AND id != $2`, *newShipperID, o.ID).Scan(&activeShippingCount)
 		if err != nil {
 			_ = tx.Rollback()
 			return nil, fmt.Errorf("count shipper active orders: %w", err)
@@ -1466,6 +1517,13 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 			return nil, domain.ErrVersionConflict
 		}
 		return nil, fmt.Errorf("update order status: %w", err)
+	}
+
+	if updated.ShipperID != nil && *updated.ShipperID != uuid.Nil {
+		var sName string
+		if err := tx.QueryRowContext(ctx, `SELECT full_name FROM me_supplies.users WHERE id = $1`, *updated.ShipperID).Scan(&sName); err == nil && sName != "" {
+			updated.ShipperName = &sName
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

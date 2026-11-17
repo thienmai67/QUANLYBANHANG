@@ -150,7 +150,7 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
 
             <div className="divide-y divide-slate-100 py-1">
               {(order.items || []).map((item, idx) => {
-                const lineTotal = (item.unitPrice || 0) * (item.quantity || 1);
+                const lineTotal = Math.round((item.unitPrice || 0) * (item.quantity || 1));
                 const title = item.productName || item.name || `Sản phẩm ${item.sku || idx + 1}`;
                 return (
                   <div key={idx} className="py-1.5 space-y-0.5">
@@ -159,7 +159,7 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
                     </div>
                     <div className="flex justify-between text-slate-600 text-[11px]">
                       <span>
-                        {item.quantity} {item.unit || 'cái'} x {Number(item.unitPrice).toLocaleString('vi-VN')} đ
+                        {item.quantity} {item.unit || 'cái'} x {Math.round(Number(item.unitPrice) || 0).toLocaleString('vi-VN')} đ
                       </span>
                       <span className="font-bold text-slate-900 font-mono">
                         {lineTotal.toLocaleString('vi-VN')} đ
@@ -176,7 +176,7 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
             <div className="flex justify-between font-sans">
               <span className="text-slate-600">Tổng tiền hàng:</span>
               <span className="font-bold text-slate-900 font-mono">
-                {Number(order.totalAmount).toLocaleString('vi-VN')} đ
+                {Math.round(Number(order.totalAmount) || 0).toLocaleString('vi-VN')} đ
               </span>
             </div>
             <div className="flex justify-between font-sans">
@@ -186,7 +186,7 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
             <div className="flex justify-between font-sans pt-1 border-t border-slate-200 text-sm">
               <span className="font-black uppercase">THANH TOÁN:</span>
               <span className="font-black text-slate-950 font-mono text-base">
-                {Number(order.totalAmount).toLocaleString('vi-VN')} đ
+                {Math.round(Number(order.totalAmount) || 0).toLocaleString('vi-VN')} đ
               </span>
             </div>
             {order.paymentStatus === 'PAID' ? (
@@ -202,9 +202,9 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
 
           {/* Footer Note */}
           <div className="pt-3 text-center space-y-1 font-sans text-[11px] text-slate-600">
-            <p className="font-bold text-slate-800">CẢM ƠN QUÝ KHÁCH ĐÃ ỦNG HỘ!</p>
+            <p className="font-bold text-slate-800">CẢMƠN QUÝ KHÁCH ĐÃ ỦNG HỘ!</p>
             <p>Đổi trả trong 3 ngày nếu nguyên tem/bao bì.</p>
-            <p className="text-[10px] text-slate-400">Website: diennuocminhly.com • Tra cứu bảo hành theo SĐT</p>
+            <p className="text-[10px] text-slate-400">Website: tdtmaterial.id.vn • Tra cứu bảo hành theo SĐT</p>
           </div>
         </div>
 

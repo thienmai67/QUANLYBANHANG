@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Order } from '@/types/manager';
 import { useToast } from '@/hooks/useToast';
+import { useManagerStore } from '@/store/useManagerStore';
 import {
   AlertTriangle,
   X,
@@ -34,6 +35,7 @@ const INCIDENT_CATEGORIES = [
 
 export default function IncidentModal({
   order,
+  shipperId,
   shipperName,
   isOpen,
   onClose,
@@ -68,25 +70,23 @@ export default function IncidentModal({
 
     setIsSubmitting(true);
     try {
-      // Simulate incident reporting to manager dispatch desk
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      const res = await useManagerStore.getState().updateOrderStatusWithActor(
+        order.id,
+        'DELIVERY_FAILED',
+        {
+          role: 'SHIPPER',
+          shipperId: order.shipperId || shipperId,
+          name: shipperName,
+        },
+        {
+          incidentCategory: selectedCategoryLabel,
+          cancelReason: detail.trim(),
+          shipperId: order.shipperId || shipperId,
+        }
+      );
 
-      // Store reported incident locally on order notes/history if applicable
-      const incidentPayload = {
-        category: selectedCategoryLabel,
-        detail: detail.trim(),
-        reportedBy: shipperName,
-        reportedAt: new Date().toISOString(),
-      };
-
-      try {
-        const storedIncidents = JSON.parse(
-          localStorage.getItem('shipper_incidents') || '{}'
-        );
-        storedIncidents[order.id] = incidentPayload;
-        localStorage.setItem('shipper_incidents', JSON.stringify(storedIncidents));
-      } catch {
-        // ignore localStorage errors
+      if (!res.success) {
+        throw new Error(res.error || 'Không thể gửi báo cáo sự cố');
       }
 
       toast.success(

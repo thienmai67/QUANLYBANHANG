@@ -880,10 +880,10 @@ export const useManagerStore = create<ManagerState>()(
           return { success: false, error: `Đơn hàng ${orderId} không tồn tại` };
         }
 
-        if (order.status !== 'PACKING' && (order.status as string) !== 'SHIPPING') {
+        if (order.status !== 'PACKING' && (order.status as string) !== 'SHIPPING' && (order.status as string) !== 'DELIVERY_FAILED') {
           return {
             success: false,
-            error: `Chỉ đơn hàng đang đóng gói hoặc đang giao mới có thể phân công shipper (hiện tại: ${order.status})`,
+            error: `Chỉ đơn hàng đang đóng gói, đang giao hoặc sự cố mới có thể phân công shipper (hiện tại: ${order.status})`,
           };
         }
 
@@ -901,23 +901,21 @@ export const useManagerStore = create<ManagerState>()(
           };
         }
 
-        // Transition PACKING -> SHIPPING via updateOrderStatusWithActor
-        if (order.status === 'PACKING') {
-          const res = await get().updateOrderStatusWithActor(
-            orderId,
-            'SHIPPING',
-            {
-              role: 'MANAGER',
-              name: managerName,
-            },
-            {
-              shipperId: shipper.id,
-              shipperName: shipper.name,
-            }
-          );
-          if (!res.success) {
-            return res;
+        // Transition PACKING/SHIPPING/DELIVERY_FAILED -> SHIPPING via updateOrderStatusWithActor
+        const res = await get().updateOrderStatusWithActor(
+          orderId,
+          'SHIPPING',
+          {
+            role: 'MANAGER',
+            name: managerName,
+          },
+          {
+            shipperId: shipper.id,
+            shipperName: shipper.name,
           }
+        );
+        if (!res.success) {
+          return res;
         }
 
         const now = new Date().toISOString();

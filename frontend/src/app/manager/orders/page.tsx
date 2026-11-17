@@ -574,19 +574,62 @@ function OrdersManagementContent() {
                               </>
                             )}
 
-                            {/* SHIPPING: Hủy đơn (Xác nhận giao hàng chỉ do Shipper thực hiện kèm POD) */}
+                            {/* SHIPPING: Hủy đơn hoặc Điều phối lại Shipper */}
                             {order.status === 'SHIPPING' && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCancelTargetOrder(order);
-                                  setIsCancelOpen(true);
-                                }}
-                                className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                                title="Hủy đơn hàng và hoàn kho"
-                              >
-                                Hủy
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={processingOrderId === order.id}
+                                  onClick={() => {
+                                    setAssignOrder(order);
+                                    setIsAssignOpen(true);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white transition-colors shadow-sm"
+                                  title="Điều phối lại nhân viên giao hàng"
+                                >
+                                  Điều phối lại
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCancelTargetOrder(order);
+                                    setIsCancelOpen(true);
+                                  }}
+                                  className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                  title="Hủy đơn hàng và hoàn kho"
+                                >
+                                  Hủy
+                                </button>
+                              </>
+                            )}
+
+                            {/* DELIVERY_FAILED: Thử lại giao hoặc Hủy đơn & hoàn kho */}
+                            {order.status === 'DELIVERY_FAILED' && (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={processingOrderId === order.id}
+                                  onClick={() => {
+                                    setAssignOrder(order);
+                                    setIsAssignOpen(true);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white transition-colors shadow-sm"
+                                  title="Gán lại shipper để thử lại giao hàng"
+                                >
+                                  Thử lại giao
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCancelTargetOrder(order);
+                                    setIsCancelOpen(true);
+                                  }}
+                                  className="px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                  title="Hủy đơn hàng và hoàn kho"
+                                >
+                                  Hủy đơn
+                                </button>
+                              </>
                             )}
 
                             {/* Always allow viewing details */}
@@ -750,16 +793,53 @@ function OrdersManagementContent() {
                       )}
 
                       {order.status === 'SHIPPING' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCancelTargetOrder(order);
-                            setIsCancelOpen(true);
-                          }}
-                          className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600"
-                        >
-                          Hủy
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCancelTargetOrder(order);
+                              setIsCancelOpen(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssignOrder(order);
+                              setIsAssignOpen(true);
+                            }}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-sm"
+                          >
+                            Điều phối lại
+                          </button>
+                        </>
+                      )}
+
+                      {order.status === 'DELIVERY_FAILED' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCancelTargetOrder(order);
+                              setIsCancelOpen(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssignOrder(order);
+                              setIsAssignOpen(true);
+                            }}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-sm"
+                          >
+                            Thử lại giao
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

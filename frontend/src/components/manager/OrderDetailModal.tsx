@@ -278,6 +278,27 @@ export function OrderDetailModal({
             </div>
           </div>
 
+          {/* Incident Report Details if DELIVERY_FAILED or incidentDetail exists */}
+          {(order.status === 'DELIVERY_FAILED' || order.incidentDetail || order.incident) && (
+            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1 text-xs">
+                <h4 className="font-bold text-amber-900 dark:text-amber-200 uppercase tracking-wider">
+                  Báo cáo sự cố từ Shipper
+                </h4>
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  {order.incidentDetail || order.incident?.detail || 'Khách không nghe máy / Chưa thể giao hàng'}
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-amber-700 dark:text-amber-400">
+                  {order.shipperName && <span>Shipper: <strong>{order.shipperName}</strong></span>}
+                  {order.incidentReportedAt && (
+                    <span>Thời gian báo: <strong>{formatDateTime(order.incidentReportedAt)}</strong></span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Cancellation Notice if Cancelled */}
           {order.status === 'CANCELLED' && order.cancellationReason && (
             <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-start gap-3">

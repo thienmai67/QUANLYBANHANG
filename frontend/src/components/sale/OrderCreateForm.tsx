@@ -220,7 +220,7 @@ export function OrderCreateForm() {
     setItems((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  // Calculations
+  // Calculations (rounded integer VND)
   const { subtotal, discountTotal, totalAmount } = useMemo(() => {
     let sub = 0;
     let disc = 0;
@@ -229,15 +229,17 @@ export function OrderCreateForm() {
         typeof item.quantity === 'number'
           ? item.quantity
           : parseFloat(String(item.quantity)) || 0;
-      const lineSub = item.unitPrice * qtyNum;
-      const lineDisc = (lineSub * item.discountRate) / 100;
+      const lineSub = Math.round(item.unitPrice * qtyNum);
+      const lineDisc = Math.round((lineSub * item.discountRate) / 100);
       sub += lineSub;
       disc += lineDisc;
     });
+    const subtotalRound = Math.round(sub);
+    const discRound = Math.round(disc);
     return {
-      subtotal: sub,
-      discountTotal: disc,
-      totalAmount: Math.max(0, sub - disc),
+      subtotal: subtotalRound,
+      discountTotal: discRound,
+      totalAmount: Math.max(0, subtotalRound - discRound),
     };
   }, [items]);
 
@@ -795,7 +797,7 @@ export function OrderCreateForm() {
                   <input
                     type="number"
                     min="0"
-                    step="1000"
+                    step="1"
                     value={cashTendered}
                     onChange={(e) => setCashTendered(e.target.value)}
                     placeholder="VD: 500000"

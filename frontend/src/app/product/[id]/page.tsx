@@ -67,9 +67,9 @@ function normalizeProductDetail(raw: any): ProductDetailData {
   const basePrice = Number(raw.basePrice ?? raw.base_price ?? raw.price ?? 0);
   const unit = String(specs.unit || raw.unit || '—');
   const rawStock = raw.stockQuantity ?? raw.stock_quantity ?? raw.stock ?? specs.stock;
-  const stock = rawStock !== undefined && rawStock !== null && Number(rawStock) > 0
-    ? Number(rawStock)
-    : 500;
+  const stock = rawStock !== undefined && rawStock !== null && !isNaN(Number(rawStock))
+    ? Math.max(0, Number(rawStock))
+    : 0;
   const image = String(specs.image || raw.image || '');
 
   let images: string[] = [];
@@ -293,7 +293,7 @@ export default function ProductDetailPage() {
               brand: localMatch.brand,
               category: localMatch.category,
               basePrice: localMatch.rawPrice || 50000,
-              stock: 500,
+              stock: (localMatch as any).stock ?? (localMatch as any).stockQuantity ?? 0,
               image: localMatch.image,
               description: localMatch.description,
               specs: localMatch.specs,

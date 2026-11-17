@@ -51,6 +51,17 @@ function removeVietnameseTones(str: string): string {
     .trim();
 }
 
+function matchSearchTerm(pText: string, search: string): boolean {
+  const qNorm = removeVietnameseTones(search);
+  if (!qNorm) return true;
+  const qTokens = qNorm.split(/\s+/).filter(Boolean);
+  return qTokens.every((token) => {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp('(^|[\\s\\-_/(\\[])' + escaped, 'i');
+    return re.test(pText);
+  });
+}
+
 function getProductCategoryName(p: any): string {
   const catObj = typeof p.category === 'object' && p.category !== null ? p.category : null;
   const catCode = (catObj?.code || p.categoryCode || '').toUpperCase();
@@ -143,7 +154,7 @@ function ShopContent() {
   // Standardize products
   const allProducts: MaterialProduct[] = useMemo(() => {
     if (adminProducts && adminProducts.length > 0) {
-      return adminProducts.map((p) => {
+      const list = adminProducts.map((p) => {
         const rawPrice = p.basePrice ?? (typeof p.price === 'number' ? p.price : 0);
         const priceStr =
           typeof p.price === 'string'
@@ -177,6 +188,7 @@ function ShopContent() {
           discount: p.discountRate ?? p.discount ?? 0,
         };
       });
+      return list.sort((a, b) => a.name.localeCompare(b.name, 'vi') || (a.sku || '').localeCompare(b.sku || '') || a.id.localeCompare(b.id));
     }
     return [];
   }, [adminProducts]);
@@ -204,14 +216,10 @@ function ShopContent() {
       const pNameNorm = removeVietnameseTones(p.name);
       const pSkuNorm = removeVietnameseTones(p.sku);
       const pBrandNorm = removeVietnameseTones(p.brand);
+      const pCatNorm = removeVietnameseTones(p.categoryName || (p.category as any) || '');
+      const pSearchTarget = `${pNameNorm} ${pSkuNorm} ${pBrandNorm} ${pCatNorm}`;
 
-      const matchesSearch =
-        !qNorm ||
-        pNameNorm.includes(qNorm) ||
-        pSkuNorm.includes(qNorm) ||
-        pBrandNorm.includes(qNorm) ||
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.sku.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = matchSearchTerm(pSearchTarget, search);
 
       const matchesBrand = selectedBrand === 'ALL' || p.brand === selectedBrand;
       const matchesCat =
