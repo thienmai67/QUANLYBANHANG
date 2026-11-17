@@ -425,7 +425,7 @@ UPDATE orders SET status = 'SHIPPING' WHERE status = 'SHIPPED';
 
 ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
 ALTER TABLE orders ADD CONSTRAINT orders_status_check
-    CHECK (status IN ('PENDING', 'PACKING', 'SHIPPING', 'DELIVERED', 'CANCELLED'));
+    CHECK (status IN ('PENDING', 'PACKING', 'SHIPPING', 'DELIVERED', 'CANCELLED', 'DELIVERY_FAILED'));
 
 ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES users(id),
