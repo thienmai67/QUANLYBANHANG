@@ -450,11 +450,11 @@ export default function ShipperOrderDetailPage() {
                   Đã gửi báo cáo cho Quản lý (Manager) xử lý
                 </span>
                 <a
-                  href="tel:0937292769"
+                  href="tel:19006868"
                   className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
                 >
                   <Phone className="w-3.5 h-3.5" />
-                  <span>Gọi Hotline Quản lý</span>
+                  <span>Gọi Hotline Quản lý (1900 6868)</span>
                 </a>
               </div>
             </div>

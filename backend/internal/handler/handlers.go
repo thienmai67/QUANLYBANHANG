@@ -340,14 +340,30 @@ func (h *Handler) ListCategories(w http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) ListOrders(w http.ResponseWriter, req *http.Request) {
 	limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
-	if limit <= 0 || limit > 100 {
-		limit = 50
+	if limit <= 0 || limit > 1000 {
+		limit = 500
 	}
 	offset, _ := strconv.Atoi(req.URL.Query().Get("offset"))
 
 	var customerID *uuid.UUID
 	claims, ok := middleware.GetClaimsFromContext(req.Context())
 	if ok && claims != nil {
+		scope := req.URL.Query().Get("scope")
+		if scope == "personal" {
+			parsedUID, err := uuid.Parse(claims.UserID)
+			if err == nil {
+				customerID = &parsedUID
+				orders, err := h.productRepo.ListOrders(req.Context(), customerID, limit, offset)
+				if err != nil {
+					writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi truy vấn đơn hàng cá nhân")
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(orders)
+				return
+			}
+		}
+
 		if claims.Role == domain.RoleSale {
 			if h.saleRepo == nil {
 				writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Sale repository chưa được khởi tạo")
@@ -550,6 +566,18 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 					if strVal, isStr := val.(string); isStr && strings.TrimSpace(strVal) != "" {
 						trimmed := strings.TrimSpace(strVal)
 						order.Notes = &trimmed
+						break
+					}
+				}
+			}
+		}
+
+		if order.CustomerPhone == nil || strings.TrimSpace(*order.CustomerPhone) == "" {
+			for _, key := range []string{"customerPhone", "customer_phone", "phone", "recipientPhone", "recipient_phone"} {
+				if val, ok := rawMap[key]; ok {
+					if strVal, isStr := val.(string); isStr && strings.TrimSpace(strVal) != "" {
+						trimmed := strings.TrimSpace(strVal)
+						order.CustomerPhone = &trimmed
 						break
 					}
 				}

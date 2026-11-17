@@ -326,20 +326,47 @@ export default function ProductDetailPage() {
       router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
       return;
     }
+
+    const rawVal = qtyInput.trim();
+    if (!rawVal) {
+      toast.error('Vui lòng nhập số lượng!');
+      return;
+    }
+    const num = Number(rawVal);
+    if (Number.isNaN(num)) {
+      toast.error('Số lượng không hợp lệ!');
+      return;
+    }
+    if (!Number.isInteger(num)) {
+      toast.error('Số lượng phải là số nguyên!');
+      return;
+    }
+    if (num <= 0) {
+      toast.error('Số lượng phải từ 1 trở lên!');
+      return;
+    }
     const maxStock = product.stock > 0 ? product.stock : 9999;
-    const parsed = parseInt(qtyInput, 10);
-    const effectiveQty = Number.isNaN(parsed) ? quantity : Math.max(1, Math.min(maxStock, parsed));
+    if (num > maxStock) {
+      toast.error(`Số lượng không được vượt quá tồn kho (${maxStock})!`);
+      return;
+    }
+
+    const effectiveQty = num;
     setQuantity(effectiveQty);
     setQtyInput(String(effectiveQty));
 
-    const priceFormatted = `${product.basePrice.toLocaleString('vi-VN')} ₫`;
+    const disc = product.discountRate || 0;
+    const rate = disc > 1 ? disc / 100 : disc;
+    const effectiveUnitPrice = rate > 0 ? Math.round(product.basePrice * (1 - rate)) : product.basePrice;
+    const priceFormatted = `${effectiveUnitPrice.toLocaleString('vi-VN')} ₫`;
+
     addItem(
       {
         id: product.id,
         sku: product.sku,
         name: product.name,
         price: priceFormatted,
-        unitPrice: product.basePrice,
+        unitPrice: effectiveUnitPrice,
         image: product.image,
         quantity: effectiveQty,
       },
@@ -377,20 +404,47 @@ export default function ProductDetailPage() {
       router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
       return;
     }
+
+    const rawVal = qtyInput.trim();
+    if (!rawVal) {
+      toast.error('Vui lòng nhập số lượng!');
+      return;
+    }
+    const num = Number(rawVal);
+    if (Number.isNaN(num)) {
+      toast.error('Số lượng không hợp lệ!');
+      return;
+    }
+    if (!Number.isInteger(num)) {
+      toast.error('Số lượng phải là số nguyên!');
+      return;
+    }
+    if (num <= 0) {
+      toast.error('Số lượng phải từ 1 trở lên!');
+      return;
+    }
     const maxStock = product.stock > 0 ? product.stock : 9999;
-    const parsed = parseInt(qtyInput, 10);
-    const effectiveQty = Number.isNaN(parsed) ? quantity : Math.max(1, Math.min(maxStock, parsed));
+    if (num > maxStock) {
+      toast.error(`Số lượng không được vượt quá tồn kho (${maxStock})!`);
+      return;
+    }
+
+    const effectiveQty = num;
     setQuantity(effectiveQty);
     setQtyInput(String(effectiveQty));
 
-    const priceFormatted = `${product.basePrice.toLocaleString('vi-VN')} ₫`;
+    const disc = product.discountRate || 0;
+    const rate = disc > 1 ? disc / 100 : disc;
+    const effectiveUnitPrice = rate > 0 ? Math.round(product.basePrice * (1 - rate)) : product.basePrice;
+    const priceFormatted = `${effectiveUnitPrice.toLocaleString('vi-VN')} ₫`;
+
     addItem(
       {
         id: product.id,
         sku: product.sku,
         name: product.name,
         price: priceFormatted,
-        unitPrice: product.basePrice,
+        unitPrice: effectiveUnitPrice,
         image: product.image,
         quantity: effectiveQty,
       },
@@ -549,19 +603,31 @@ export default function ProductDetailPage() {
 
                   {/* Price & Stock Box */}
                   <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        Giá bán niêm yết
-                      </span>
-                      <div className="flex items-baseline gap-2 mt-1">
-                        <span className="text-3xl font-black text-blue-600 dark:text-blue-400 font-mono">
-                          {product.basePrice.toLocaleString('vi-VN')} ₫
-                        </span>
-                        <span className="text-sm font-semibold text-slate-500">
-                          / {product.unit}
-                        </span>
-                      </div>
-                    </div>
+                    {(() => {
+                      const disc = product.discountRate || 0;
+                      const rate = disc > 1 ? disc / 100 : disc;
+                      const effectiveUnitPrice = rate > 0 ? Math.round(product.basePrice * (1 - rate)) : product.basePrice;
+                      return (
+                        <div>
+                          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            {rate > 0 ? 'Giá bán sau chiết khấu' : 'Giá bán niêm yết'}
+                          </span>
+                          <div className="flex items-baseline gap-2 mt-1">
+                            <span className="text-3xl font-black text-blue-600 dark:text-blue-400 font-mono">
+                              {effectiveUnitPrice.toLocaleString('vi-VN')} ₫
+                            </span>
+                            {rate > 0 && (
+                              <span className="text-sm line-through text-slate-400 font-mono">
+                                {product.basePrice.toLocaleString('vi-VN')} ₫
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-slate-500">
+                              / {product.unit}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <div className="flex flex-col sm:items-end">
                       <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -652,7 +718,10 @@ export default function ProductDetailPage() {
                   const accAddonTotal = accessories
                     .filter((a) => selectedAccs[a.id])
                     .reduce((sum, a) => sum + a.price, 0);
-                  const totalWithAccessories = product.basePrice * quantity + accAddonTotal;
+                  const disc = product.discountRate || 0;
+                  const rate = disc > 1 ? disc / 100 : disc;
+                  const effectiveUnitPrice = rate > 0 ? Math.round(product.basePrice * (1 - rate)) : product.basePrice;
+                  const totalWithAccessories = effectiveUnitPrice * quantity + accAddonTotal;
 
                   return (
                     <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 space-y-3">
@@ -746,30 +815,14 @@ export default function ProductDetailPage() {
                         onChange={(e) => {
                           const val = e.target.value;
                           setQtyInput(val);
-                          if (val === '') {
-                            return;
-                          }
-                          const parsed = parseInt(val, 10);
-                          if (!isNaN(parsed)) {
+                          const parsed = Number(val);
+                          if (Number.isInteger(parsed) && parsed >= 1) {
                             const maxStock = product && product.stock > 0 ? product.stock : 9999;
-                            const clamped = Math.max(1, Math.min(maxStock, parsed));
-                            setQuantity(clamped);
+                            setQuantity(Math.min(maxStock, parsed));
                           }
-                        }}
-                        onBlur={() => {
-                          const maxStock = product && product.stock > 0 ? product.stock : 9999;
-                          const parsed = parseInt(qtyInput, 10);
-                          const finalQty = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(maxStock, parsed));
-                          setQuantity(finalQty);
-                          setQtyInput(String(finalQty));
                         }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
-                            const maxStock = product && product.stock > 0 ? product.stock : 9999;
-                            const parsed = parseInt(qtyInput, 10);
-                            const finalQty = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(maxStock, parsed));
-                            setQuantity(finalQty);
-                            setQtyInput(String(finalQty));
                             (e.target as HTMLInputElement).blur();
                           }
                         }}

@@ -135,12 +135,13 @@ export default function CheckoutPage() {
           if (draft.selectedWard) setSelectedWard(draft.selectedWard);
           if (draft.deliveryMethod) setDeliveryMethod(draft.deliveryMethod);
           if (draft.pickupStore) setPickupStore(draft.pickupStore);
+          if (draft.is2h !== undefined) setIs2h(Boolean(draft.is2h));
         }
       } catch {}
     }
   }, []);
 
-  // Save draft on change (BUG-36)
+  // Save draft on change (BUG-36, BUG-31)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -156,11 +157,12 @@ export default function CheckoutPage() {
             selectedWard,
             deliveryMethod,
             pickupStore,
+            is2h,
           })
         );
       } catch {}
     }
-  }, [customerName, customerPhone, streetAddress, notes, selectedProvince, selectedDistrict, selectedWard, deliveryMethod, pickupStore]);
+  }, [customerName, customerPhone, streetAddress, notes, selectedProvince, selectedDistrict, selectedWard, deliveryMethod, pickupStore, is2h]);
 
   const availableDistricts = useMemo(() => {
     return VN_PROVINCES[selectedProvince] ? Object.keys(VN_PROVINCES[selectedProvince]) : [];
@@ -281,10 +283,10 @@ export default function CheckoutPage() {
     }
     if (user) {
       if (user.fullName || user.name) {
-        setCustomerName(user.fullName || user.name);
+        setCustomerName((prev) => prev || user.fullName || user.name || '');
       }
       if (user.phone) {
-        setCustomerPhone(user.phone);
+        setCustomerPhone((prev) => prev || user.phone || '');
       }
     }
   }, [user]);
@@ -563,6 +565,9 @@ export default function CheckoutPage() {
           setUnderpaidMessage(null);
           setExistingCreatedOrderId(null);
           clearCart();
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('tdt_checkout_draft');
+          }
         } catch (linkErr: any) {
           // Fallback an toàn: Tạo mã VietQR Napas 247 trực tiếp để người dùng luôn có mã QR thanh toán ngay trên màn hình
           const fallbackQR = `https://img.vietqr.io/image/MB-0901234567-compact2.png?amount=${total}&addInfo=TDT${validOrderId.slice(0, 8).toUpperCase()}&accountName=CONG%20TY%20TDT`;
@@ -580,6 +585,9 @@ export default function CheckoutPage() {
           setUnderpaidMessage(null);
           setExistingCreatedOrderId(null);
           clearCart();
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('tdt_checkout_draft');
+          }
           if (typeof window !== 'undefined') {
             localStorage.removeItem('tdt_checkout_draft');
           }

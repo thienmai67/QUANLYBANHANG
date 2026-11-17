@@ -45,6 +45,9 @@ func getTestDB(t *testing.T) *sqlx.DB {
 	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")
 	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE")
 	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.shippers ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")
+	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.orders ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(50)")
+	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.orders ADD COLUMN IF NOT EXISTS delivery_address TEXT")
+	_, _ = db.ExecContext(ctx, "ALTER TABLE me_supplies.orders ADD COLUMN IF NOT EXISTS notes TEXT")
 
 	upSQLPath13 := filepath.Join("..", "..", "migrations", "000013_sale_role_and_crm.up.sql")
 	if upSQLBytes, err := os.ReadFile(upSQLPath13); err == nil {

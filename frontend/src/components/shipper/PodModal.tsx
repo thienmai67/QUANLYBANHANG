@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Order } from '@/types/manager';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useShipperUIStore } from '@/store/useShipperUIStore';
@@ -17,6 +17,8 @@ import {
   Loader2,
   UserCheck,
   Banknote,
+  PenTool,
+  RotateCcw,
 } from 'lucide-react';
 
 interface PodModalProps {
@@ -45,6 +47,71 @@ export default function PodModal({
   const [codConfirmed, setCodConfirmed] = useState(false);
   const [processing, setProcessing] = useState(false);
 
+  // Digital Signature Pad (BUG-47)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSignature, setHasSignature] = useState(false);
+
+  const getCanvasPos = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if ('touches' in e && e.touches.length > 0) {
+      const touch = e.touches[0];
+      return {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY,
+      };
+    }
+    const mouseEvent = e as React.MouseEvent<HTMLCanvasElement>;
+    return {
+      x: (mouseEvent.clientX - rect.left) * scaleX,
+      y: (mouseEvent.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getCanvasPos(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setIsDrawing(true);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getCanvasPos(e);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    setHasSignature(true);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSignature(false);
+  };
+
   const handleAutoFillDemo = () => {
     const defaultReceiver = order?.customerName || 'A. Nam (Đội trưởng thi công)';
     setReceiverName(defaultReceiver);
@@ -57,7 +124,22 @@ export default function PodModal({
     if (isCod) {
       setCodConfirmed(true);
     }
-    toast.success('Đã nạp nhanh biên bản & ảnh POD mẫu phục vụ demo!');
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.moveTo(30, 50);
+        ctx.bezierCurveTo(60, 20, 100, 70, 140, 35);
+        ctx.bezierCurveTo(160, 20, 200, 65, 250, 45);
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        setHasSignature(true);
+      }
+    }
+    toast.success('Đã nạp nhanh biên bản, chữ ký & ảnh POD mẫu phục vụ demo!');
   };
 
   // D2.6: Reset state completely on order change or when modal opens/closes
@@ -67,6 +149,11 @@ export default function PodModal({
       setPhotos([]);
       setCodConfirmed(false);
       setProcessing(false);
+      setHasSignature(false);
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
     }
   }, [isOpen, order?.id]);
 
@@ -120,7 +207,7 @@ export default function PodModal({
   };
 
   const isReceiverValid = receiverName.trim().length >= 2;
-  const isPhotosValid = photos.length >= 1;
+  const isPhotosValid = photos.length >= 1 || hasSignature;
   const isCodValid = !isCod || codConfirmed;
   const canSubmit = isReceiverValid && isPhotosValid && isCodValid && !processing;
 
@@ -129,6 +216,15 @@ export default function PodModal({
 
     setProcessing(true);
     try {
+      let finalPhotos = [...photos];
+      if (hasSignature && canvasRef.current) {
+        const sigUrl = canvasRef.current.toDataURL('image/png');
+        finalPhotos.push({
+          name: 'chu-ky-nguoi-nhan.png',
+          thumbnail: sigUrl,
+        });
+      }
+
       const res = await updateOrderStatusWithActor(
         order.id,
         'DELIVERED',
@@ -140,7 +236,7 @@ export default function PodModal({
         {
           pod: {
             receiverName: receiverName.trim(),
-            photos,
+            photos: finalPhotos,
           },
           codConfirmed: isCod ? codConfirmed : undefined,
         }
@@ -270,6 +366,52 @@ export default function PodModal({
                 Tên người nhận phải có ít nhất 2 ký tự
               </p>
             )}
+          </div>
+
+          {/* Digital Signature Pad (BUG-47) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="font-bold flex items-center gap-1.5">
+                <PenTool className="w-4 h-4 text-blue-500" />
+                Chữ ký điện tử người nhận
+              </label>
+              {hasSignature && (
+                <button
+                  type="button"
+                  onClick={clearSignature}
+                  className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Xóa chữ ký</span>
+                </button>
+              )}
+            </div>
+            <div
+              className={`relative rounded-xl border overflow-hidden ${
+                isHighContrast
+                  ? 'bg-white border-2 border-black'
+                  : 'bg-slate-950 border-slate-700'
+              }`}
+            >
+              <canvas
+                ref={canvasRef}
+                width={330}
+                height={100}
+                className="w-full h-[100px] touch-none cursor-crosshair block"
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+              />
+              {!hasSignature && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-slate-500 text-[11px] select-none">
+                  ✍️ Ký tay trực tiếp vào ô này
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Photo Proof Upload */}

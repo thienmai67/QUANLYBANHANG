@@ -276,7 +276,23 @@ export default function OrderSuccessPage() {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <Clock className="w-3.5 h-3.5 text-orange-500" />
-                  <span>Dự kiến giao: <strong className="text-slate-900 dark:text-white">{order?.is2h ? 'Trong 2 Giờ' : 'Trong Ngày'}</strong></span>
+                  <span>
+                    Dự kiến giao:{' '}
+                    <strong className="text-slate-900 dark:text-white">
+                      {order?.is2h
+                        ? (() => {
+                            if (order?.createdAt) {
+                              const created = new Date(order.createdAt);
+                              const mins = created.getHours() * 60 + created.getMinutes();
+                              if (mins < 7 * 60 + 30 || mins > 18 * 60) {
+                                return 'Trước 09:30 sáng mai (Đặt ngoài giờ làm việc)';
+                              }
+                            }
+                            return 'Trong 2 Giờ (Hỏa tốc)';
+                          })()
+                        : 'Trong Ngày'}
+                    </strong>
+                  </span>
                 </div>
               </div>
 

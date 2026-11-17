@@ -622,7 +622,7 @@ const orderBaseSelectColumns = `
     version, pod_photo_url, pod_recipient_name, pod_confirmed_at, cod_collected,
     cod_remitted, cod_remitted_at, incident_detail, incident_reported_by, incident_reported_at,
     payment_status, payos_order_code, paid_at, payment_receipt_url, refund_tx_code, refunded_at,
-    created_at, updated_at, sale_id, delivery_address, notes
+    created_at, updated_at, sale_id, delivery_address, notes, customer_phone
 `
 
 type orderScanner interface {
@@ -632,7 +632,7 @@ type orderScanner interface {
 func scanOrderRow(s orderScanner) (*domain.Order, error) {
 	var o domain.Order
 	var custID, shipID, incidentReportedBy, saleID uuid.NullUUID
-	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail, payStatus, payReceipt, refundTx, deliveryAddress, notes sql.NullString
+	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail, payStatus, payReceipt, refundTx, deliveryAddress, notes, customerPhone sql.NullString
 	var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt, paidAt, refundedAt sql.NullTime
 	var payosOrderCode sql.NullInt64
 
@@ -642,7 +642,7 @@ func scanOrderRow(s orderScanner) (*domain.Order, error) {
 		&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
 		&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
 		&payStatus, &payosOrderCode, &paidAt, &payReceipt, &refundTx, &refundedAt,
-		&o.CreatedAt, &o.UpdatedAt, &saleID, &deliveryAddress, &notes,
+		&o.CreatedAt, &o.UpdatedAt, &saleID, &deliveryAddress, &notes, &customerPhone,
 	)
 	if err != nil {
 		return nil, err
@@ -718,6 +718,9 @@ func scanOrderRow(s orderScanner) (*domain.Order, error) {
 	if notes.Valid {
 		o.Notes = &notes.String
 	}
+	if customerPhone.Valid && customerPhone.String != "" {
+		o.CustomerPhone = &customerPhone.String
+	}
 
 	return &o, nil
 }
@@ -735,14 +738,19 @@ func (r *productRepository) ListOrders(ctx context.Context, customerID *uuid.UUI
         `, orderBaseSelectColumns)
 		args = []any{limit, offset}
 	} else {
+		var userEmail, userPhone string
+		_ = r.db.QueryRowContext(ctx, `SELECT COALESCE(email, ''), COALESCE(phone, '') FROM me_supplies.users WHERE id = $1`, *customerID).Scan(&userEmail, &userPhone)
+
 		query = fmt.Sprintf(`
             SELECT %s
             FROM me_supplies.orders
-            WHERE customer_id = $1
+            WHERE customer_id = $1 
+               OR ($2 != '' AND customer_name ILIKE $2)
+               OR ($3 != '' AND (customer_phone ILIKE $3 OR delivery_address ILIKE '%%' || $3 || '%%'))
             ORDER BY created_at DESC
-            LIMIT $2 OFFSET $3
+            LIMIT $4 OFFSET $5
         `, orderBaseSelectColumns)
-		args = []any{*customerID, limit, offset}
+		args = []any{*customerID, userEmail, userPhone, limit, offset}
 	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -1065,7 +1073,7 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 	// Round total to integer VND
 	order.TotalAmount = math.Round(computedTotal)
 	order.Version = 1
-	// D1.1 (F03): Luôn ép UNPAID lúc tạo đơn, shipper/delivered/cancel = nil
+	// D1.1 (F03): Luôn ép UNPAID lúc tạo đơn trừ trường hợp thanh toán tiền mặt tại quầy (CASH POS)
 	order.PaymentStatus = domain.PaymentStatusUnpaid
 	order.ShipperID = nil
 	order.DeliveredAt = nil
@@ -1076,25 +1084,70 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 		order.CreatedAt = now
 	}
 	order.UpdatedAt = now
+
+	isCashPos := order.PaymentMethod != nil && strings.EqualFold(strings.TrimSpace(*order.PaymentMethod), "CASH")
+	if isCashPos {
+		order.PaymentStatus = domain.PaymentStatusPaid
+		order.Status = domain.OrderStatusDelivered
+		order.DeliveredAt = &now
+
+		// Deduct stock immediately for CASH POS order (BUG-41)
+		for _, it := range order.Items {
+			res, err := tx.ExecContext(ctx, `
+				UPDATE me_supplies.products
+				SET stock_quantity = stock_quantity - $1, updated_at = NOW()
+				WHERE id = $2 AND stock_quantity >= $1
+			`, int(math.Ceil(it.Quantity)), it.ProductID)
+			if err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("deduct stock for POS item: %w", err)
+			}
+			rowsAff, _ := res.RowsAffected()
+			if rowsAff == 0 {
+				_ = tx.Rollback()
+				return domain.ErrInsufficientStock
+			}
+		}
+	}
+
 	if order.Is2H && order.Deadline2H == nil {
-		d := order.CreatedAt.Add(2 * time.Hour)
-		order.Deadline2H = &d
+		vnLocation := time.FixedZone("Asia/Ho_Chi_Minh", 7*3600)
+		vnTime := order.CreatedAt.In(vnLocation)
+		hour := vnTime.Hour()
+		minute := vnTime.Minute()
+		totalMinutes := hour*60 + minute
+
+		// Operating hours: 07:30 (450 mins) to 17:30 (1050 mins)
+		if totalMinutes < 450 {
+			// Early morning before 07:30 -> Delivery before 09:30 today
+			d := time.Date(vnTime.Year(), vnTime.Month(), vnTime.Day(), 9, 30, 0, 0, vnLocation)
+			order.Deadline2H = &d
+		} else if totalMinutes > 1050 {
+			// Evening after 17:30 -> Delivery before 09:30 tomorrow morning
+			nextDay := vnTime.AddDate(0, 0, 1)
+			d := time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), 9, 30, 0, 0, vnLocation)
+			order.Deadline2H = &d
+		} else {
+			// In operating hours -> Exactly 2 hours from created_at
+			d := order.CreatedAt.Add(2 * time.Hour)
+			order.Deadline2H = &d
+		}
 	}
 
 	orderQuery := `
         INSERT INTO me_supplies.orders (
             id, order_number, customer_id, customer_name, shipper_id, payment_method,
             is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
-            version, created_at, updated_at, payment_status, sale_id, delivery_address, notes
+            version, created_at, updated_at, payment_status, sale_id, delivery_address, notes, customer_phone
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
         )
     `
 	_, err = tx.ExecContext(ctx, orderQuery,
 		order.ID, order.OrderNumber, order.CustomerID, order.CustomerName, order.ShipperID, order.PaymentMethod,
 		order.Is2H, order.Deadline2H, order.DeliveredAt, order.CancellationReason, order.TotalAmount, order.Status,
 		order.Version, order.CreatedAt, order.UpdatedAt, order.PaymentStatus, order.SaleID,
-		order.DeliveryAddress, order.Notes,
+		order.DeliveryAddress, order.Notes, order.CustomerPhone,
 	)
 	if err != nil {
 		_ = tx.Rollback()

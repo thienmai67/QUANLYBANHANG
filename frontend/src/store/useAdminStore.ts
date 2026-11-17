@@ -224,14 +224,14 @@ function mapApiCategoryToAdminCategory(raw: any, products: Product[]): Category 
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-  const skuCount = products.filter((p) => p.category === name).length;
+  const skuCount = products.filter((p) => p.category === name || (p.name && raw.name && p.name.toLowerCase().includes(raw.name.toLowerCase()))).length;
   return {
     id: String(raw.id),
-    name,
+    name: (raw.name || name) as any,
     slug: slug || 'danh-muc',
     skuCount,
     status: 'Active',
-    description: String(raw.description || raw.name || `Danh mục vật tư ${name}`),
+    description: String(raw.description || `Danh mục phân loại vật tư M&E: ${raw.name || name}`),
   };
 }
 

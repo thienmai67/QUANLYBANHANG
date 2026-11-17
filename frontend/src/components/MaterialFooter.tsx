@@ -55,10 +55,10 @@ export default function MaterialFooter() {
           <div className="space-y-6">
             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Tiêu Chuẩn &amp; Pháp Lý</h4>
             <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400 font-medium">
-              <li><Link href="/tra-cuu-ho-so" className="hover:text-blue-600 transition-colors flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500"/> 100% Hàng Chính Hãng CO/CQ</Link></li>
-              <li><Link href="/tra-cuu-don-hang" className="hover:text-blue-600 transition-colors">Hóa Đơn Điện Tử Đầy Đủ</Link></li>
-              <li><Link href="/cong-trinh" className="hover:text-blue-600 transition-colors">Quy Chuẩn An Toàn TCVN / IEC</Link></li>
-              <li><Link href="/tra-cuu" className="hover:text-blue-600 transition-colors text-emerald-600 dark:text-emerald-400 font-semibold">Đổi Trả Dễ Dàng Trong 7 Ngày</Link></li>
+              <li><Link href="/chinh-sach/co-cq" className="hover:text-blue-600 transition-colors flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500"/> 100% Hàng Chính Hãng CO/CQ</Link></li>
+              <li><Link href="/chinh-sach/hoa-don" className="hover:text-blue-600 transition-colors">Hóa Đơn Điện Tử Đầy Đủ</Link></li>
+              <li><Link href="/chinh-sach/tieu-chuan" className="hover:text-blue-600 transition-colors">Quy Chuẩn An Toàn TCVN / IEC</Link></li>
+              <li><Link href="/chinh-sach/doi-tra" className="hover:text-blue-600 transition-colors text-emerald-600 dark:text-emerald-400 font-semibold">Đổi Trả Dễ Dàng Trong 7 Ngày</Link></li>
             </ul>
           </div>
 

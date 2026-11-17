@@ -19,8 +19,8 @@ export function CategoriesManager() {
 
   const filteredCategories = categories.filter(
     (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.description.toLowerCase().includes(search.toLowerCase())
+      (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.description || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (

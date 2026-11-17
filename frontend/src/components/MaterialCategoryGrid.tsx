@@ -31,7 +31,13 @@ const BASE_CATEGORIES: Omit<CategoryCardItem, "count">[] = [
     id: "Tủ & Thiết Bị Đóng Cắt",
     name: "Thiết Bị Điện & Đóng Cắt",
     image: "/images/products/schneider-mcb-1.jpg",
-    subcategories: ["Aptomat MCB Schneider Easy9", "Công tắc ổ cắm AvatarOn", "Đèn pha LED & Máy bơm"],
+    subcategories: ["Aptomat MCB Schneider Easy9", "Công tắc ổ cắm AvatarOn", "Máy bơm Panasonic"],
+  },
+  {
+    id: "Thiết Bị Chiếu Sáng & Khác",
+    name: "Đèn LED & Thiết Bị Đo",
+    image: "/images/products/led-sip.jpg",
+    subcategories: ["Đèn LED pha & Highbay", "Đồng hồ đo nước Zenner", "Phụ kiện đo lường"],
   },
 ];
 
@@ -41,6 +47,7 @@ export default function MaterialCategoryGrid({
   onSelectCategory?: (id: string) => void;
 }) {
   const products = useAdminStore((state) => state.products);
+  const productsLoading = useAdminStore((state) => state.productsLoading);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
 
   useEffect(() => {
@@ -75,40 +82,52 @@ export default function MaterialCategoryGrid({
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pb-4">
-        {categoriesWithCounts.map((cat, idx) => (
-          <motion.div
-            key={cat.id}
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            viewport={{ once: true }}
-            className="group cursor-pointer"
-            onClick={() => onSelectCategory && onSelectCategory(cat.id)}
-          >
-            <div className="relative w-full aspect-[4/3] rounded-2xl sm:rounded-3xl overflow-hidden mb-4 bg-slate-100 dark:bg-slate-800">
-              <img
-                src={cat.image}
-                alt={cat.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                <span className="inline-block px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold text-white border border-white/20 uppercase tracking-wider">
-                  {cat.count} Sản phẩm
-                </span>
+      {productsLoading || products.length === 0 ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-4 animate-pulse">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="space-y-3">
+              <div className="w-full aspect-[4/3] rounded-2xl bg-slate-200 dark:bg-slate-800" />
+              <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-4">
+          {categoriesWithCounts.map((cat, idx) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              viewport={{ once: true }}
+              className="group cursor-pointer"
+              onClick={() => onSelectCategory && onSelectCategory(cat.id)}
+            >
+              <div className="relative w-full aspect-[4/3] rounded-2xl sm:rounded-3xl overflow-hidden mb-4 bg-slate-100 dark:bg-slate-800">
+                <img
+                  src={cat.image}
+                  alt={cat.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                  <span className="inline-block px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold text-white border border-white/20 uppercase tracking-wider">
+                    {cat.count} Sản phẩm
+                  </span>
+                </div>
               </div>
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center justify-between">
-                {cat.name}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 line-clamp-1">
-                {cat.subcategories.join(" • ")}
-              </p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center justify-between">
+                  {cat.name}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 line-clamp-1">
+                  {cat.subcategories.join(" • ")}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

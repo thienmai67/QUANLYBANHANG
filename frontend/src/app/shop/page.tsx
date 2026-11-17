@@ -51,13 +51,15 @@ function removeVietnameseTones(str: string): string {
     .trim();
 }
 
+type PriceRange = 'ALL' | 'UNDER_50K' | '50K_200K' | '200K_1M' | 'OVER_1M';
+
 function matchSearchTerm(pText: string, search: string): boolean {
   const qNorm = removeVietnameseTones(search);
   if (!qNorm) return true;
   const qTokens = qNorm.split(/\s+/).filter(Boolean);
   return qTokens.every((token) => {
     const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp('(^|[\\s\\-_/(\\[])' + escaped, 'i');
+    const re = new RegExp('(?:^|[\\s\\-_/(\\[,.])' + escaped + '(?:$|[\\s\\-_/)\\],.])', 'i');
     return re.test(pText);
   });
 }
@@ -74,11 +76,10 @@ function getProductCategoryName(p: any): string {
     brand.includes('bình minh') ||
     brand.includes('binh minh') ||
     sku.startsWith('bm') ||
-    name.includes('ống') ||
-    name.includes('ong ') ||
     catCode === 'PIPE' ||
     catCode === 'WATER_PIPE' ||
-    catCode === 'FITTING'
+    catCode === 'FITTING' ||
+    name.includes('ống')
   ) {
     return 'Ống & Phụ Kiện Nhựa';
   }
@@ -86,9 +87,9 @@ function getProductCategoryName(p: any): string {
     brand.includes('cadivi') ||
     sku.startsWith('cad') ||
     sku.startsWith('cv') ||
+    catCode === 'CABLE' ||
     name.includes('dây') ||
-    name.includes('cáp') ||
-    catCode === 'CABLE'
+    name.includes('cáp')
   ) {
     return 'Dây & Cáp Điện';
   }
@@ -97,20 +98,33 @@ function getProductCategoryName(p: any): string {
     brand.includes('panasonic') ||
     sku.startsWith('sch') ||
     sku.startsWith('pan') ||
-    catCode === 'DEVICE' ||
     name.includes('mcb') ||
     name.includes('mccb') ||
     name.includes('aptomat') ||
-    name.includes('tủ điện')
+    name.includes('công tắc') ||
+    name.includes('ổ cắm') ||
+    name.includes('máy bơm')
   ) {
     return 'Tủ & Thiết Bị Đóng Cắt';
+  }
+  if (
+    sku.startsWith('led-') ||
+    sku.startsWith('zn-') ||
+    catCode.includes('LED') ||
+    name.includes('đèn') ||
+    name.includes('led') ||
+    name.includes('sip') ||
+    name.includes('đồng hồ') ||
+    brand.includes('other')
+  ) {
+    return 'Thiết Bị Chiếu Sáng & Khác';
   }
 
   if (catName.includes('Ống') || catName.includes('Nhựa')) return 'Ống & Phụ Kiện Nhựa';
   if (catName.includes('Dây') || catName.includes('Cáp')) return 'Dây & Cáp Điện';
   if (catName.includes('Thiết bị') || catName.includes('Đóng cắt')) return 'Tủ & Thiết Bị Đóng Cắt';
 
-  return 'Thiết Bị Điện & Nước Khác';
+  return 'Thiết Bị Chiếu Sáng & Khác';
 }
 
 function ShopContent() {
@@ -121,6 +135,7 @@ function ShopContent() {
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [selectedCat, setSelectedCat] = useState<string>('ALL');
   const [selectedDiy, setSelectedDiy] = useState<DiyCategory>('ALL');
+  const [selectedPrice, setSelectedPrice] = useState<PriceRange>('ALL');
   const [search, setSearch] = useState<string>('');
   const [sortBy, setSortBy] = useState<SortOption>('DEFAULT');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -136,16 +151,35 @@ function ShopContent() {
     fetchProducts();
   }, [fetchProducts]);
 
+  const productsLoading = useAdminStore((state) => state.productsLoading);
+
+  const updateUrlParam = (key: string, value: string) => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (value && value !== 'ALL') {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    const newQuery = params.toString();
+    const newUrl = newQuery ? `/shop?${newQuery}` : '/shop';
+    router.replace(newUrl, { scroll: false });
+  };
+
   // Read URL query params
   useEffect(() => {
     const catParam = searchParams.get('cat');
     const brandParam = searchParams.get('brand');
     const diyParam = searchParams.get('diy');
     const searchParam = searchParams.get('search');
+    const priceParam = searchParams.get('price');
 
     if (catParam) setSelectedCat(catParam);
     if (brandParam) setSelectedBrand(brandParam);
     if (searchParam) setSearch(searchParam);
+    if (priceParam && ['ALL', 'UNDER_50K', '50K_200K', '200K_1M', 'OVER_1M'].includes(priceParam)) {
+      setSelectedPrice(priceParam as PriceRange);
+    }
     if (diyParam && ['ALL', 'PLUMBING', 'AIR_COND', 'LIGHTING', 'PANEL'].includes(diyParam)) {
       setSelectedDiy(diyParam as DiyCategory);
     }
@@ -155,11 +189,11 @@ function ShopContent() {
   const allProducts: MaterialProduct[] = useMemo(() => {
     if (adminProducts && adminProducts.length > 0) {
       const list = adminProducts.map((p) => {
-        const rawPrice = p.basePrice ?? (typeof p.price === 'number' ? p.price : 0);
-        const priceStr =
-          typeof p.price === 'string'
-            ? p.price
-            : `${rawPrice.toLocaleString('vi-VN')} ₫`;
+        const base = p.basePrice ?? (typeof p.price === 'number' ? p.price : 0);
+        const disc = p.discountRate ?? p.discount ?? 0;
+        const rate = disc > 1 ? disc / 100 : disc;
+        const rawPrice = rate > 0 ? Math.round(base * (1 - rate)) : base;
+        const priceStr = `${rawPrice.toLocaleString('vi-VN')} ₫`;
 
         const specsArr = Array.isArray(p.specs)
           ? p.specs
@@ -198,6 +232,7 @@ function ShopContent() {
       'Dây & Cáp Điện',
       'Ống & Phụ Kiện Nhựa',
       'Tủ & Thiết Bị Đóng Cắt',
+      'Thiết Bị Chiếu Sáng & Khác',
     ];
   }, []);
 
@@ -250,7 +285,19 @@ function ShopContent() {
           fullText.includes('tong');
       }
 
-      return matchesSearch && matchesBrand && matchesCat && matchesDiy;
+      let matchesPrice = true;
+      const price = p.rawPrice || 0;
+      if (selectedPrice === 'UNDER_50K') {
+        matchesPrice = price < 50000;
+      } else if (selectedPrice === '50K_200K') {
+        matchesPrice = price >= 50000 && price <= 200000;
+      } else if (selectedPrice === '200K_1M') {
+        matchesPrice = price >= 200000 && price <= 1000000;
+      } else if (selectedPrice === 'OVER_1M') {
+        matchesPrice = price > 1000000;
+      }
+
+      return matchesSearch && matchesBrand && matchesCat && matchesDiy && matchesPrice;
     });
 
     // Apply Sorting
@@ -402,7 +449,9 @@ function ShopContent() {
               type="text"
               value={search}
               onChange={(e) => {
-                setSearch(e.target.value);
+                const val = e.target.value;
+                setSearch(val);
+                updateUrlParam('search', val);
                 setCurrentPage(1);
               }}
               placeholder="Tìm theo tên sản phẩm, mã SKU, hãng..."
@@ -417,17 +466,22 @@ function ShopContent() {
             <select
               value={selectedCat}
               onChange={(e) => {
-                setSelectedCat(e.target.value);
+                const val = e.target.value;
+                setSelectedCat(val);
+                updateUrlParam('cat', val);
                 setCurrentPage(1);
               }}
               className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
             >
               <option value="ALL">Tất cả danh mục ({allProducts.length})</option>
-              {availableCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
+              {availableCategories.map((cat) => {
+                const count = allProducts.filter((p) => p.categoryName === cat).length;
+                return (
+                  <option key={cat} value={cat}>
+                    {cat} ({count})
+                  </option>
+                );
+              })}
             </select>
 
             <div className="flex items-center gap-1.5 font-semibold text-slate-500 ml-1">
@@ -436,7 +490,9 @@ function ShopContent() {
             <select
               value={selectedBrand}
               onChange={(e) => {
-                setSelectedBrand(e.target.value);
+                const val = e.target.value;
+                setSelectedBrand(val);
+                updateUrlParam('brand', val);
                 setCurrentPage(1);
               }}
               className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
@@ -447,6 +503,26 @@ function ShopContent() {
                   {b}
                 </option>
               ))}
+            </select>
+
+            <div className="flex items-center gap-1.5 font-semibold text-slate-500 ml-1">
+              Khoảng giá:
+            </div>
+            <select
+              value={selectedPrice}
+              onChange={(e) => {
+                const val = e.target.value as PriceRange;
+                setSelectedPrice(val);
+                updateUrlParam('price', val);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
+            >
+              <option value="ALL">Tất cả mức giá</option>
+              <option value="UNDER_50K">Dưới 50.000₫</option>
+              <option value="50K_200K">50.000₫ - 200.000₫</option>
+              <option value="200K_1M">200.000₫ - 1.000.000₫</option>
+              <option value="OVER_1M">Trên 1.000.000₫</option>
             </select>
 
             <div className="flex items-center gap-1.5 font-semibold text-slate-500 ml-1">
@@ -482,8 +558,19 @@ function ShopContent() {
           )}
         </div>
 
-        {/* Empty State when 0 products match */}
-        {totalItems === 0 ? (
+        {/* Shimmer loading when products are being fetched */}
+        {productsLoading || (allProducts.length === 0 && (!adminProducts || adminProducts.length === 0)) ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-pulse">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+                <div className="aspect-square w-full bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
+                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+                <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
+              </div>
+            ))}
+          </div>
+        ) : totalItems === 0 ? (
           <div className="text-center py-20 bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 space-y-4">
             <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 border border-amber-200 dark:border-amber-900 mx-auto flex items-center justify-center">
               <PackageSearch className="w-8 h-8" />

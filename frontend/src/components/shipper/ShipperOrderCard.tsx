@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Order } from '@/types/manager';
 import { formatCurrencyVND } from '@/lib/formatters';
@@ -19,6 +19,8 @@ import {
   Boxes,
   ArrowRight,
   ShieldCheck,
+  Zap,
+  AlertCircle,
 } from 'lucide-react';
 
 /**
@@ -103,6 +105,36 @@ export default function ShipperOrderCard({
     }
   };
 
+  // Countdown timer for 2H express delivery (BUG-46)
+  const [countdownText, setCountdownText] = useState<string>('');
+
+  useEffect(() => {
+    if (!order.is2h) return;
+    const updateCountdown = () => {
+      let deadline = order.deadline2h ? new Date(order.deadline2h).getTime() : 0;
+      if (!deadline && order.createdAt) {
+        deadline = new Date(order.createdAt).getTime() + 2 * 3600 * 1000;
+      }
+      if (!deadline) {
+        setCountdownText('Giao 2H');
+        return;
+      }
+      const diffMs = deadline - Date.now();
+      const diffMins = Math.round(diffMs / 60000);
+      if (diffMins > 0) {
+        const hours = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        setCountdownText(hours > 0 ? `Còn ${hours}h ${mins}p` : `Còn ${mins} phút`);
+      } else {
+        const lateMins = Math.abs(diffMins);
+        setCountdownText(`Quá hạn ${lateMins} phút`);
+      }
+    };
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 30000);
+    return () => clearInterval(timer);
+  }, [order.is2h, order.deadline2h, order.createdAt]);
+
   const getStatusBadge = () => {
     switch (order.status) {
       case 'PACKING':
@@ -124,6 +156,13 @@ export default function ShipperOrderCard({
           <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800">
             <CheckCircle2 className="w-3 h-3" />
             <span>Đã giao thành công</span>
+          </span>
+        );
+      case 'DELIVERY_FAILED':
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 font-bold border border-rose-200 dark:border-rose-800">
+            <AlertCircle className="w-3 h-3" />
+            <span>Giao thất bại</span>
           </span>
         );
       case 'CANCELLED':
@@ -157,6 +196,19 @@ export default function ShipperOrderCard({
           </div>
           <div>{getStatusBadge()}</div>
         </div>
+
+        {/* 2H Delivery Timer Badge (BUG-46) */}
+        {order.is2h && (
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-bold">
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span>GIAO HỎA TỐC 2 GIỜ</span>
+            </span>
+            <span className="font-mono text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-md">
+              ⏱ {countdownText}
+            </span>
+          </div>
+        )}
 
         {/* Customer & Destination */}
         <div className="space-y-1">
@@ -245,6 +297,18 @@ export default function ShipperOrderCard({
             <CheckCircle2 className="w-5 h-5" />
             <span>Xác nhận đã giao — Chụp ảnh POD</span>
           </button>
+        )}
+
+        {order.status === 'DELIVERY_FAILED' && (
+          <div className="w-full p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-bold flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            <div>
+              <div className="font-extrabold">Đơn hàng đã báo sự cố — Giao thất bại</div>
+              <div className="text-[11px] font-normal text-rose-700 dark:text-rose-300">
+                {(order as any).incidentDetail || order.cancellationReason || 'Chờ Quản lý (Manager) điều phối hướng xử lý'}
+              </div>
+            </div>
+          </div>
         )}
 
         {order.status === 'PACKING' && (
@@ -343,6 +407,14 @@ export default function ShipperOrderCard({
         </div>
         <div className="shrink-0">{getStatusBadge()}</div>
       </div>
+
+      {/* 2H Express badge if active */}
+      {order.is2h && (
+        <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+          <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
+          <span>Hỏa tốc 2H: {countdownText}</span>
+        </div>
+      )}
     </Link>
   );
 }

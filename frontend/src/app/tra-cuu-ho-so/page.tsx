@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { AlertCircle, Phone, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Phone, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import AuthField from "@/components/auth/AuthField";
+import MaterialHeader from "@/components/MaterialHeader";
+import MaterialFooter from "@/components/MaterialFooter";
 import { shipperApi, type PublicApplicationStatus } from "@/services/shipperApi";
 
 const STATUS_TEXT: Record<
@@ -120,11 +122,21 @@ export default function LookupApplicationPage() {
   const statusInfo = result ? STATUS_TEXT[result.status] : null;
 
   return (
-    <div className="min-h-screen w-full bg-[#F1F4F9] flex items-center justify-center p-4 antialiased [color-scheme:light]">
-      <div className="w-full max-w-[480px] rounded-[28px] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)] border border-slate-100/80 p-6 sm:p-8">
-        <h1 className="text-[24px] font-extrabold tracking-tight text-[#0F172A] mb-1.5">
-          Tra cứu hồ sơ shipper
-        </h1>
+    <div className="min-h-screen flex flex-col bg-[#F1F4F9] text-[#0F172A]">
+      <MaterialHeader />
+      <main className="flex-1 w-full flex flex-col items-center justify-center p-4 py-8">
+        <div className="w-full max-w-[480px] mb-3">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Quay lại trang chủ
+          </Link>
+        </div>
+        <div className="w-full max-w-[480px] rounded-[28px] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)] border border-slate-100/80 p-6 sm:p-8">
+          <h1 className="text-[24px] font-extrabold tracking-tight text-[#0F172A] mb-1.5">
+            Tra cứu hồ sơ shipper
+          </h1>
         <p className="text-[13px] text-[#64748B] mb-5">
           Nhập số điện thoại và mã tra cứu đã nhận lúc nộp hồ sơ, không cần đăng
           nhập.
@@ -308,6 +320,8 @@ export default function LookupApplicationPage() {
           </Link>
         </p>
       </div>
+      </main>
+      <MaterialFooter />
     </div>
   );
 }

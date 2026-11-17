@@ -366,23 +366,12 @@ export default function ChatBotWidget() {
   const isExcluded =
     pathname.startsWith('/manager') ||
     pathname.startsWith('/shipper') ||
+    pathname.startsWith('/sale') ||
     pathname === '/login' ||
     pathname === '/register' ||
     pathname === '/403';
 
   if (isExcluded) {
-    return null;
-  }
-
-  const isCustomerPage =
-    pathname === '/' ||
-    pathname.startsWith('/shop') ||
-    pathname.startsWith('/product') ||
-    pathname.startsWith('/cong-trinh') ||
-    pathname.startsWith('/profile') ||
-    pathname.startsWith('/account');
-
-  if (!isCustomerPage) {
     return null;
   }
 

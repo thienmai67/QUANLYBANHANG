@@ -144,6 +144,7 @@ type Order struct {
 	OrderNumber        string      `json:"orderNumber" db:"order_number"`
 	CustomerID         *uuid.UUID  `json:"customerId,omitempty" db:"customer_id"`
 	CustomerName       string      `json:"customerName" db:"customer_name"`
+	CustomerPhone      *string     `json:"customerPhone,omitempty" db:"customer_phone"`
 	ShipperID          *uuid.UUID  `json:"shipperId,omitempty" db:"shipper_id"`
 	ShipperName        *string     `json:"shipperName,omitempty" db:"-"`
 	SaleID             *uuid.UUID  `json:"saleId,omitempty" db:"sale_id"`

@@ -29,7 +29,11 @@ export default function RouteGuard({
 
     if (!token && !isAuthenticated && !user) {
       setIsAuthorized(false);
-      router.replace(fallbackUrl);
+      if (typeof window !== 'undefined') {
+        window.location.replace(fallbackUrl);
+      } else {
+        router.replace(fallbackUrl);
+      }
       return;
     }
 
@@ -41,7 +45,11 @@ export default function RouteGuard({
       removeTokens();
       logout();
       setIsAuthorized(false);
-      router.replace(`${fallbackUrl}?reason=token_expired`);
+      if (typeof window !== 'undefined') {
+        window.location.replace(`${fallbackUrl}?reason=token_expired`);
+      } else {
+        router.replace(`${fallbackUrl}?reason=token_expired`);
+      }
       return;
     }
 

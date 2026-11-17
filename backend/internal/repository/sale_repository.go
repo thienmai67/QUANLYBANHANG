@@ -2000,7 +2000,7 @@ func (r *saleRepository) GetDashboardStats(ctx context.Context, saleID *uuid.UUI
 func scanOrderRowWithExtras(s orderScanner, daysDelivered *int, totalNotes *float64) (*domain.Order, error) {
 	var o domain.Order
 	var custID, shipID, incidentReportedBy, saleID uuid.NullUUID
-	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail, payStatus, payReceipt, refundTx sql.NullString
+	var payMethod, cancelReason, podPhoto, podRecipient, incidentDetail, payStatus, payReceipt, refundTx, deliveryAddress, notes, customerPhone sql.NullString
 	var deadline2H, deliveredAt, podConfirmedAt, codRemittedAt, incidentReportedAt, paidAt, refundedAt sql.NullTime
 	var payosOrderCode sql.NullInt64
 	var days sql.NullInt32
@@ -2012,7 +2012,7 @@ func scanOrderRowWithExtras(s orderScanner, daysDelivered *int, totalNotes *floa
 		&o.Version, &podPhoto, &podRecipient, &podConfirmedAt, &o.CODCollected,
 		&o.CODRemitted, &codRemittedAt, &incidentDetail, &incidentReportedBy, &incidentReportedAt,
 		&payStatus, &payosOrderCode, &paidAt, &payReceipt, &refundTx, &refundedAt,
-		&o.CreatedAt, &o.UpdatedAt, &saleID,
+		&o.CreatedAt, &o.UpdatedAt, &saleID, &deliveryAddress, &notes, &customerPhone,
 		&days, &notesAmt,
 	)
 	if err != nil {
@@ -2082,6 +2082,16 @@ func scanOrderRowWithExtras(s orderScanner, daysDelivered *int, totalNotes *floa
 	if notesAmt.Valid && totalNotes != nil {
 		*totalNotes = notesAmt.Float64
 	}
+	if deliveryAddress.Valid {
+		o.DeliveryAddress = &deliveryAddress.String
+		o.ShippingAddress = &deliveryAddress.String
+	}
+	if notes.Valid {
+		o.Notes = &notes.String
+	}
+	if customerPhone.Valid && customerPhone.String != "" {
+		o.CustomerPhone = &customerPhone.String
+	}
 
 	return &o, nil
 }
@@ -2103,7 +2113,7 @@ func (r *saleRepository) GetPaymentList(ctx context.Context, saleID *uuid.UUID, 
 
 	overdueInterval := fmt.Sprintf("%d days", domain.OverdueDebtDays)
 	if filters.OverdueOnly {
-		whereClauses = append(whereClauses, fmt.Sprintf("o.status = 'DELIVERED' AND o.payment_status != 'PAID' AND o.delivered_at < NOW() - INTERVAL '%s'", overdueInterval))
+		whereClauses = append(whereClauses, fmt.Sprintf("o.status = 'DELIVERED' AND o.payment_status != 'PAID' AND (o.delivered_at < NOW() - INTERVAL '%s' OR o.created_at < NOW() - INTERVAL '%s')", overdueInterval, overdueInterval))
 	}
 
 	if filters.CustomerID != nil && *filters.CustomerID != uuid.Nil {
@@ -2131,7 +2141,7 @@ func (r *saleRepository) GetPaymentList(ctx context.Context, saleID *uuid.UUID, 
 
 	dataSQL := fmt.Sprintf(`
 		SELECT %s,
-		       COALESCE(EXTRACT(DAY FROM (NOW() - o.delivered_at))::int, 0) AS days_delivered,
+		       COALESCE(GREATEST(EXTRACT(DAY FROM (NOW() - o.delivered_at))::int, EXTRACT(DAY FROM (NOW() - o.created_at))::int), 0) AS days_delivered,
 		       COALESCE((SELECT SUM(pn.amount) FROM me_supplies.payment_notes pn WHERE pn.order_id = o.id), 0) AS total_notes
 		FROM me_supplies.orders o
 		WHERE %s
@@ -2379,14 +2389,16 @@ func (r *saleRepository) GetReportSummary(ctx context.Context, saleID *uuid.UUID
 		return nil, fmt.Errorf("report delivered revenue: %w", err)
 	}
 
-	// Total non-cancelled orders count (P1-1: not only DELIVERED)
+	// Total delivered orders count for delivered revenue headline (BUG-39)
+	var deliveredOrdersCount int
 	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM me_supplies.orders o
-		WHERE %s AND o.status != 'CANCELLED'
-	`, whereSQL), args...).Scan(&rep.TotalOrdersCount); err != nil {
-		return nil, fmt.Errorf("report total orders count: %w", err)
+		WHERE %s AND o.status = 'DELIVERED' AND o.payment_status != 'REFUNDED'
+	`, whereSQL), args...).Scan(&deliveredOrdersCount); err != nil {
+		return nil, fmt.Errorf("report delivered orders count: %w", err)
 	}
+	rep.TotalOrdersCount = deliveredOrdersCount
 
 	// Outstanding debt
 	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`

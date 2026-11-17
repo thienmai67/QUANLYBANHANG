@@ -379,8 +379,9 @@ export const useManagerStore = create<ManagerState>()(
         try {
           const res = await api.get<{ data: any[]; total: number }>('/sale/customers?limit=100');
           const rawList = res?.data || (Array.isArray(res) ? res : []);
+          let mappedCustomers: Customer[] = [];
           if (Array.isArray(rawList) && rawList.length > 0) {
-            const mappedCustomers: Customer[] = rawList.map((c, idx) => {
+            mappedCustomers = rawList.map((c, idx) => {
               const code = `KH-${String(idx + 1).padStart(4, '0')}`;
               const totalSpent = Number(c.totalSpent) || 0;
               const tier: CustomerTier =
@@ -406,13 +407,30 @@ export const useManagerStore = create<ManagerState>()(
                 creditLimit: Number(c.profile?.creditLimit) || 0,
               };
             });
-            set({ customers: mappedCustomers });
-            return;
           }
+
+          // Merge with customers derived from orders so no customer from order history is lost (BUG-37)
+          const currentOrders = get().orders;
+          const derived = deriveCustomersFromOrders(currentOrders);
+          const existingNames = new Set(mappedCustomers.map((c) => c.name.toLowerCase().trim()));
+          const existingPhones = new Set(mappedCustomers.map((c) => (c.phone || '').trim()).filter(Boolean));
+
+          const additional = derived.filter((d) => {
+            const nameMatch = existingNames.has(d.name.toLowerCase().trim());
+            const phoneMatch = d.phone && d.phone !== 'Chưa cập nhật' && existingPhones.has(d.phone.trim());
+            return !nameMatch && !phoneMatch;
+          });
+
+          const merged = [...mappedCustomers, ...additional].map((c, idx) => ({
+            ...c,
+            code: `KH-${String(idx + 1).padStart(4, '0')}`,
+          }));
+
+          set({ customers: merged });
         } catch {
           // fallback to order derivation if /sale/customers is unavailable
+          await get().fetchOrders();
         }
-        await get().fetchOrders();
       },
 
       fetchShippers: async () => {

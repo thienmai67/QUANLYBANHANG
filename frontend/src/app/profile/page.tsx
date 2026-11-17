@@ -51,6 +51,9 @@ interface DBOrder {
   orderNumber: string;
   customerId?: string;
   customerName: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  notes?: string;
   totalAmount: number;
   status: 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
   paymentMethod?: string;
@@ -354,7 +357,7 @@ export default function CustomerProfilePage() {
     }
   }, [setAuth]);
 
-  // Fetch orders from DB
+  // Fetch orders from DB (scope=personal ensures staff only see their own placed orders - BUG-52, BUG-55)
   const loadOrders = useCallback(async () => {
     const token = getAccessToken();
     if (!token) {
@@ -364,13 +367,16 @@ export default function CustomerProfilePage() {
 
     try {
       setLoadingOrders(true);
-      const data = await api.get<any[]>('/orders');
+      const data = await api.get<any[]>('/orders?scope=personal');
       if (Array.isArray(data)) {
         const mapped: DBOrder[] = data.map((ord: any) => ({
           id: ord.id,
           orderNumber: ord.orderNumber || `#${ord.id?.slice(0, 8)}`,
           customerId: ord.customerId,
           customerName: ord.customerName || 'Khách hàng',
+          customerPhone: ord.customerPhone || '',
+          deliveryAddress: ord.deliveryAddress || ord.shippingAddress || '',
+          notes: ord.notes || '',
           totalAmount: Number(ord.totalAmount) || 0,
           status: ord.status || 'PENDING',
           paymentMethod: ord.paymentMethod || 'COD',
@@ -647,9 +653,9 @@ export default function CustomerProfilePage() {
     }
   };
 
-  // Calculate Spend & Status breakdown - Include all valid active/placed orders
+  // Calculate Spend & Status breakdown - Only count DELIVERED & PAID orders (BUG-50)
   const totalSpend = orders
-    .filter((o) => o.status !== 'CANCELLED')
+    .filter((o) => o.status === 'DELIVERED' && o.paymentStatus === 'PAID')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   const countPending = orders.filter((o) => o.status === 'PENDING').length;
   const countPacking = orders.filter((o) => o.status === 'PACKING').length;
@@ -657,12 +663,12 @@ export default function CustomerProfilePage() {
   const countDelivered = orders.filter((o) => o.status === 'DELIVERED').length;
   const countCancelled = orders.filter((o) => o.status === 'CANCELLED').length;
 
-  // 30 Days (1 Month) Continuous Timeline Daily Spend Data
+  // 30 Days (1 Month) Continuous Timeline Daily Spend Data - DELIVERED & PAID only (BUG-50)
   const { dailySpendData, maxSpendAmount } = useMemo(() => {
     const spendMap: Record<string, { amount: number; count: number }> = {};
 
     orders
-      .filter((o) => o.status !== 'CANCELLED')
+      .filter((o) => o.status === 'DELIVERED' && o.paymentStatus === 'PAID')
       .forEach((o) => {
         const d = new Date(o.createdAt);
         const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1846,6 +1852,20 @@ export default function CustomerProfilePage() {
                     <span className="k">Người nhận hàng:</span>
                     <span className="v">{selectedOrder.customerName}</span>
                   </div>
+                  <div className="profile-detail-row">
+                    <span className="k">Số điện thoại:</span>
+                    <span className="v">{selectedOrder.customerPhone || '—'}</span>
+                  </div>
+                  <div className="profile-detail-row">
+                    <span className="k">Địa chỉ giao hàng:</span>
+                    <span className="v">{selectedOrder.deliveryAddress || '—'}</span>
+                  </div>
+                  {selectedOrder.notes && (
+                    <div className="profile-detail-row">
+                      <span className="k">Ghi chú giao hàng:</span>
+                      <span className="v">{selectedOrder.notes}</span>
+                    </div>
+                  )}
                   <div className="profile-detail-row">
                     <span className="k">Phương thức thanh toán:</span>
                     <span className="v">{formatPaymentMethod(selectedOrder.paymentMethod)}</span>

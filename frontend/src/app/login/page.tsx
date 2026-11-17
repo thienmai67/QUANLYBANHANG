@@ -360,10 +360,13 @@ export default function LoginPage() {
               <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl font-bold">
                 ✓
               </div>
-              <h3 className="font-bold text-[16px] text-slate-800">Yêu cầu hỗ trợ mật khẩu</h3>
-              <p className="text-[13px] text-slate-500">
-                Hệ thống gửi thư tự động đang cấu hình. Vui lòng liên hệ Quản trị viên qua email admin@tdt.vn kèm thông tin tài khoản <strong>{forgotEmail}</strong> để được cấp lại mật khẩu.
+              <h3 className="font-bold text-[16px] text-slate-800">Đã gửi liên kết đặt lại mật khẩu</h3>
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                Chúng tôi đã gửi hướng dẫn đặt lại mật khẩu đến địa chỉ email <strong>{forgotEmail}</strong>. Vui lòng kiểm tra hộp thư đến (hoặc hòm thư Spam) và làm theo hướng dẫn.
               </p>
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-[12px] text-left">
+                ⏱ <strong>Lưu ý:</strong> Liên kết xác thực có hiệu lực trong vòng <strong>15 phút</strong> vì lý do bảo mật.
+              </div>
               <button
                 type="button"
                 onClick={() => setShowForgotModal(false)}
