@@ -940,7 +940,7 @@ const orderAliasedSelectColumns = `
     o.version, o.pod_photo_url, o.pod_recipient_name, o.pod_confirmed_at, o.cod_collected,
     o.cod_remitted, o.cod_remitted_at, o.incident_detail, o.incident_reported_by, o.incident_reported_at,
     o.payment_status, o.payos_order_code, o.paid_at, o.payment_receipt_url, o.refund_tx_code, o.refunded_at,
-    o.created_at, o.updated_at, o.sale_id, o.delivery_address, o.notes
+    o.created_at, o.updated_at, o.sale_id, o.delivery_address, o.notes, o.customer_phone
 `
 
 func (r *productRepository) LookupOrderByNumberOrPhone(ctx context.Context, orderNumber, phone string) ([]domain.Order, error) {
