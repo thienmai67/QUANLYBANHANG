@@ -1426,7 +1426,7 @@ type orderLookupRepository interface {
 }
 
 func (h *Handler) PublicLookupOrder(w http.ResponseWriter, req *http.Request) {
-	orderNumber := strings.TrimSpace(req.URL.Query().Get("orderNumber"))
+	orderNumber := strings.TrimPrefix(strings.TrimSpace(req.URL.Query().Get("orderNumber")), "#")
 	phone := strings.TrimSpace(req.URL.Query().Get("phone"))
 
 	if orderNumber == "" && phone == "" {

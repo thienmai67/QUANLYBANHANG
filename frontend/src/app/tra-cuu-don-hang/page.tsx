@@ -93,7 +93,8 @@ function OrderLookupContent() {
   const handleSearch = async (overridePhone?: string, overrideOrder?: string) => {
     const rawP = (overridePhone !== undefined ? overridePhone : phone).trim();
     const p = rawP.replace(/\D/g, '');
-    const o = (overrideOrder !== undefined ? overrideOrder : orderNumber).trim();
+    const rawO = (overrideOrder !== undefined ? overrideOrder : orderNumber).trim();
+    const o = rawO.replace(/^#+/, '').trim();
 
     if (!p && !o) {
       toast.warning('Vui lòng nhập số điện thoại hoặc mã đơn hàng để tra cứu');

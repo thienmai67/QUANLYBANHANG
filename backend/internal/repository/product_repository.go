@@ -944,7 +944,7 @@ const orderAliasedSelectColumns = `
 `
 
 func (r *productRepository) LookupOrderByNumberOrPhone(ctx context.Context, orderNumber, phone string) ([]domain.Order, error) {
-	orderNumber = strings.TrimSpace(orderNumber)
+	orderNumber = strings.TrimPrefix(strings.TrimSpace(orderNumber), "#")
 	phone = strings.TrimSpace(phone)
 	if orderNumber == "" && phone == "" {
 		return nil, errors.New("orderNumber or phone must be provided")
