@@ -644,7 +644,9 @@ CREATE INDEX IF NOT EXISTS idx_quotes_status_valid_until ON quotes(status, valid
 INSERT INTO brands (code, name, discount_rate) VALUES
     ('BINHMINH', 'Bình Minh', 18.00),
     ('CADIVI',   'Cadivi', 22.00),
-    ('PANASONIC', 'Panasonic', 15.00)
+    ('PANASONIC', 'Panasonic', 15.00),
+    ('SCHNEIDER', 'Schneider', 15.00),
+    ('RANGDONG',  'Rạng Đông', 15.00)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO units (code, name, unit_type, to_meter_factor) VALUES

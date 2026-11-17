@@ -186,6 +186,13 @@ export default function ShipperOrderDetailPage() {
             <span>Đã giao thành công</span>
           </span>
         );
+      case 'DELIVERY_FAILED':
+        return (
+          <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 font-bold border border-rose-200 dark:border-rose-800">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>Giao thất bại / Báo sự cố</span>
+          </span>
+        );
       case 'CANCELLED':
         return (
           <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 font-bold border border-rose-200 dark:border-rose-800">
@@ -424,44 +431,33 @@ export default function ShipperOrderDetailPage() {
             </div>
           )}
 
-          {/* Incident details (if cancelled) */}
-          {order.status === 'CANCELLED' && order.incident && (
-            <div className="bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-2xl p-4 space-y-2">
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-800 dark:text-rose-300">
-                <AlertTriangle className="w-4 h-4" />
-                <span>Sự cố: {order.incident.category}</span>
-              </span>
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                {order.incident.detail}
-              </p>
-            </div>
-          )}
-
-          {/* Active Local Incident Report Badge for SHIPPING status */}
-          {localIncident && order.status === 'SHIPPING' && (
-            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-2xl p-4 space-y-2 animate-fadeIn">
+          {/* Incident details (if cancelled or delivery failed or reported) */}
+          {(order.status === 'DELIVERY_FAILED' || order.status === 'CANCELLED' || (order as any).incidentDetail || order.incident || (localIncident && order.status === 'SHIPPING')) && (
+            <div className="bg-rose-50/80 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-2xl p-4 space-y-2 animate-fadeIn">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <span>Biên bản sự cố hiện trường: {localIncident.category}</span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-800 dark:text-rose-300">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                  <span>
+                    Biên bản sự cố giao hàng: {order.incident?.category || localIncident?.category || 'Sự cố'}
+                  </span>
                 </span>
-                <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400">
-                  {new Date(localIncident.reportedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                <span className="text-[10px] font-medium text-rose-700 dark:text-rose-400">
+                  {order.incident?.at ? formatDateTime(order.incident.at) : localIncident?.reportedAt ? new Date(localIncident.reportedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Hôm nay'}
                 </span>
               </div>
-              <p className="text-xs text-amber-900/90 dark:text-amber-200/90 leading-relaxed bg-white/70 dark:bg-slate-900/70 p-2.5 rounded-xl border border-amber-200/60 dark:border-amber-800/40">
-                &ldquo;{localIncident.detail}&rdquo;
+              <p className="text-xs text-rose-900/90 dark:text-rose-200/90 leading-relaxed bg-white/70 dark:bg-slate-900/70 p-2.5 rounded-xl border border-rose-200/60 dark:border-rose-800/40">
+                &ldquo;{(order as any).incidentDetail || order.incident?.detail || order.cancellationReason || localIncident?.detail || 'Chưa có ghi chú chi tiết'}&rdquo;
               </p>
               <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
-                  Đã gửi báo cáo cho Quản lý (Manager) xử lý
+                <span className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">
+                  Đã báo cáo lên hệ thống Quản lý (Manager)
                 </span>
                 <a
                   href="tel:19006868"
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:underline"
                 >
                   <Phone className="w-3.5 h-3.5" />
-                  <span>Gọi Hotline Quản lý (1900 6868)</span>
+                  <span>Hotline Quản lý: 1900 6868</span>
                 </a>
               </div>
             </div>
@@ -533,7 +529,7 @@ export default function ShipperOrderDetailPage() {
               </div>
             )}
 
-            {order.status === 'CANCELLED' && (
+            {(order.status === 'CANCELLED' || order.status === 'DELIVERY_FAILED') && (
               <Link
                 href="/shipper"
                 className="w-full min-h-[50px] rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md"

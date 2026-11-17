@@ -8,6 +8,7 @@ export interface MaterialProduct {
   origin: string;
   price: string;
   rawPrice?: number;
+  originalPrice?: number;
   image: string;
   images?: string[];
   badge?: "HOT" | "NEW" | "SALE" | "CHÍNH HÃNG";

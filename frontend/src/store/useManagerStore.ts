@@ -156,6 +156,7 @@ export interface ManagerState {
   ) => Promise<{ success: boolean; product?: Product; error?: string }>;
 
   resetToSeedData: () => void;
+  resetStoreState: () => void;
 
   // Pure Selectors
   getPendingOrders: () => Order[];
@@ -1177,6 +1178,20 @@ export const useManagerStore = create<ManagerState>()(
         });
       },
 
+      resetStoreState: () => {
+        set({
+          orders: [],
+          shippers: [],
+          customers: [],
+          stockLogs: [],
+          codSettlements: [],
+          ordersLoading: false,
+          shippersLoading: false,
+          ordersError: null,
+          shippersError: null,
+        });
+      },
+
       // Pure Selectors
       getPendingOrders: () => {
         return get().orders.filter((o) => o.status === 'PENDING');
@@ -1259,6 +1274,9 @@ export const useManagerStore = create<ManagerState>()(
     {
       name: 'tdt-manager-storage',
       version: 3,
+      partialize: (state) => ({
+        products: state.products,
+      }),
       storage: createJSONStorage(() =>
         typeof window !== 'undefined'
           ? localStorage

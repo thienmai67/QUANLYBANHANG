@@ -668,13 +668,6 @@ export default function RegisterPage() {
               Mã xác thực gồm 6 chữ số đã được gửi tới địa chỉ email <strong>{email}</strong>. Vui lòng nhập mã để hoàn tất đăng ký tài khoản.
             </p>
 
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-blue-800 dark:text-blue-300 text-xs">
-              💡 <strong>Mã xác thực của bạn:</strong>{' '}
-              <span className="font-mono font-black text-sm tracking-widest text-blue-600 dark:text-blue-400">
-                {generatedOtp}
-              </span>
-            </div>
-
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 Mã OTP (6 chữ số)

@@ -32,7 +32,7 @@ const BANNER_PRODUCTS: BannerProductConfig[] = [
     tabLabel: '🔲 Aptomat',
     defaultName: 'Aptomat Schneider Easy9 1P 16A',
     defaultCode: 'Mã EZ9F34116 · 4.5kA · IEC 60898-1',
-    defaultPrice: '185.000 ₫',
+    defaultPrice: '157.250 ₫',
     build: buildCB,
   },
   {
@@ -464,7 +464,7 @@ export default function Banner3DXray() {
 
         {/* Product Counter */}
         <div className="hidden sm:block text-xs font-mono font-bold text-[#9a958a] bg-[#1d1b17]/80 border border-[#35322b] px-3 py-1.5 rounded-xl backdrop-blur-sm">
-          <span className="text-[#e8a33d] text-sm">0{currentIndex + 1}</span> / 03
+          <span className="text-[#e8a33d] text-sm">0{currentIndex + 1}</span> / 0{BANNER_PRODUCTS.length}
         </div>
       </div>
 

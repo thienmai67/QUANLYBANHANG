@@ -1057,7 +1057,7 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 			return fmt.Errorf("fetch product base price: %w", err)
 		}
 
-		if (stockQuantity > 0 && item.Quantity > float64(stockQuantity)) || (stockQuantity == 0 && item.Quantity >= 5000) {
+		if stockQuantity <= 0 || item.Quantity > float64(stockQuantity) {
 			_ = tx.Rollback()
 			return domain.ErrInsufficientStock
 		}
@@ -1267,10 +1267,24 @@ func (r *productRepository) UpdateOrderStatusWithDetails(
 	case domain.RoleManager:
 		// Full transition rights
 	case domain.RoleShipper:
-		// Shipper can only update orders assigned to them
-		if o.ShipperID == nil || *o.ShipperID != actorID {
+		// Shipper can only update orders assigned to them or sharing same phone
+		if o.ShipperID == nil {
 			_ = tx.Rollback()
 			return nil, domain.ErrForbidden
+		}
+		if *o.ShipperID != actorID {
+			var samePhone bool
+			_ = tx.QueryRowContext(ctx, `
+				SELECT EXISTS (
+					SELECT 1 FROM me_supplies.users u1
+					JOIN me_supplies.users u2 ON u1.phone = u2.phone AND u1.phone IS NOT NULL AND u1.phone != ''
+					WHERE u1.id = $1 AND u2.id = $2 AND u1.role = 'SHIPPER' AND u2.role = 'SHIPPER'
+				)
+			`, *o.ShipperID, actorID).Scan(&samePhone)
+			if !samePhone {
+				_ = tx.Rollback()
+				return nil, domain.ErrForbidden
+			}
 		}
 		// Shipper cannot cancel orders
 		if toStatus == domain.OrderStatusCancelled {
@@ -1822,7 +1836,7 @@ func (r *productRepository) ListShippers(ctx context.Context, limit, offset int)
             COALESCE(COUNT(o.id), 0) AS active_order_count
         FROM me_supplies.users u
         LEFT JOIN me_supplies.shipper_applications sa
-            ON sa.user_id = u.id
+            ON sa.issued_user_id = u.id
         LEFT JOIN me_supplies.orders o 
             ON o.shipper_id = u.id 
             AND o.status IN ('PACKING', 'SHIPPING')

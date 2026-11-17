@@ -188,10 +188,10 @@ function ShopContent() {
   const allProducts: MaterialProduct[] = useMemo(() => {
     if (adminProducts && adminProducts.length > 0) {
       const list = adminProducts.map((p) => {
-        const base = p.basePrice ?? (typeof p.price === 'number' ? p.price : 0);
+        const rawPrice = p.basePrice ?? (typeof p.price === 'number' ? p.price : 0);
         const disc = p.discountRate ?? p.discount ?? 0;
         const rate = disc > 1 ? disc / 100 : disc;
-        const rawPrice = rate > 0 ? Math.round(base * (1 - rate)) : base;
+        const originalPrice = rate > 0 ? Math.round(rawPrice / (1 - rate)) : rawPrice;
         const priceStr = `${rawPrice.toLocaleString('vi-VN')} ₫`;
 
         const specsArr = Array.isArray(p.specs)
@@ -206,12 +206,13 @@ function ShopContent() {
           id: p.id,
           sku: p.sku || 'SKU-STD',
           name: p.name,
-          brand: p.brand || 'Chính hãng',
+          brand: (p.sku?.toUpperCase().startsWith('LED-') ? 'Rạng Đông' : (p.brand || 'Chính hãng')),
           category: canonicalCat as any,
           categoryName: canonicalCat,
           origin: 'Việt Nam',
           price: priceStr,
           rawPrice: rawPrice,
+          originalPrice: originalPrice,
           unit: p.unit || 'Bộ',
           conversion: p.unit ? `1 ${p.unit}` : '1 Bộ',
           description: p.description || p.name,
@@ -259,7 +260,7 @@ function ShopContent() {
       const matchesSearch = matchSearchTerm(pSearchTarget, search);
 
       const isOtherSelected = selectedBrand === 'Khác' || selectedBrand === 'OTHER';
-      const isMajorBrand = ['cadivi', 'bình minh', 'binh minh', 'schneider', 'panasonic'].some((b) =>
+      const isMajorBrand = ['cadivi', 'bình minh', 'binh minh', 'schneider', 'panasonic', 'rạng đông', 'rang dong'].some((b) =>
         p.brand.toLowerCase().includes(b)
       );
       const matchesBrand =
@@ -656,10 +657,17 @@ function ShopContent() {
                 <div className="p-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-slate-400">Giá bán lẻ ({prod.unit})</span>
-                      <p className="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">
-                        {prod.price}
-                      </p>
+                      <span className="text-[10px] text-slate-400">Giá bán ({prod.unit})</span>
+                      <div className="flex items-baseline gap-1.5">
+                        <p className="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">
+                          {prod.price}
+                        </p>
+                        {prod.discount > 0 && prod.originalPrice && prod.rawPrice && prod.originalPrice > prod.rawPrice && (
+                          <span className="text-[10px] text-slate-400 line-through">
+                            {prod.originalPrice.toLocaleString('vi-VN')} ₫
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-900">

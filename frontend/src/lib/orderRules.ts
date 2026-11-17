@@ -250,8 +250,15 @@ export function canActorTransition(
     }
   }
 
-  // 1. Base State Machine Check
-  if (!canTransition(order.status, to)) {
+  // 1. Base State Machine Check (Allow Manager reassignment during SHIPPING)
+  const isManagerReassign =
+    actor.role === 'MANAGER' &&
+    order.status === 'SHIPPING' &&
+    to === 'SHIPPING' &&
+    extra?.shipperId &&
+    extra.shipperId !== order.shipperId;
+
+  if (!isManagerReassign && !canTransition(order.status, to)) {
     return {
       allowed: false,
       errorCode: 'INVALID_STATUS',

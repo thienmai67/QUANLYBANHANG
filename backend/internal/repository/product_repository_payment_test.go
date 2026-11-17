@@ -83,9 +83,20 @@ func TestPayOS_RepositoryMethodsAndBackgroundQueries(t *testing.T) {
 	bankMethod := "BANK_TRANSFER"
 
 	// Fetch a real product for order items
-	prods, err := repo.ListProducts(ctx, 1, 0)
+	prods, err := repo.ListProducts(ctx, 50, 0)
 	if err != nil || len(prods) == 0 {
 		t.Skip("no products in db")
+		return
+	}
+	var testProd domain.Product
+	for _, item := range prods {
+		if item.StockQuantity > 0 {
+			testProd = item
+			break
+		}
+	}
+	if testProd.ID == uuid.Nil {
+		t.Skip("no in-stock products in db")
 		return
 	}
 
@@ -98,9 +109,9 @@ func TestPayOS_RepositoryMethodsAndBackgroundQueries(t *testing.T) {
 		PaymentStatus: domain.PaymentStatusUnpaid,
 		Items: []domain.OrderItem{
 			{
-				ProductID: prods[0].ID,
+				ProductID: testProd.ID,
 				Quantity:  1,
-				UnitPrice: prods[0].BasePrice,
+				UnitPrice: testProd.BasePrice,
 			},
 		},
 	}

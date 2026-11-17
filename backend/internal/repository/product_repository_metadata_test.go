@@ -464,16 +464,30 @@ func TestCreateOrder_2HDeadlineCalculation(t *testing.T) {
 
 	repo := NewProductRepository(db)
 
-	products, err := repo.ListProducts(ctx, 1, 0)
+	products, err := repo.ListProducts(ctx, 50, 0)
 	if err != nil || len(products) == 0 {
 		t.Skip("no products found for 2h deadline test")
 	}
-	p := products[0]
+	var p domain.Product
+	for _, prod := range products {
+		if prod.StockQuantity > 0 {
+			p = prod
+			break
+		}
+	}
+	if p.ID == uuid.Nil {
+		t.Skip("no in-stock products found for 2h deadline test")
+	}
+
+	vnLocation := time.FixedZone("Asia/Ho_Chi_Minh", 7*3600)
+	nowVN := time.Now().In(vnLocation)
+	testCreatedAt := time.Date(nowVN.Year(), nowVN.Month(), nowVN.Day(), 10, 0, 0, 0, vnLocation)
 
 	order := domain.Order{
 		ID:           uuid.New(),
 		CustomerName: "Khách 2H Test",
 		Is2H:         true,
+		CreatedAt:    testCreatedAt,
 		Items: []domain.OrderItem{
 			{
 				ProductID: p.ID,

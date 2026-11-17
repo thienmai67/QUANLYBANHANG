@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 export default function ManagerDashboardPage() {
-  const { orders, products, shippers, getBrandStats, getRevenueTrend, fetchOrders, fetchProducts, fetchShippers } = useManagerStore();
+  const { orders, products, shippers, getBrandStats, getRevenueTrend, fetchOrders, fetchProducts, fetchShippers, ordersLoading } = useManagerStore();
 
   useEffect(() => {
     fetchOrders();
@@ -98,7 +98,11 @@ export default function ManagerDashboardPage() {
           </div>
           <div className="mt-2">
             <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-white truncate">
-              {formatCurrencyVND(deliveredRevenue)}
+              {ordersLoading && orders.length === 0 ? (
+                <span className="inline-block w-28 h-6 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+              ) : (
+                formatCurrencyVND(deliveredRevenue)
+              )}
             </div>
             <p className="text-[10px] text-slate-400 mt-0.5">
               Từ các đơn hàng DELIVERED
@@ -121,8 +125,14 @@ export default function ManagerDashboardPage() {
           </div>
           <div className="mt-2">
             <div className="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400">
-              {pendingCount}{' '}
-              <span className="text-xs font-normal text-slate-400">đơn</span>
+              {ordersLoading && orders.length === 0 ? (
+                <span className="inline-block w-12 h-6 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+              ) : (
+                <>
+                  {pendingCount}{' '}
+                  <span className="text-xs font-normal text-slate-400">đơn</span>
+                </>
+              )}
             </div>
             <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 group-hover:text-amber-600">
               <span>Cần duyệt kho ngay</span>
@@ -143,8 +153,14 @@ export default function ManagerDashboardPage() {
           </div>
           <div className="mt-2">
             <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
-              {completedCount}{' '}
-              <span className="text-xs font-normal text-slate-400">đơn</span>
+              {ordersLoading && orders.length === 0 ? (
+                <span className="inline-block w-12 h-6 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+              ) : (
+                <>
+                  {completedCount}{' '}
+                  <span className="text-xs font-normal text-slate-400">đơn</span>
+                </>
+              )}
             </div>
             <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
               Giao hàng thành công

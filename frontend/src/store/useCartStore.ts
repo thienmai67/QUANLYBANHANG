@@ -54,7 +54,7 @@ export const useCartStore = create<CartState>()(
         }
 
         const rawQty = newItem.quantity;
-        if (typeof rawQty === 'number' && (!isFinite(rawQty) || isNaN(rawQty) || rawQty <= 0)) {
+        if (typeof rawQty === 'number' && isFinite(rawQty) && rawQty <= 0) {
           console.warn('[CartStore] Blocked addItem: Invalid quantity', rawQty);
           return;
         }

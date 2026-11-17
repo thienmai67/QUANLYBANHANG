@@ -91,11 +91,20 @@ func TestCreateOrder_RecalculatesTotalAmount(t *testing.T) {
 
 	repo := NewProductRepository(db)
 
-	products, err := repo.ListProducts(ctx, 1, 0)
+	products, err := repo.ListProducts(ctx, 50, 0)
 	if err != nil || len(products) == 0 {
 		t.Skip("no products available for order calculation test")
 	}
-	testProduct := products[0]
+	var testProduct domain.Product
+	for _, prod := range products {
+		if prod.StockQuantity >= 10 {
+			testProduct = prod
+			break
+		}
+	}
+	if testProduct.ID == uuid.Nil {
+		t.Skip("no in-stock products available for order calculation test")
+	}
 
 	orderID := uuid.New()
 	order := &domain.Order{

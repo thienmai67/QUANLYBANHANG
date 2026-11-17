@@ -171,10 +171,13 @@ func TestProductRepository_OrderLifecycle(t *testing.T) {
 	defer cancel()
 
 	// Check if we have at least one product to reference for order item
-	products, _ := repo.ListProducts(ctx, 1, 0)
+	products, _ := repo.ListProducts(ctx, 50, 0)
 	var productID *uuid.UUID
-	if len(products) > 0 {
-		productID = &products[0].ID
+	for i := range products {
+		if products[i].StockQuantity >= 10 {
+			productID = &products[i].ID
+			break
+		}
 	}
 
 	orderID := uuid.New()

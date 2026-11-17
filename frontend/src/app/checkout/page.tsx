@@ -282,11 +282,12 @@ export default function CheckoutPage() {
       }
     }
     if (user) {
-      if (user.fullName || user.name) {
-        setCustomerName((prev) => prev || user.fullName || user.name || '');
+      const currentUserName = user.fullName || user.name || '';
+      if (currentUserName) {
+        setCustomerName(currentUserName);
       }
       if (user.phone) {
-        setCustomerPhone((prev) => prev || user.phone || '');
+        setCustomerPhone(user.phone);
       }
     }
   }, [user]);
@@ -425,6 +426,11 @@ export default function CheckoutPage() {
     if (items.length === 0) {
       toast.warning('Giỏ hàng của bạn đang trống');
       router.push('/cart');
+      return;
+    }
+
+    if (items.some((it) => it.quantity <= 0)) {
+      toast.error('Số lượng sản phẩm trong giỏ hàng không hợp lệ (phải lớn hơn 0)!');
       return;
     }
 
@@ -599,8 +605,10 @@ export default function CheckoutPage() {
         clearCart();
         if (typeof window !== 'undefined') {
           localStorage.removeItem('tdt_checkout_draft');
+          window.location.href = `/order-success/${validOrderId}`;
+        } else {
+          router.push(`/order-success/${validOrderId}`);
         }
-        router.push(`/order-success/${validOrderId}`);
       }
     } catch (err: any) {
       toast.error(getFriendlyErrorMessage(err));

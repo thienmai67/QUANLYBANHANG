@@ -22,9 +22,11 @@ describe('Cart Authentication Guard Unit Tests', () => {
       name: 'Ống nhựa uPVC D90 Bình Minh',
       sku: 'BM-UPVC-D90',
       unitPrice: 125000,
+      price: '125.000 ₫',
+      image: '/img/prod.jpg',
     };
 
-    useCartStore.getState().addItem(product, 2);
+    useCartStore.getState().addItem({ ...product, quantity: 2 });
 
     // Should remain 0 items because unauthenticated
     expect(useCartStore.getState().items.length).toBe(0);
@@ -37,7 +39,7 @@ describe('Cart Authentication Guard Unit Tests', () => {
     (global as any).window = {};
     useAuthStore.setState({
       isAuthenticated: true,
-      user: { id: 'u1', name: 'Nguyễn Văn A', email: 'a@example.com', role: 'customer' },
+      user: { id: 'u1', name: 'Nguyễn Văn A', email: 'a@example.com', role: 'CUSTOMER' },
       token: 'valid-jwt-token',
     });
 
@@ -46,6 +48,8 @@ describe('Cart Authentication Guard Unit Tests', () => {
       name: 'Ống nhựa uPVC D90 Bình Minh',
       sku: 'BM-UPVC-D90',
       unitPrice: 125000,
+      price: '125.000 ₫',
+      image: '/img/prod.jpg',
       quantity: 3,
     };
 
@@ -63,7 +67,7 @@ describe('Cart Authentication Guard Unit Tests', () => {
     (global as any).window = {};
     useAuthStore.setState({
       isAuthenticated: true,
-      user: { id: 'u1', name: 'Nguyễn Văn A', email: 'a@example.com', role: 'customer' },
+      user: { id: 'u1', name: 'Nguyễn Văn A', email: 'a@example.com', role: 'CUSTOMER' },
       token: 'valid-jwt-token',
     });
 
@@ -72,6 +76,8 @@ describe('Cart Authentication Guard Unit Tests', () => {
       name: 'Xi măng Hà Tiên PCB40',
       sku: 'XM-HT-PCB40',
       unitPrice: 90000,
+      price: '90.000 ₫',
+      image: '/img/prod2.jpg',
       quantity: 10,
     });
 

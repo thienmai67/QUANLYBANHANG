@@ -253,6 +253,8 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 			remaining := maxFailedAttempts - attempts
 			if remaining > 0 {
 				writeJSONError(w, http.StatusUnauthorized, fmt.Sprintf("Email hoặc mật khẩu không chính xác. Bạn còn %d lần thử trước khi tài khoản bị khóa 15 phút.", remaining))
+			} else if attempts == maxFailedAttempts {
+				writeJSONError(w, http.StatusUnauthorized, "Email hoặc mật khẩu không chính xác. Bạn đã nhập sai 5 lần. Tài khoản tạm thời bị khóa 15 phút.")
 			} else {
 				unlockTime := time.Now().Add(lockoutDuration).In(time.FixedZone("ICT", 7*3600)).Format("15:04")
 				writeJSONError(w, http.StatusTooManyRequests, fmt.Sprintf("Tài khoản tạm thời bị khóa 15 phút do nhập sai mật khẩu quá 5 lần. Thời gian mở khóa: %s (còn khoảng 15 phút). Vui lòng thử lại sau.", unlockTime))
@@ -284,6 +286,8 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 			remaining := maxFailedAttempts - attempts
 			if remaining > 0 {
 				writeJSONError(w, http.StatusUnauthorized, fmt.Sprintf("Email hoặc mật khẩu không chính xác. Bạn còn %d lần thử trước khi tài khoản bị khóa 15 phút.", remaining))
+			} else if attempts == maxFailedAttempts {
+				writeJSONError(w, http.StatusUnauthorized, "Email hoặc mật khẩu không chính xác. Bạn đã nhập sai 5 lần. Tài khoản tạm thời bị khóa 15 phút.")
 			} else {
 				unlockTime := time.Now().Add(lockoutDuration).In(time.FixedZone("ICT", 7*3600)).Format("15:04")
 				writeJSONError(w, http.StatusTooManyRequests, fmt.Sprintf("Tài khoản tạm thời bị khóa 15 phút do nhập sai mật khẩu quá 5 lần. Thời gian mở khóa: %s (còn khoảng 15 phút). Vui lòng thử lại sau.", unlockTime))

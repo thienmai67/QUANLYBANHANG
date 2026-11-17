@@ -428,7 +428,11 @@ export default function ProductDetailPage() {
       toast.error('Số lượng phải từ 1 trở lên!');
       return;
     }
-    const maxStock = product.stock > 0 ? product.stock : 9999;
+    if (product.stock <= 0) {
+      toast.error('Sản phẩm hiện đang hết hàng, không thể thêm vào giỏ!');
+      return;
+    }
+    const maxStock = product.stock;
     if (num > maxStock) {
       toast.error(`Số lượng không được vượt quá tồn kho (${maxStock})!`);
       return;
@@ -438,9 +442,7 @@ export default function ProductDetailPage() {
     setQuantity(effectiveQty);
     setQtyInput(String(effectiveQty));
 
-    const disc = product.discountRate || 0;
-    const rate = disc > 1 ? disc / 100 : disc;
-    const effectiveUnitPrice = rate > 0 ? Math.round(product.basePrice * (1 - rate)) : product.basePrice;
+    const effectiveUnitPrice = product.basePrice;
     const priceFormatted = `${effectiveUnitPrice.toLocaleString('vi-VN')} ₫`;
 
     addItem(
@@ -506,7 +508,11 @@ export default function ProductDetailPage() {
       toast.error('Số lượng phải từ 1 trở lên!');
       return;
     }
-    const maxStock = product.stock > 0 ? product.stock : 9999;
+    if (product.stock <= 0) {
+      toast.error('Sản phẩm hiện đang hết hàng, không thể thêm vào giỏ!');
+      return;
+    }
+    const maxStock = product.stock;
     if (num > maxStock) {
       toast.error(`Số lượng không được vượt quá tồn kho (${maxStock})!`);
       return;
@@ -516,9 +522,7 @@ export default function ProductDetailPage() {
     setQuantity(effectiveQty);
     setQtyInput(String(effectiveQty));
 
-    const disc = product.discountRate || 0;
-    const rate = disc > 1 ? disc / 100 : disc;
-    const effectiveUnitPrice = rate > 0 ? Math.round(product.basePrice * (1 - rate)) : product.basePrice;
+    const effectiveUnitPrice = product.basePrice;
     const priceFormatted = `${effectiveUnitPrice.toLocaleString('vi-VN')} ₫`;
 
     addItem(
@@ -696,7 +700,8 @@ export default function ProductDetailPage() {
                     {(() => {
                       const disc = product.discountRate || 0;
                       const rate = disc > 1 ? disc / 100 : disc;
-                      const effectiveUnitPrice = rate > 0 ? Math.round(product.basePrice * (1 - rate)) : product.basePrice;
+                      const effectiveUnitPrice = product.basePrice;
+                      const originalPrice = rate > 0 ? Math.round(product.basePrice / (1 - rate)) : product.basePrice;
                       return (
                         <div>
                           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -706,9 +711,9 @@ export default function ProductDetailPage() {
                             <span className="text-3xl font-black text-blue-600 dark:text-blue-400 font-mono">
                               {effectiveUnitPrice.toLocaleString('vi-VN')} ₫
                             </span>
-                            {rate > 0 && (
+                            {rate > 0 && originalPrice > effectiveUnitPrice && (
                               <span className="text-sm line-through text-slate-400 font-mono">
-                                {product.basePrice.toLocaleString('vi-VN')} ₫
+                                {originalPrice.toLocaleString('vi-VN')} ₫
                               </span>
                             )}
                             <span className="text-sm font-semibold text-slate-500">
@@ -808,9 +813,7 @@ export default function ProductDetailPage() {
                   const accAddonTotal = accessories
                     .filter((a) => selectedAccs[a.id])
                     .reduce((sum, a) => sum + a.price, 0);
-                  const disc = product.discountRate || 0;
-                  const rate = disc > 1 ? disc / 100 : disc;
-                  const effectiveUnitPrice = rate > 0 ? Math.round(product.basePrice * (1 - rate)) : product.basePrice;
+                  const effectiveUnitPrice = product.basePrice;
                   const totalWithAccessories = effectiveUnitPrice * quantity + accAddonTotal;
 
                   return (
@@ -884,15 +887,16 @@ export default function ProductDetailPage() {
                     <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                       <button
                         type="button"
+                        disabled={!product || product.stock <= 0}
                         onClick={() => {
-                          const maxStock = product && product.stock > 0 ? product.stock : 9999;
+                          const maxStock = product && product.stock > 0 ? product.stock : 0;
                           setQuantity((q) => {
                             const next = Math.max(1, q - 1);
                             setQtyInput(String(next));
                             return next;
                           });
                         }}
-                        className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
+                        className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         aria-label="Giảm số lượng"
                       >
                         <Minus className="w-4 h-4" />
@@ -900,14 +904,15 @@ export default function ProductDetailPage() {
                       <input
                         type="number"
                         min={1}
-                        max={product && product.stock > 0 ? product.stock : 9999}
-                        value={qtyInput}
+                        max={product && product.stock > 0 ? product.stock : 0}
+                        disabled={!product || product.stock <= 0}
+                        value={product && product.stock <= 0 ? 0 : qtyInput}
                         onChange={(e) => {
                           const val = e.target.value;
                           setQtyInput(val);
                           const parsed = Number(val);
                           if (Number.isInteger(parsed) && parsed >= 1) {
-                            const maxStock = product && product.stock > 0 ? product.stock : 9999;
+                            const maxStock = product && product.stock > 0 ? product.stock : 0;
                             if (parsed > maxStock) {
                               toast.error(`Số lượng không được vượt quá tồn kho (${maxStock} ${product?.unit || 'sản phẩm'})!`);
                               setQuantity(maxStock);
@@ -922,20 +927,21 @@ export default function ProductDetailPage() {
                             (e.target as HTMLInputElement).blur();
                           }
                         }}
-                        className="w-14 h-9 text-center font-mono font-bold text-sm bg-transparent border-x border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:bg-blue-50 dark:focus:bg-blue-950/40"
+                        className="w-14 h-9 text-center font-mono font-bold text-sm bg-transparent border-x border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:bg-blue-50 dark:focus:bg-blue-950/40 disabled:opacity-40 disabled:cursor-not-allowed"
                         aria-label="Nhập số lượng sản phẩm"
                       />
                       <button
                         type="button"
+                        disabled={!product || product.stock <= 0}
                         onClick={() => {
-                          const maxStock = product && product.stock > 0 ? product.stock : 9999;
+                          const maxStock = product && product.stock > 0 ? product.stock : 0;
                           setQuantity((q) => {
                             const next = Math.min(maxStock, q + 1);
                             setQtyInput(String(next));
                             return next;
                           });
                         }}
-                        className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
+                        className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         aria-label="Tăng số lượng"
                       >
                         <Plus className="w-4 h-4" />
@@ -946,14 +952,22 @@ export default function ProductDetailPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <button
                       type="button"
+                      disabled={!product || product.stock <= 0}
                       onClick={handleAddToCart}
-                      className={`py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 transition-all cursor-pointer active:scale-98 ${
-                        addedFeedback
-                          ? 'bg-emerald-600 border-emerald-600 text-white'
-                          : 'bg-blue-50 dark:bg-blue-950/50 border-blue-600 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white'
+                      className={`py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 transition-all active:scale-98 ${
+                        !product || product.stock <= 0
+                          ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                          : addedFeedback
+                          ? 'bg-emerald-600 border-emerald-600 text-white cursor-pointer'
+                          : 'bg-blue-50 dark:bg-blue-950/50 border-blue-600 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white cursor-pointer'
                       }`}
                     >
-                      {addedFeedback ? (
+                      {!product || product.stock <= 0 ? (
+                        <>
+                          <AlertCircle className="w-4 h-4" />
+                          <span>Hết Hàng</span>
+                        </>
+                      ) : addedFeedback ? (
                         <>
                           <Check className="w-4 h-4" />
                           <span>Đã Thêm Vào Giỏ!</span>
@@ -968,11 +982,16 @@ export default function ProductDetailPage() {
 
                     <button
                       type="button"
+                      disabled={!product || product.stock <= 0}
                       onClick={handleBuyNow}
-                      className="py-3.5 px-6 rounded-2xl font-bold text-sm bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
+                      className={`py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-98 ${
+                        !product || product.stock <= 0
+                          ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-60'
+                          : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-600/25 cursor-pointer'
+                      }`}
                     >
                       <Zap className="w-4 h-4" />
-                      <span>Mua Ngay</span>
+                      <span>{!product || product.stock <= 0 ? 'Tạm Hết Hàng' : 'Mua Ngay'}</span>
                     </button>
                   </div>
 

@@ -84,7 +84,17 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         if (typeof window !== 'undefined') {
           clearTokens();
+          try {
+            localStorage.removeItem('tdt-manager-storage');
+            localStorage.removeItem('shipper_incidents');
+            localStorage.removeItem('tdt_checkout_draft');
+          } catch {}
         }
+        try {
+          // Reset manager store to avoid stale order/role data cross-contamination
+          const { useManagerStore } = require('@/store/useManagerStore');
+          useManagerStore.getState().resetStoreState?.();
+        } catch {}
         set({
           token: null,
           refreshToken: null,
