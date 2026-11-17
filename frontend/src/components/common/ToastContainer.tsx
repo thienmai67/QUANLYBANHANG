@@ -43,7 +43,7 @@ export function ToastContainer() {
     <div
       aria-live="polite"
       aria-atomic="true"
-      className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none transition-all duration-300"
+      className="fixed top-5 right-5 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none transition-all duration-300"
     >
       {toasts.map((toast) => {
         const style = toastStyles[toast.type];
@@ -52,7 +52,7 @@ export function ToastContainer() {
           <div
             key={toast.id}
             role="status"
-            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 transform translate-y-0 opacity-100 animate-in slide-in-from-bottom-3 ${style.bg} ${style.border}`}
+            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 transform translate-y-0 opacity-100 animate-in slide-in-from-top-3 ${style.bg} ${style.border}`}
           >
             <div className="mt-0.5">{style.icon}</div>
 
