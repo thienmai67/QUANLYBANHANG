@@ -149,7 +149,7 @@ export function SaleHeader() {
                 {user?.name || user?.email?.split('@')[0] || 'Sale'}
               </span>
               <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold leading-tight">
-                Kinh doanh
+                {user?.role === 'MANAGER' ? 'Quản lý (Manager)' : 'Kinh doanh'}
               </span>
             </div>
           </div>

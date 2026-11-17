@@ -34,6 +34,29 @@ export default function ManagerDashboardPage() {
     fetchOrders();
     fetchProducts();
     fetchShippers();
+
+    // Auto-refresh interval (R2-17: Dashboard Manager auto-updates)
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 15000);
+
+    const onFocus = () => {
+      fetchOrders();
+      fetchProducts();
+    };
+    window.addEventListener('focus', onFocus);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        onFocus();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [fetchOrders, fetchProducts, fetchShippers]);
 
   const [trendPeriod, setTrendPeriod] = useState<'day' | 'month'>('month');

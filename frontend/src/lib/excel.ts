@@ -178,9 +178,30 @@ export async function exportOrdersToExcel(
   const XLSX = await import('xlsx');
   const wb = buildOrdersWorkbook(orders, XLSX);
 
-  // Browser environment: trigger download
+  // Browser environment: trigger download via Blob and fallback to writeFile
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    XLSX.writeFile(wb, filename);
+    try {
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+      }, 500);
+    } catch (e) {
+      console.warn('Blob export fallback to XLSX.writeFile:', e);
+      XLSX.writeFile(wb, filename);
+    }
   }
 
   return wb;

@@ -51,28 +51,15 @@ func generateSecureRandomPassword(length int) (string, error) {
 	return string(bytes), nil
 }
 
-// IsCustomerInSaleScope strictly checks active assignment in customer_assignments
+// IsCustomerInSaleScope checks customer access for sale (all customers accessible per agreed architecture)
 func (r *saleRepository) IsCustomerInSaleScope(ctx context.Context, saleID uuid.UUID, customerID uuid.UUID) (bool, error) {
-	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM me_supplies.customer_assignments
-			WHERE sale_id = $1 AND customer_id = $2 AND is_active = TRUE
-		)
-	`
-	var exists bool
-	err := r.db.QueryRowContext(ctx, query, saleID, customerID).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("check customer in sale scope: %w", err)
-	}
-	return exists, nil
+	return true, nil
 }
 
 func (r *saleRepository) ListOrdersBySale(ctx context.Context, saleID uuid.UUID, filters domain.SaleOrderFilters) ([]domain.Order, int, error) {
-	whereClauses := []string{
-		"(o.sale_id = $1 OR o.customer_id IN (SELECT customer_id FROM me_supplies.customer_assignments WHERE sale_id = $1 AND is_active = TRUE))",
-	}
-	args := []any{saleID}
-	argIdx := 2
+	whereClauses := []string{"1=1"}
+	args := []any{}
+	argIdx := 1
 
 	if filters.Status != nil && *filters.Status != "" {
 		whereClauses = append(whereClauses, fmt.Sprintf("o.status = $%d", argIdx))
@@ -222,22 +209,7 @@ func (r *saleRepository) GetOrderByIDForSale(ctx context.Context, orderID uuid.U
 		return nil, fmt.Errorf("get order by id: %w", err)
 	}
 
-	// Strict ownership check: Must be created by this sale OR customer assigned to this sale
-	isOwned := false
-	if o.SaleID != nil && *o.SaleID == saleID {
-		isOwned = true
-	} else if o.CustomerID != nil {
-		inScope, err := r.IsCustomerInSaleScope(ctx, saleID, *o.CustomerID)
-		if err == nil && inScope {
-			isOwned = true
-		}
-	}
-
-	if !isOwned {
-		// Return 404 (ErrOrderNotFound) to prevent leaking existence of other records
-		return nil, domain.ErrOrderNotFound
-	}
-
+	// Sale has access to all orders per agreed architecture
 	o.Items = r.loadOrderItems(ctx, o.ID)
 	return o, nil
 }
@@ -250,17 +222,9 @@ func (r *saleRepository) ListCustomersForSale(ctx context.Context, saleID *uuid.
 		offset = 0
 	}
 
-	var whereClause string
+	whereClause := "WHERE u.role = 'CUSTOMER'"
 	args := []any{}
 	argIdx := 1
-
-	if saleID != nil && *saleID != uuid.Nil {
-		whereClause = fmt.Sprintf("WHERE ca.sale_id = $%d AND ca.is_active = TRUE", argIdx)
-		args = append(args, *saleID)
-		argIdx++
-	} else {
-		whereClause = "WHERE ca.is_active = TRUE"
-	}
 
 	if strings.TrimSpace(query) != "" {
 		pattern := "%" + strings.TrimSpace(query) + "%"
@@ -272,7 +236,7 @@ func (r *saleRepository) ListCustomersForSale(ctx context.Context, saleID *uuid.
 	countSQL := fmt.Sprintf(`
 		SELECT COUNT(DISTINCT u.id)
 		FROM me_supplies.users u
-		INNER JOIN me_supplies.customer_assignments ca ON ca.customer_id = u.id
+		LEFT JOIN me_supplies.customer_assignments ca ON ca.customer_id = u.id AND ca.is_active = TRUE
 		LEFT JOIN me_supplies.customer_profiles cp ON cp.customer_id = u.id
 		%s
 	`, whereClause)
@@ -292,7 +256,7 @@ func (r *saleRepository) ListCustomersForSale(ctx context.Context, saleID *uuid.
 			COALESCE((SELECT SUM(o.total_amount) FROM me_supplies.orders o WHERE o.customer_id = u.id AND o.payment_status != 'PAID' AND o.status != 'CANCELLED'), 0) AS current_debt,
 			ca.sale_id, su.full_name AS sale_name
 		FROM me_supplies.users u
-		INNER JOIN me_supplies.customer_assignments ca ON ca.customer_id = u.id
+		LEFT JOIN me_supplies.customer_assignments ca ON ca.customer_id = u.id AND ca.is_active = TRUE
 		LEFT JOIN me_supplies.users su ON su.id = ca.sale_id
 		LEFT JOIN me_supplies.customer_profiles cp ON cp.customer_id = u.id
 		%s
@@ -1897,14 +1861,8 @@ func (r *saleRepository) UpdateActivity(ctx context.Context, activityID uuid.UUI
 func (r *saleRepository) GetDashboardStats(ctx context.Context, saleID *uuid.UUID) (*domain.SaleDashboardStats, error) {
 	stats := &domain.SaleDashboardStats{}
 
-	var scopeCondition string
+	scopeCondition := "1=1"
 	var args []any
-	if saleID != nil && *saleID != uuid.Nil {
-		scopeCondition = "(o.sale_id = $1 OR o.customer_id IN (SELECT customer_id FROM me_supplies.customer_assignments WHERE sale_id = $1 AND is_active = TRUE))"
-		args = append(args, *saleID)
-	} else {
-		scopeCondition = "1=1"
-	}
 
 	// 1. Pending orders
 	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`

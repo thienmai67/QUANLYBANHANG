@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)" />
+  
+  <!-- Clipboard / Document Container -->
+  <rect x="100" y="40" width="600" height="520" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" filter="drop-shadow(0 10px 15px rgba(0,0,0,0.08))" />
+  
+  <!-- Header Bar -->
+  <rect x="100" y="40" width="600" height="64" rx="16" fill="#0f172a" />
+  <rect x="100" y="88" width="600" height="16" fill="#0f172a" />
+  <text x="400" y="78" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700" text-anchor="middle" letter-spacing="1">
+    BIÊN BẢN BÀN GIAO VẬT TƯ &amp; CHỨNG TỪ GIAO HÀNG (POD)
+  </text>
+  
+  <!-- Sub Header Info -->
+  <text x="140" y="140" fill="#64748b" font-family="system-ui, sans-serif" font-size="14" font-weight="600">ĐƠN VỊ VẬN CHUYỂN: TDT EXPRESS LOGISTICS</text>
+  <text x="140" y="165" fill="#334155" font-family="system-ui, sans-serif" font-size="15" font-weight="700">ĐỊA ĐIỂM BÀN GIAO: CÔNG TRÌNH / ĐỊA CHỈ NHẬN HÀNG</text>
+  
+  <!-- Divider -->
+  <line x1="140" y1="185" x2="660" y2="185" stroke="#e2e8f0" stroke-width="2" />
+  
+  <!-- Delivery Scene Illustration / Details -->
+  <g transform="translate(140, 205)">
+    <!-- Package Box Icon -->
+    <rect x="0" y="0" width="120" height="100" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2" />
+    <path d="M 0,35 L 120,35 M 60,35 L 60,100" stroke="#d97706" stroke-width="2" stroke-dasharray="4,2" />
+    <text x="60" y="24" fill="#92400e" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle">KIỆN VẬT TƯ TDT</text>
+    
+    <text x="140" y="25" fill="#1e293b" font-family="sans-serif" font-size="16" font-weight="bold">Tình trạng hàng hóa:</text>
+    <text x="140" y="50" fill="#16a34a" font-family="sans-serif" font-size="14" font-weight="600">✓ Đầy đủ số lượng theo đơn hàng</text>
+    <text x="140" y="75" fill="#16a34a" font-family="sans-serif" font-size="14" font-weight="600">✓ Nguyên đai nguyên kiện, không móp méo</text>
+    <text x="140" y="100" fill="#16a34a" font-family="sans-serif" font-size="14" font-weight="600">✓ Đã đối chiếu quy cách kỹ thuật tại công trình</text>
+  </g>
+  
+  <!-- Signatures Section -->
+  <g transform="translate(140, 345)">
+    <rect x="0" y="0" width="520" height="120" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5" />
+    <text x="130" y="30" fill="#475569" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">ĐẠI DIỆN GIAO HÀNG (SHIPPER)</text>
+    <text x="130" y="100" fill="#0284c7" font-family="'Brush Script MT', cursive, sans-serif" font-size="28" text-anchor="middle">Nguyen Van Shipper</text>
+    
+    <line x1="260" y1="10" x2="260" y2="110" stroke="#e2e8f0" stroke-width="1.5" />
+    
+    <text x="390" y="30" fill="#475569" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">NGƯỜI NHẬN HÀNG KÝ TÊN</text>
+    <text x="390" y="100" fill="#047857" font-family="'Brush Script MT', cursive, sans-serif" font-size="28" text-anchor="middle">Da Nhan Du Hang</text>
+  </g>
+  
+  <!-- Stamp POD Completed -->
+  <g transform="translate(500, 430) rotate(-12)">
+    <rect x="-10" y="-10" width="200" height="60" rx="8" fill="none" stroke="#dc2626" stroke-width="3" stroke-dasharray="8,4" />
+    <text x="90" y="26" fill="#dc2626" font-family="sans-serif" font-size="16" font-weight="900" text-anchor="middle" letter-spacing="2">ĐÃ GIAO HÀNG</text>
+    <text x="90" y="42" fill="#dc2626" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">CHỨNG TỪ HỢP LỆ POD</text>
+  </g>
+  
+  <!-- Footer Note -->
+  <text x="400" y="530" fill="#94a3b8" font-family="sans-serif" font-size="12" text-anchor="middle">
+    Ảnh chụp biên nhận thực tế hiện trường bàn giao hàng hóa — Hệ thống TDT Material
+  </text>
+</svg>

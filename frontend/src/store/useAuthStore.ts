@@ -36,7 +36,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       token: null,
       refreshToken: null,
       user: null,
@@ -45,6 +45,16 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (token, user, refreshToken) => {
         let finalToken = token;
         let finalRefresh = refreshToken;
+        const previousUserId = get().user?.id;
+        if (previousUserId && previousUserId !== user.id) {
+          try {
+            const { useCartStore } = require('@/store/useCartStore');
+            useCartStore.getState().clearCart?.();
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('tdt-cart-storage');
+            }
+          } catch {}
+        }
         if (typeof window !== 'undefined') {
           const existingAccess = getAccessToken();
           const existingRefresh = getRefreshToken();

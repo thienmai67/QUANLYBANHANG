@@ -211,11 +211,12 @@ export function mapOrderFromApi(raw: any): Order {
       currentStatus === 'DELIVERED'
     ) {
       const packTime = new Date(new Date(createdAt).getTime() + 20 * 60 * 1000).toISOString();
+      const hasShipper = Boolean(raw.shipperName || raw.shipper_name || raw.shipperId || raw.shipper_id);
       historyList.push({
         status: 'PACKING' as OrderStatus,
         timestamp: packTime,
         changedBy: 'Quản lý điều phối',
-        note: 'Đã đóng gói và bàn giao shipper',
+        note: hasShipper ? 'Đã đóng gói và bàn giao shipper' : 'Quản lý duyệt đơn hàng, chuyển sang đóng gói tại kho',
       });
     }
 

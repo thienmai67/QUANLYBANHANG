@@ -117,8 +117,8 @@ export default function PodModal({
     setReceiverName(defaultReceiver);
     setPhotos([
       {
-        name: 'bien-ban-giao-hang-tai-cong-trinh.jpg',
-        thumbnail: '/images/products/day-dien-cong-trinh.jpg',
+        name: 'bien-ban-giao-hang-tai-cong-trinh.svg',
+        thumbnail: '/images/pod-delivery-proof.svg',
       },
     ]);
     if (isCod) {

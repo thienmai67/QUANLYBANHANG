@@ -531,6 +531,38 @@ function OrderLookupContent() {
                     </div>
                   </div>
 
+                  {/* Proof of Delivery (POD) for Customer (BUG-73) */}
+                  {order.status === 'DELIVERED' && (order.podPhotoUrl || order.podRecipientName) && (
+                    <div className="mb-4 p-4 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                          Chứng từ giao hàng thành công (POD)
+                        </h4>
+                      </div>
+                      {order.podRecipientName && (
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                          Người nhận: <span className="font-semibold">{order.podRecipientName}</span>
+                          {order.podConfirmedAt && ` • ${new Date(order.podConfirmedAt).toLocaleString('vi-VN')}`}
+                        </p>
+                      )}
+                      {order.podPhotoUrl && (
+                        <div className="mt-2.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={order.podPhotoUrl}
+                            alt="Ảnh xác nhận giao hàng POD"
+                            className="max-h-48 rounded-lg border border-emerald-300 dark:border-emerald-700 shadow-sm object-contain bg-white cursor-pointer hover:opacity-95"
+                            onClick={() => window.open(order.podPhotoUrl, '_blank')}
+                          />
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1">
+                            (Bấm vào ảnh để xem kích thước gốc)
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Order Items Table */}
                   <div className="mt-4">
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">

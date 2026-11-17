@@ -658,6 +658,17 @@ func (h *AuthHandler) HandleManagerListUsers(w http.ResponseWriter, r *http.Requ
 
 	res := make([]domain.UserProfileResponse, 0, len(users))
 	for _, u := range users {
+		isActive := u.IsActive
+		// BUG-114: If account is currently locked out by failed login rate limiting, show as inactive/locked
+		if isLocked, _, _ := getRateLimitInfo(u.Email); isLocked {
+			isActive = false
+		}
+		if u.Phone != nil && *u.Phone != "" {
+			if isLocked, _, _ := getRateLimitInfo(*u.Phone); isLocked {
+				isActive = false
+			}
+		}
+
 		res = append(res, domain.UserProfileResponse{
 			ID:                 u.ID,
 			Email:              u.Email,
@@ -667,7 +678,7 @@ func (h *AuthHandler) HandleManagerListUsers(w http.ResponseWriter, r *http.Requ
 			Role:               u.Role,
 			AuthProvider:       u.AuthProvider,
 			MustChangePassword: u.MustChangePassword,
-			IsActive:           u.IsActive,
+			IsActive:           isActive,
 			CreatedAt:          u.CreatedAt,
 			UpdatedAt:          u.UpdatedAt,
 		})
@@ -770,6 +781,16 @@ func (h *AuthHandler) HandleManagerToggleUserStatus(w http.ResponseWriter, r *ht
 		}
 		writeJSONError(w, http.StatusInternalServerError, "Lỗi cập nhật trạng thái người dùng", "INTERNAL_ERROR")
 		return
+	}
+
+	if req.IsActive {
+		// BUG-114: When manager unlocks account, also reset any rate limiting lockout
+		if u, err := h.userRepo.FindByID(r.Context(), userID); err == nil && u != nil {
+			resetFailedAttempt(u.Email)
+			if u.Phone != nil && *u.Phone != "" {
+				resetFailedAttempt(*u.Phone)
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -18,7 +18,7 @@ export default function SaleLayout({
 
   return (
     <RouteGuard
-      allowedRoles={['SALE']}
+      allowedRoles={['SALE', 'MANAGER']}
       fallbackUrl="/login"
       forbiddenUrl="/403"
     >

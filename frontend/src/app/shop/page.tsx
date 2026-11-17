@@ -56,12 +56,9 @@ type PriceRange = 'ALL' | 'UNDER_50K' | '50K_200K' | '200K_1M' | 'OVER_1M';
 function matchSearchTerm(pText: string, search: string): boolean {
   const qNorm = removeVietnameseTones(search);
   if (!qNorm) return true;
-  const qTokens = qNorm.split(/\s+/).filter(Boolean);
-  return qTokens.every((token) => {
-    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp('(?:^|[\\s\\-_/(\\[,.])' + escaped + '(?:$|[\\s\\-_/)\\],.])', 'i');
-    return re.test(pText);
-  });
+  const pNorm = pText.toLowerCase();
+  const qTokens = qNorm.toLowerCase().split(/\s+/).filter(Boolean);
+  return qTokens.every((token) => pNorm.includes(token));
 }
 
 function getProductCategoryName(p: any): string {
@@ -71,6 +68,18 @@ function getProductCategoryName(p: any): string {
   const brand = (typeof p.brand === 'object' && p.brand !== null ? p.brand.name : p.brand || '').toLowerCase();
   const name = (p.name || '').toLowerCase();
   const sku = (p.sku || '').toLowerCase();
+
+  // Water pumps belong to 'Thiết Bị Chiếu Sáng & Khác', not 'Tủ & Thiết Bị Đóng Cắt' (R2-04)
+  if (
+    sku.startsWith('pan-gp') ||
+    sku.includes('gp-') ||
+    name.includes('máy bơm') ||
+    name.includes('may bom') ||
+    name.includes('bơm nước') ||
+    name.includes('bom nuoc')
+  ) {
+    return 'Thiết Bị Chiếu Sáng & Khác';
+  }
 
   if (
     brand.includes('bình minh') ||

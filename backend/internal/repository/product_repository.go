@@ -961,7 +961,7 @@ func (r *productRepository) LookupOrderByNumberOrPhone(ctx context.Context, orde
 	}
 
 	if phone != "" {
-		conditions = append(conditions, fmt.Sprintf("(u.phone ILIKE $%d OR o.customer_name ILIKE $%d)", idx, idx))
+		conditions = append(conditions, fmt.Sprintf("(o.customer_phone ILIKE $%d OR u.phone ILIKE $%d OR o.customer_name ILIKE $%d OR o.delivery_address ILIKE $%d)", idx, idx, idx, idx))
 		args = append(args, "%"+phone+"%")
 		idx++
 	}
