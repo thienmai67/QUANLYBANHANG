@@ -52,7 +52,8 @@ interface LookupOrder {
   deliveredAt?: string;
   cancellationReason?: string;
   totalAmount: number;
-  status: 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
+  status: 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED' | 'DELIVERY_FAILED';
+  incidentDetail?: string;
   podPhotoUrl?: string;
   podRecipientName?: string;
   podConfirmedAt?: string;
@@ -220,6 +221,12 @@ function OrderLookupContent() {
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <CheckCircle2 className="w-3.5 h-3.5" /> Giao Thành Công
+          </span>
+        );
+      case 'DELIVERY_FAILED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <AlertCircle className="w-3.5 h-3.5" /> Giao Thất Bại
           </span>
         );
       case 'CANCELLED':
@@ -561,6 +568,24 @@ function OrderLookupContent() {
                           </p>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Incident Notice for Customer */}
+                  {(order.status === 'DELIVERY_FAILED' || order.incidentDetail) && (
+                    <div className="mb-4 p-4 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                          Thông báo sự cố giao hàng từ Shipper
+                        </h4>
+                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                          {order.incidentDetail || 'Tài xế chưa thể liên lạc với người nhận hoặc gặp sự cố trên lộ trình.'}
+                        </p>
+                        <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                          Nhân viên chăm sóc khách hàng TDT M&E sẽ sớm liên hệ lại với quý khách để hẹn lại thời gian giao hàng.
+                        </p>
+                      </div>
                     </div>
                   )}
 
