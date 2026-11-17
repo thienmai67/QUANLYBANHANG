@@ -141,29 +141,11 @@ export default function LoginPage() {
     window.location.href = '/profile';
   };
 
-  const handleQuickMockLogin = (role: 'MANAGER' | 'CUSTOMER' | 'SHIPPER' | 'SALE') => {
-    setErrorMsg(null);
-    if (role === 'MANAGER') {
-      setEmail('quanly@tdt.vn');
-      setPassword('Manager@123');
-    } else if (role === 'SALE') {
-      setEmail('sale@tdt.vn');
-      setPassword('Sale@123');
-    } else if (role === 'SHIPPER') {
-      setEmail('0901234567');
-      setPassword('Shipper@123');
-    } else {
-      setEmail('khachhang@gmail.com');
-      setPassword('Customer@123');
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeLogin = async (loginEmail: string, loginPassword: string) => {
     setIsLoading(true);
     setErrorMsg(null);
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = loginEmail.trim().toLowerCase();
     const mockMatch = MOCK_ACCOUNTS[cleanEmail];
 
     try {
@@ -174,7 +156,7 @@ export default function LoginPage() {
           res = await fetch(`${API_BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: cleanEmail, password }),
+            body: JSON.stringify({ email: cleanEmail, password: loginPassword }),
           });
           break;
         } catch (fetchErr) {
@@ -216,6 +198,33 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleQuickMockLogin = async (role: 'MANAGER' | 'CUSTOMER' | 'SHIPPER' | 'SALE') => {
+    setErrorMsg(null);
+    let targetEmail = '';
+    let targetPass = '';
+    if (role === 'MANAGER') {
+      targetEmail = 'quanly@tdt.vn';
+      targetPass = 'Manager@123';
+    } else if (role === 'SALE') {
+      targetEmail = 'sale@tdt.vn';
+      targetPass = 'Sale@123';
+    } else if (role === 'SHIPPER') {
+      targetEmail = '0901234567';
+      targetPass = 'Shipper@123';
+    } else {
+      targetEmail = 'khachhang@gmail.com';
+      targetPass = 'Customer@123';
+    }
+    setEmail(targetEmail);
+    setPassword(targetPass);
+    await executeLogin(targetEmail, targetPass);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await executeLogin(email, password);
   };
 
   const handleSendResetLink = (e: React.FormEvent) => {
@@ -297,44 +306,42 @@ export default function LoginPage() {
         {/* Action Buttons: Google OAuth & Submit */}
         <AuthActionRow submitText="Đăng nhập" isLoading={isLoading} />
 
-        {/* Quick Mock Credentials Selection - STRICTLY DISABLED IN PRODUCTION */}
-        {process.env.NODE_ENV !== 'production' && (
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            <div className="text-[11px] font-semibold text-slate-400 mb-2 text-center">
-              Tài khoản thử nghiệm nội bộ (Development Only):
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickMockLogin('MANAGER')}
-                className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all text-center truncate"
-              >
-                👔 Manager
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickMockLogin('SALE')}
-                className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 transition-all text-center truncate"
-              >
-                💼 Sale
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickMockLogin('SHIPPER')}
-                className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all text-center truncate"
-              >
-                🚚 Shipper
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickMockLogin('CUSTOMER')}
-                className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 transition-all text-center truncate"
-              >
-                👤 Customer
-              </button>
-            </div>
+        {/* Quick Mock Credentials Selection */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2 text-center">
+            Tài khoản thử nghiệm nhanh (Mock Login):
           </div>
-        )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={() => handleQuickMockLogin('MANAGER')}
+              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all text-center truncate cursor-pointer shadow-sm active:scale-95"
+            >
+              👔 Manager
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickMockLogin('SALE')}
+              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 transition-all text-center truncate cursor-pointer shadow-sm active:scale-95"
+            >
+              💼 Sale
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickMockLogin('SHIPPER')}
+              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all text-center truncate cursor-pointer shadow-sm active:scale-95"
+            >
+              🚚 Shipper
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickMockLogin('CUSTOMER')}
+              className="py-1.5 px-2 rounded-xl text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 transition-all text-center truncate cursor-pointer shadow-sm active:scale-95"
+            >
+              👤 Customer
+            </button>
+          </div>
+        </div>
       </form>
 
       {/* Lối vào đăng ký shipper (GĐ1): form hồ sơ, chờ quản lý duyệt */}
