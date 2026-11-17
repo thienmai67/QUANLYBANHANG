@@ -18,7 +18,9 @@ import {
   Truck,
   ShieldCheck,
   Sparkles,
-  Check,
+  CheckCircle2,
+  RotateCcw,
+  FileText,
 } from 'lucide-react';
 
 const FREESHIP_THRESHOLD = 500000; // 500.000 VND
@@ -182,27 +184,28 @@ export default function CartDrawer() {
 
   return (
     <div className="fixed inset-0 z-[100] overflow-hidden">
-      {/* Backdrop */}
+      {/* Backdrop with soft blur */}
       <div
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
         onClick={handleClose}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-8 sm:pl-10">
-        <div className="w-screen max-w-md bg-white dark:bg-[#0c1322] border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-300 text-slate-900 dark:text-slate-100 text-xs">
+      {/* Floating Island Drawer: Floats gracefully on desktop (top-3 right-3 bottom-3 sm:top-4 sm:right-4 sm:bottom-4), full height on mobile */}
+      <div className="fixed inset-y-0 right-0 sm:inset-y-3 sm:right-3 md:inset-y-4 md:right-4 flex max-w-full z-[101] pointer-events-none">
+        <div className="pointer-events-auto w-screen max-w-[480px] sm:max-w-[500px] bg-white dark:bg-[#0c1322] sm:border border-slate-200/90 dark:border-slate-800/90 sm:rounded-[28px] shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-300 text-slate-900 dark:text-slate-100 text-xs overflow-hidden">
           
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/40">
+          {/* Header: Spacious & Airy */}
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-900/40">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold shadow-xs">
                 <ShoppingBag className="w-5 h-5" />
               </div>
               <div>
                 <h2 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">
-                  Giỏ Hàng Mua Lẻ
+                  Giỏ Hàng Của Bạn
                 </h2>
                 <p className="text-[11px] text-slate-400">
-                  {items.length === 0 ? 'Chưa có sản phẩm' : `${totalItemsCount} món trong giỏ hàng`}
+                  {items.length === 0 ? 'Chưa có sản phẩm nào' : `${totalItemsCount} món • Cập nhật trực tiếp`}
                 </p>
               </div>
             </div>
@@ -215,23 +218,23 @@ export default function CartDrawer() {
             </button>
           </div>
 
-          {/* Freeship Progress Bar (Shopee / Tiki Standard) */}
+          {/* Freeship Progress Bar: Rounded Island Card */}
           {isAuth && items.length > 0 && (
-            <div className="px-4 py-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/40 border-b border-blue-100/80 dark:border-blue-900/40 text-xs">
+            <div className="mx-4 sm:mx-5 my-3 p-3 rounded-2xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-100/90 dark:border-blue-900/40 text-xs shadow-xs">
               <div className="flex items-center justify-between text-[11px] mb-1.5 font-medium">
-                <div className="flex items-center gap-1.5">
-                  <Truck className={`w-3.5 h-3.5 ${isFreeship ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`} />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Truck className={`w-3.5 h-3.5 shrink-0 ${isFreeship ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`} />
                   {isFreeship ? (
-                    <span className="text-emerald-700 dark:text-emerald-300 font-bold">
+                    <span className="text-emerald-700 dark:text-emerald-300 font-bold truncate">
                       🎉 Chúc mừng! Đơn hàng được FREESHIP TOÀN QUỐC
                     </span>
                   ) : (
-                    <span className="text-blue-700 dark:text-blue-300">
+                    <span className="text-blue-700 dark:text-blue-300 truncate">
                       Mua thêm <strong className="text-orange-600 dark:text-orange-400 font-mono font-bold">{freeshipRemaining.toLocaleString('vi-VN')} đ</strong> để được <strong>FREESHIP</strong>
                     </span>
                   )}
                 </div>
-                <span className={`font-mono font-bold text-[11px] ${isFreeship ? 'text-emerald-600' : 'text-blue-600 dark:text-blue-400'}`}>
+                <span className={`font-mono font-bold text-[11px] shrink-0 ml-2 ${isFreeship ? 'text-emerald-600' : 'text-blue-600 dark:text-blue-400'}`}>
                   {freeshipProgress}%
                 </span>
               </div>
@@ -248,11 +251,11 @@ export default function CartDrawer() {
             </div>
           )}
 
-          {/* Body: Scrollable Items Area */}
-          <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-3">
+          {/* Body: Scrollable Items Area with Breathing Room */}
+          <div className="flex-1 px-4 sm:px-5 py-2 overflow-y-auto space-y-3.5">
             {!isAuth ? (
               <div className="py-16 text-center text-slate-400 space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 mx-auto flex items-center justify-center border border-amber-500/20">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 mx-auto flex items-center justify-center border border-amber-500/20 shadow-xs">
                   <Lock className="w-8 h-8" />
                 </div>
                 <div className="space-y-1">
@@ -260,7 +263,7 @@ export default function CartDrawer() {
                     Vui Lòng Đăng Nhập Tài Khoản
                   </p>
                   <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                    Bạn cần đăng nhập tài khoản để thêm và quản lý sản phẩm trong giỏ hàng.
+                    Đăng nhập để xem giá chiết khấu dự án và lưu trữ giỏ hàng an toàn.
                   </p>
                 </div>
                 <div className="pt-2">
@@ -279,8 +282,8 @@ export default function CartDrawer() {
               </div>
             ) : items.length === 0 ? (
               <div className="py-16 text-center text-slate-400 space-y-3">
-                <div className="w-16 h-16 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-500 flex items-center justify-center mx-auto mb-2">
-                  <ShoppingBag className="w-8 h-8 opacity-60" />
+                <div className="w-16 h-16 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-orange-500 flex items-center justify-center mx-auto mb-2 border border-orange-200/50 dark:border-orange-900/50">
+                  <ShoppingBag className="w-8 h-8 opacity-70" />
                 </div>
                 <p className="font-bold text-sm text-slate-700 dark:text-slate-300">
                   Giỏ hàng của bạn đang trống
@@ -294,13 +297,13 @@ export default function CartDrawer() {
                     onClick={handleClose}
                     className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition-colors shadow-md shadow-orange-500/20"
                   >
-                    <span>Khám phá sản phẩm</span>
+                    <span>Khám phá sản phẩm ngay</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 {items.map((item) => {
                   const brand = inferBrand(item.name, item.sku);
                   const unit = inferUnit(item.name, item.sku);
@@ -310,11 +313,11 @@ export default function CartDrawer() {
                   return (
                     <div
                       key={item.id}
-                      className="p-3 bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200/90 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 shadow-xs transition-all"
+                      className="p-3.5 bg-slate-50/50 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 hover:border-blue-400 dark:hover:border-blue-600 shadow-xs transition-all"
                     >
-                      <div className="flex gap-3">
+                      <div className="flex gap-3.5 items-center">
                         {/* Thumbnail */}
-                        <div className="w-16 h-16 rounded-xl bg-slate-50 dark:bg-slate-800 p-1 shrink-0 border border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                        <div className="w-16 h-16 rounded-xl bg-white dark:bg-slate-800 p-1 shrink-0 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center overflow-hidden">
                           <img
                             src={item.image || '/images/placeholder.png'}
                             alt={item.name}
@@ -328,19 +331,19 @@ export default function CartDrawer() {
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-1">
-                            <div>
+                          <div className="flex items-start justify-between gap-1.5">
+                            <div className="min-w-0">
                               <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/60 uppercase tracking-wider mb-0.5">
                                 {brand}
                               </span>
-                              <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate leading-snug">
+                              <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate leading-snug">
                                 {item.name}
                               </h4>
                             </div>
                             <button
                               type="button"
                               onClick={() => removeItem(item.id)}
-                              className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1 rounded-lg transition-colors"
+                              className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1 rounded-lg transition-colors shrink-0"
                               title="Xóa món này"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -366,11 +369,11 @@ export default function CartDrawer() {
                             </div>
 
                             {/* Stepper with Direct Keyboard Input */}
-                            <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 overflow-hidden shadow-2xs">
+                            <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 overflow-hidden shadow-2xs">
                               <button
                                 type="button"
                                 onClick={() => handleDecrease(item.id, item.quantity)}
-                                className="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold transition-colors active:scale-95"
+                                className="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition-colors active:scale-95"
                                 title="Giảm số lượng"
                               >
                                 <Minus className="w-3 h-3" />
@@ -384,14 +387,14 @@ export default function CartDrawer() {
                                 onChange={(e) => handleInputChange(item.id, e.target.value)}
                                 onBlur={() => handleInputBlur(item.id, item.quantity)}
                                 onKeyDown={(e) => handleInputKeyDown(e, item.id, item.quantity)}
-                                className="w-10 h-7 text-center font-bold text-xs font-mono bg-transparent border-0 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue-500 rounded text-slate-800 dark:text-slate-100 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-10 h-7 text-center font-bold text-xs font-mono bg-transparent border-0 focus:outline-none focus:bg-blue-50/50 dark:focus:bg-blue-950/40 rounded text-slate-800 dark:text-slate-100 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 title="Click vào để gõ số lượng từ bàn phím"
                               />
 
                               <button
                                 type="button"
                                 onClick={() => handleIncrease(item.id, item.quantity)}
-                                className="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold transition-colors active:scale-95"
+                                className="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition-colors active:scale-95"
                                 title="Tăng số lượng"
                               >
                                 <Plus className="w-3 h-3" />
@@ -408,15 +411,15 @@ export default function CartDrawer() {
                 {!hasNanoTape && (
                   <div className="p-3 rounded-2xl border border-dashed border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 transition-all">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                          <Sparkles className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate">
                             Băng keo cách điện Nano 18m
                           </div>
-                          <p className="text-[10px] text-slate-400 truncate">Vật tư phụ thường mua kèm dây cáp</p>
+                          <p className="text-[10px] text-slate-400 truncate">Vật tư phụ thường mua kèm công trình</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -424,7 +427,7 @@ export default function CartDrawer() {
                         <button
                           type="button"
                           onClick={handleAddNanoTape}
-                          className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] transition-all shadow-xs active:scale-95 flex items-center gap-1"
+                          className="px-3 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] transition-all shadow-xs active:scale-95 flex items-center gap-1"
                         >
                           <Plus className="w-3 h-3" />
                           <span>Thêm</span>
@@ -433,13 +436,29 @@ export default function CartDrawer() {
                     </div>
                   </div>
                 )}
+
+                {/* Cozy M&E Quality Commitments Banner (fills awkward void naturally) */}
+                <div className="p-3 rounded-2xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/70 space-y-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span>Cam kết 100% chính hãng, đầy đủ CO/CQ xuất xưởng</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                    <span>Hỗ trợ giao hàng hỏa tốc 2H tại chân công trình</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>Hỗ trợ xuất hóa đơn VAT điện tử & hợp đồng kinh tế</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Footer: Price Breakdown, Actions & Trust Badges */}
+          {/* Footer: Price Breakdown & Prominent Dual Actions */}
           {isAuth && items.length > 0 && (
-            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/80 space-y-3">
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/80 dark:bg-slate-900/70 space-y-3">
               {/* Price Breakdown */}
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-500 dark:text-slate-400 text-[11px]">
@@ -469,12 +488,12 @@ export default function CartDrawer() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons: Spacious & Rounded */}
               <div className="grid grid-cols-2 gap-2.5 pt-1">
                 <button
                   type="button"
                   onClick={handleGoToCart}
-                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all"
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
                 >
                   <ShoppingBag className="w-3.5 h-3.5" />
                   <span>Xem giỏ hàng</span>
@@ -491,14 +510,14 @@ export default function CartDrawer() {
                 </button>
               </div>
 
-              {/* Trust Badges */}
-              <div className="flex items-center justify-center gap-3 pt-1 text-[10px] text-slate-400">
+              {/* Bottom Quick Bar */}
+              <div className="flex items-center justify-center gap-3 pt-0.5 text-[10px] text-slate-400">
                 <span className="flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-emerald-500" /> 100% Chính hãng CO/CQ
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
-                  <Truck className="w-3 h-3 text-blue-500" /> Giao 2H hỏa tốc
+                  <RotateCcw className="w-3 h-3 text-blue-500" /> Đổi trả 7 ngày
                 </span>
               </div>
             </div>
