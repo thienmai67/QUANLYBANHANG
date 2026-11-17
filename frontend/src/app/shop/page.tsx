@@ -23,6 +23,7 @@ import {
   ChevronRight,
   PackageSearch,
   RotateCcw,
+  X,
 } from 'lucide-react';
 
 type DiyCategory = 'ALL' | 'PLUMBING' | 'AIR_COND' | 'LIGHTING' | 'PANEL';
@@ -140,12 +141,21 @@ function ShopContent() {
   const searchParams = useSearchParams();
   const toast = useToast();
 
-  const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
-  const [selectedCat, setSelectedCat] = useState<string>('ALL');
+  // Draft filter selections
+  const [searchDraft, setSearchDraft] = useState<string>('');
+  const [catDraft, setCatDraft] = useState<string>('ALL');
+  const [brandDraft, setBrandDraft] = useState<string>('ALL');
+  const [priceDraft, setPriceDraft] = useState<PriceRange>('ALL');
+  const [sortDraft, setSortDraft] = useState<SortOption>('DEFAULT');
+
+  // Applied filters driving the product list
+  const [appliedSearch, setAppliedSearch] = useState<string>('');
+  const [appliedCat, setAppliedCat] = useState<string>('ALL');
+  const [appliedBrand, setAppliedBrand] = useState<string>('ALL');
+  const [appliedPrice, setAppliedPrice] = useState<PriceRange>('ALL');
+  const [appliedSort, setAppliedSort] = useState<SortOption>('DEFAULT');
   const [selectedDiy, setSelectedDiy] = useState<DiyCategory>('ALL');
-  const [selectedPrice, setSelectedPrice] = useState<PriceRange>('ALL');
-  const [search, setSearch] = useState<string>('');
-  const [sortBy, setSortBy] = useState<SortOption>('DEFAULT');
+
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 20;
 
@@ -161,37 +171,88 @@ function ShopContent() {
 
   const productsLoading = useAdminStore((state) => state.productsLoading);
 
-  const updateUrlParam = (key: string, value: string) => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    if (value && value !== 'ALL') {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    const newQuery = params.toString();
-    const newUrl = newQuery ? `/shop?${newQuery}` : '/shop';
-    router.replace(newUrl, { scroll: false });
-  };
-
-  // Read URL query params
+  // Read URL query params on initial load or navigation
   useEffect(() => {
-    const catParam = searchParams.get('cat');
-    const brandParam = searchParams.get('brand');
-    const diyParam = searchParams.get('diy');
-    const searchParam = searchParams.get('search');
-    const priceParam = searchParams.get('price');
+    const catParam = searchParams.get('cat') || 'ALL';
+    const brandParam = searchParams.get('brand') || 'ALL';
+    const diyParam = searchParams.get('diy') || 'ALL';
+    const searchParam = searchParams.get('search') || '';
+    const priceParam = searchParams.get('price') || 'ALL';
+    const sortParam = (searchParams.get('sort') as SortOption) || 'DEFAULT';
 
-    if (catParam) setSelectedCat(catParam);
-    if (brandParam) setSelectedBrand(brandParam);
-    if (searchParam) setSearch(searchParam);
-    if (priceParam && ['ALL', 'UNDER_50K', '50K_200K', '200K_1M', 'OVER_1M'].includes(priceParam)) {
-      setSelectedPrice(priceParam as PriceRange);
+    setSearchDraft(searchParam);
+    setCatDraft(catParam);
+    setBrandDraft(brandParam);
+    if (['ALL', 'UNDER_50K', '50K_200K', '200K_1M', 'OVER_1M'].includes(priceParam)) {
+      setPriceDraft(priceParam as PriceRange);
+      setAppliedPrice(priceParam as PriceRange);
     }
-    if (diyParam && ['ALL', 'PLUMBING', 'AIR_COND', 'LIGHTING', 'PANEL'].includes(diyParam)) {
+    setSortDraft(sortParam);
+
+    setAppliedSearch(searchParam);
+    setAppliedCat(catParam);
+    setAppliedBrand(brandParam);
+    setAppliedSort(sortParam);
+
+    if (['ALL', 'PLUMBING', 'AIR_COND', 'LIGHTING', 'PANEL'].includes(diyParam)) {
       setSelectedDiy(diyParam as DiyCategory);
     }
   }, [searchParams]);
+
+  const handleApplySearch = (overrides?: {
+    search?: string;
+    cat?: string;
+    brand?: string;
+    price?: PriceRange;
+    sort?: SortOption;
+    diy?: DiyCategory;
+  }) => {
+    const nextSearch = overrides?.search !== undefined ? overrides.search : searchDraft;
+    const nextCat = overrides?.cat !== undefined ? overrides.cat : catDraft;
+    const nextBrand = overrides?.brand !== undefined ? overrides.brand : brandDraft;
+    const nextPrice = overrides?.price !== undefined ? overrides.price : priceDraft;
+    const nextSort = overrides?.sort !== undefined ? overrides.sort : sortDraft;
+    const nextDiy = overrides?.diy !== undefined ? overrides.diy : selectedDiy;
+
+    setAppliedSearch(nextSearch);
+    setAppliedCat(nextCat);
+    setAppliedBrand(nextBrand);
+    setAppliedPrice(nextPrice);
+    setAppliedSort(nextSort);
+    setSelectedDiy(nextDiy);
+    setCurrentPage(1);
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams();
+      if (nextSearch.trim()) params.set('search', nextSearch.trim());
+      if (nextCat !== 'ALL') params.set('cat', nextCat);
+      if (nextBrand !== 'ALL') params.set('brand', nextBrand);
+      if (nextPrice !== 'ALL') params.set('price', nextPrice);
+      if (nextSort !== 'DEFAULT') params.set('sort', nextSort);
+      if (nextDiy !== 'ALL') params.set('diy', nextDiy);
+
+      const queryStr = params.toString();
+      router.replace(queryStr ? `/shop?${queryStr}` : '/shop', { scroll: false });
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSearchDraft('');
+    setCatDraft('ALL');
+    setBrandDraft('ALL');
+    setPriceDraft('ALL');
+    setSortDraft('DEFAULT');
+    setSelectedDiy('ALL');
+
+    setAppliedSearch('');
+    setAppliedCat('ALL');
+    setAppliedBrand('ALL');
+    setAppliedPrice('ALL');
+    setAppliedSort('DEFAULT');
+    setCurrentPage(1);
+
+    router.replace('/shop', { scroll: false });
+  };
 
   // Standardize products
   const allProducts: MaterialProduct[] = useMemo(() => {
@@ -255,31 +316,29 @@ function ShopContent() {
       : ['Cadivi', 'Bình Minh', 'Schneider Electric', 'Panasonic', 'Khác'];
   }, [allProducts]);
 
-  // Filtering + Sorting
+  // Filtering + Sorting based on Applied Filters
   const filteredProducts = useMemo(() => {
-    const qNorm = removeVietnameseTones(search);
-
     const filtered = allProducts.filter((p) => {
       const pNameNorm = removeVietnameseTones(p.name);
       const pSkuNorm = removeVietnameseTones(p.sku);
       const pBrandNorm = removeVietnameseTones(p.brand);
       const pCatNorm = removeVietnameseTones(p.categoryName || (p.category as any) || '');
-      const pSearchTarget = `${pNameNorm} ${pSkuNorm} ${pBrandNorm} ${pCatNorm}`;
+      const pSearchTarget = `${p.name} ${p.sku} ${p.brand} ${pNameNorm} ${pSkuNorm} ${pBrandNorm} ${pCatNorm}`;
 
-      const matchesSearch = matchSearchTerm(pSearchTarget, search);
+      const matchesSearch = matchSearchTerm(pSearchTarget, appliedSearch);
 
-      const isOtherSelected = selectedBrand === 'Khác' || selectedBrand === 'OTHER';
+      const isOtherSelected = appliedBrand === 'Khác' || appliedBrand === 'OTHER';
       const isMajorBrand = ['cadivi', 'bình minh', 'binh minh', 'schneider', 'panasonic', 'rạng đông', 'rang dong'].some((b) =>
         p.brand.toLowerCase().includes(b)
       );
       const matchesBrand =
-        selectedBrand === 'ALL' ||
-        p.brand === selectedBrand ||
+        appliedBrand === 'ALL' ||
+        p.brand === appliedBrand ||
         (isOtherSelected && !isMajorBrand);
       const matchesCat =
-        selectedCat === 'ALL' ||
-        p.categoryName === selectedCat ||
-        (p.category as any) === selectedCat;
+        appliedCat === 'ALL' ||
+        p.categoryName === appliedCat ||
+        (p.category as any) === appliedCat;
 
       let matchesDiy = true;
       const fullText = `${pNameNorm} ${pSkuNorm} ${pBrandNorm}`;
@@ -306,13 +365,13 @@ function ShopContent() {
 
       let matchesPrice = true;
       const price = p.rawPrice || 0;
-      if (selectedPrice === 'UNDER_50K') {
+      if (appliedPrice === 'UNDER_50K') {
         matchesPrice = price < 50000;
-      } else if (selectedPrice === '50K_200K') {
+      } else if (appliedPrice === '50K_200K') {
         matchesPrice = price >= 50000 && price <= 200000;
-      } else if (selectedPrice === '200K_1M') {
+      } else if (appliedPrice === '200K_1M') {
         matchesPrice = price >= 200000 && price <= 1000000;
-      } else if (selectedPrice === 'OVER_1M') {
+      } else if (appliedPrice === 'OVER_1M') {
         matchesPrice = price > 1000000;
       }
 
@@ -321,16 +380,16 @@ function ShopContent() {
 
     // Apply Sorting
     const sorted = [...filtered];
-    if (sortBy === 'PRICE_ASC') {
+    if (appliedSort === 'PRICE_ASC') {
       sorted.sort((a, b) => (a.rawPrice || 0) - (b.rawPrice || 0));
-    } else if (sortBy === 'PRICE_DESC') {
+    } else if (appliedSort === 'PRICE_DESC') {
       sorted.sort((a, b) => (b.rawPrice || 0) - (a.rawPrice || 0));
-    } else if (sortBy === 'NAME_ASC') {
+    } else if (appliedSort === 'NAME_ASC') {
       sorted.sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true, sensitivity: 'base' }));
     }
 
     return sorted;
-  }, [allProducts, search, selectedBrand, selectedCat, selectedDiy, sortBy]);
+  }, [allProducts, appliedSearch, appliedBrand, appliedCat, appliedPrice, appliedSort, selectedDiy]);
 
   // Pagination calculation
   const totalItems = filteredProducts.length;
@@ -338,17 +397,6 @@ function ShopContent() {
   const currentSafePage = Math.min(currentPage, totalPages);
   const startIndex = (currentSafePage - 1) * itemsPerPage;
   const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
-
-  // Reset all filters
-  const handleResetFilters = () => {
-    setSearch('');
-    setSelectedBrand('ALL');
-    setSelectedCat('ALL');
-    setSelectedDiy('ALL');
-    setSortBy('DEFAULT');
-    setCurrentPage(1);
-    router.replace('/shop');
-  };
 
   const handleAddToCart = (prod: MaterialProduct) => {
     const isAuth = useAuthStore.getState().isAuthenticated || !!getAccessToken();
@@ -413,7 +461,7 @@ function ShopContent() {
                 Chọn Nhanh Theo Nhu Cầu Sửa Chữa Gia Đình:
               </span>
             </div>
-            {(selectedDiy !== 'ALL' || selectedCat !== 'ALL' || selectedBrand !== 'ALL' || search.trim() !== '') && (
+            {(selectedDiy !== 'ALL' || appliedCat !== 'ALL' || appliedBrand !== 'ALL' || appliedSearch.trim() !== '') && (
               <button
                 type="button"
                 onClick={handleResetFilters}
@@ -433,10 +481,18 @@ function ShopContent() {
                   key={chip.id}
                   type="button"
                   onClick={() => {
-                    setSearch('');
-                    updateUrlParam('search', '');
+                    setSearchDraft('');
+                    setCatDraft('ALL');
+                    setBrandDraft('ALL');
+                    setPriceDraft('ALL');
                     setSelectedDiy(chip.id);
-                    setCurrentPage(1);
+                    handleApplySearch({
+                      search: '',
+                      cat: 'ALL',
+                      brand: 'ALL',
+                      price: 'ALL',
+                      diy: chip.id,
+                    });
                   }}
                   className={`p-3.5 rounded-2xl text-left border transition-all flex flex-col justify-between ${
                     isActive
@@ -462,106 +518,184 @@ function ShopContent() {
           </div>
         </div>
 
-        {/* Search, Category, Brand and Sort Controls */}
-        <div className="p-4 bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
-          <div className="relative w-full lg:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSearch(val);
-                updateUrlParam('search', val);
-                setCurrentPage(1);
-              }}
-              placeholder="Tìm theo tên sản phẩm, mã SKU, hãng..."
-              className="w-full pl-10 pr-4 py-2 text-xs bg-slate-100 dark:bg-slate-900 border border-transparent focus:border-cyan-500 rounded-xl text-slate-900 dark:text-slate-100 font-medium outline-none"
-            />
+        {/* Search & Filter Toolbar */}
+        <div className="p-4 sm:p-5 bg-white dark:bg-[#0c1322] border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
+          {/* Row 1: Search Input + Nút Tìm Kiếm + Nút Đặt Lại */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchDraft}
+                onChange={(e) => setSearchDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleApplySearch();
+                  }
+                }}
+                placeholder="Tìm theo tên sản phẩm, mã SKU, hãng (bấm Enter hoặc nút Tìm kiếm)..."
+                className="w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 rounded-xl text-slate-900 dark:text-slate-100 font-medium outline-none transition-all placeholder:text-slate-400"
+              />
+              {searchDraft && (
+                <button
+                  type="button"
+                  onClick={() => setSearchDraft('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+                  title="Xóa từ khóa"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleApplySearch()}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
+                title="Bấm để lọc và tìm kiếm sản phẩm"
+              >
+                <Search className="w-4 h-4" />
+                <span>Tìm Kiếm</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold text-xs sm:text-sm transition-all"
+                title="Xóa toàn bộ bộ lọc về mặc định"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Đặt lại</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto text-xs">
-            <div className="flex items-center gap-1.5 font-semibold text-slate-500">
-              <Filter className="w-3.5 h-3.5" /> Danh mục:
+          {/* Row 2: 4 Dropdowns arranged in a neat 4-column responsive grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+            {/* 1. Danh Mục */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <Filter className="w-3 h-3 text-blue-500" /> Danh mục:
+              </label>
+              <select
+                value={catDraft}
+                onChange={(e) => setCatDraft(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-blue-500 outline-none transition-all cursor-pointer"
+              >
+                <option value="ALL">Tất cả danh mục ({allProducts.length})</option>
+                {availableCategories.map((cat) => {
+                  const count = allProducts.filter((p) => p.categoryName === cat).length;
+                  return (
+                    <option key={cat} value={cat}>
+                      {cat} ({count})
+                    </option>
+                  );
+                })}
+              </select>
             </div>
-            <select
-              value={selectedCat}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedCat(val);
-                updateUrlParam('cat', val);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
-            >
-              <option value="ALL">Tất cả danh mục ({allProducts.length})</option>
-              {availableCategories.map((cat) => {
-                const count = allProducts.filter((p) => p.categoryName === cat).length;
-                return (
-                  <option key={cat} value={cat}>
-                    {cat} ({count})
+
+            {/* 2. Thương Hiệu */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                Thương hiệu:
+              </label>
+              <select
+                value={brandDraft}
+                onChange={(e) => setBrandDraft(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-blue-500 outline-none transition-all cursor-pointer"
+              >
+                <option value="ALL">Tất cả hãng</option>
+                {availableBrands.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
                   </option>
-                );
-              })}
-            </select>
-
-            <div className="flex items-center gap-1.5 font-semibold text-slate-500 ml-1">
-              Thương hiệu:
+                ))}
+              </select>
             </div>
-            <select
-              value={selectedBrand}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedBrand(val);
-                updateUrlParam('brand', val);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
-            >
-              <option value="ALL">Tất cả hãng</option>
-              {availableBrands.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
 
-            <div className="flex items-center gap-1.5 font-semibold text-slate-500 ml-1">
-              Khoảng giá:
+            {/* 3. Khoảng Giá */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                Khoảng giá:
+              </label>
+              <select
+                value={priceDraft}
+                onChange={(e) => setPriceDraft(e.target.value as PriceRange)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-blue-500 outline-none transition-all cursor-pointer"
+              >
+                <option value="ALL">Tất cả mức giá</option>
+                <option value="UNDER_50K">Dưới 50.000₫</option>
+                <option value="50K_200K">50.000₫ - 200.000₫</option>
+                <option value="200K_1M">200.000₫ - 1.000.000₫</option>
+                <option value="OVER_1M">Trên 1.000.000₫</option>
+              </select>
             </div>
-            <select
-              value={selectedPrice}
-              onChange={(e) => {
-                const val = e.target.value as PriceRange;
-                setSelectedPrice(val);
-                updateUrlParam('price', val);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
-            >
-              <option value="ALL">Tất cả mức giá</option>
-              <option value="UNDER_50K">Dưới 50.000₫</option>
-              <option value="50K_200K">50.000₫ - 200.000₫</option>
-              <option value="200K_1M">200.000₫ - 1.000.000₫</option>
-              <option value="OVER_1M">Trên 1.000.000₫</option>
-            </select>
 
-            <div className="flex items-center gap-1.5 font-semibold text-slate-500 ml-1">
-              <ArrowUpDown className="w-3.5 h-3.5" /> Sắp xếp:
+            {/* 4. Sắp Xếp */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <ArrowUpDown className="w-3 h-3 text-cyan-500" /> Sắp xếp:
+              </label>
+              <select
+                value={sortDraft}
+                onChange={(e) => setSortDraft(e.target.value as SortOption)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-blue-500 outline-none transition-all cursor-pointer"
+              >
+                <option value="DEFAULT">Nổi bật / Mặc định</option>
+                <option value="PRICE_ASC">Giá tăng dần (Thấp &rarr; Cao)</option>
+                <option value="PRICE_DESC">Giá giảm dần (Cao &rarr; Thấp)</option>
+                <option value="NAME_ASC">Tên sản phẩm (A &rarr; Z)</option>
+              </select>
             </div>
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value as SortOption);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
-            >
-              <option value="DEFAULT">Nổi bật / Mặc định</option>
-              <option value="PRICE_ASC">Giá tăng dần (Thấp &rarr; Cao)</option>
-              <option value="PRICE_DESC">Giá giảm dần (Cao &rarr; Thấp)</option>
-              <option value="NAME_ASC">Tên sản phẩm (A &rarr; Z)</option>
-            </select>
+          </div>
+
+          {/* Active Filter Pills Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-slate-500">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                Tìm thấy: <strong className="text-blue-600 dark:text-blue-400 font-mono text-sm">{totalItems}</strong> sản phẩm
+              </span>
+              {appliedSearch && (
+                <span className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/60 text-[11px] font-semibold flex items-center gap-1">
+                  Từ khóa: &quot;{appliedSearch}&quot;
+                  <button type="button" onClick={() => { setSearchDraft(''); handleApplySearch({ search: '' }); }} className="hover:text-rose-500">×</button>
+                </span>
+              )}
+              {appliedCat !== 'ALL' && (
+                <span className="px-2 py-0.5 rounded-lg bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 border border-cyan-200/60 text-[11px] font-semibold flex items-center gap-1">
+                  Danh mục: {appliedCat}
+                  <button type="button" onClick={() => { setCatDraft('ALL'); handleApplySearch({ cat: 'ALL' }); }} className="hover:text-rose-500">×</button>
+                </span>
+              )}
+              {appliedBrand !== 'ALL' && (
+                <span className="px-2 py-0.5 rounded-lg bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200/60 text-[11px] font-semibold flex items-center gap-1">
+                  Hãng: {appliedBrand}
+                  <button type="button" onClick={() => { setBrandDraft('ALL'); handleApplySearch({ brand: 'ALL' }); }} className="hover:text-rose-500">×</button>
+                </span>
+              )}
+              {appliedPrice !== 'ALL' && (
+                <span className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 text-[11px] font-semibold flex items-center gap-1">
+                  Giá: {appliedPrice === 'UNDER_50K' ? '< 50k' : appliedPrice === '50K_200K' ? '50k-200k' : appliedPrice === '200K_1M' ? '200k-1M' : '> 1M'}
+                  <button type="button" onClick={() => { setPriceDraft('ALL'); handleApplySearch({ price: 'ALL' }); }} className="hover:text-rose-500">×</button>
+                </span>
+              )}
+              {selectedDiy !== 'ALL' && (
+                <span className="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 text-[11px] font-semibold flex items-center gap-1">
+                  Nhu cầu: {DIY_CHIPS.find((c) => c.id === selectedDiy)?.label}
+                  <button type="button" onClick={() => { setSelectedDiy('ALL'); handleApplySearch({ diy: 'ALL' }); }} className="hover:text-rose-500">×</button>
+                </span>
+              )}
+            </div>
+            {(appliedSearch || appliedCat !== 'ALL' || appliedBrand !== 'ALL' || appliedPrice !== 'ALL' || selectedDiy !== 'ALL') && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline font-bold"
+              >
+                Xóa tất cả bộ lọc
+              </button>
+            )}
           </div>
         </div>
 
@@ -604,7 +738,7 @@ function ShopContent() {
                 Không tìm thấy sản phẩm phù hợp
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto break-words line-clamp-3">
-                Không có vật tư nào khớp với từ khóa &quot;{search}&quot; hoặc tiêu chí bộ lọc đã chọn.
+                Không có vật tư nào khớp với từ khóa &quot;{appliedSearch}&quot; hoặc tiêu chí bộ lọc đã chọn.
               </p>
             </div>
             <div className="pt-2">
