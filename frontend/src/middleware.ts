@@ -72,7 +72,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/403?required=SHIPPER', request.url));
     }
 
-    if (isSaleRoute && role !== 'SALE' && role !== 'ADMIN') {
+    if (isSaleRoute && role !== 'SALE' && role !== 'ADMIN' && role !== 'MANAGER') {
       return NextResponse.redirect(new URL('/403?required=SALE', request.url));
     }
   }
