@@ -20,7 +20,6 @@ import {
   Zap,
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
-import CartDrawer from './CartDrawer';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 import { clearTokens } from '@/lib/auth';
@@ -55,7 +54,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
   }, []);
 
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { items, getTotalItems, setIsOpen, clearCart } = useCartStore();
+  const { items, getTotalItems, clearCart } = useCartStore();
   const adminProducts = useAdminStore((state) => state.products);
   const fetchProducts = useAdminStore((state) => state.fetchProducts);
   const cartCount = getTotalItems();
@@ -288,11 +287,11 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
               </Link>
             )}
 
-            {/* Cart Icon */}
-            <button
-              onClick={() => setIsOpen(true)}
-              className="relative p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1322] hover:border-blue-500 transition-colors group"
-              title="Mở Giỏ Hàng Mua Lẻ"
+            {/* Cart Icon - Direct Navigation to Dedicated /cart Page */}
+            <Link
+              href="/cart"
+              className="relative p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1322] hover:border-blue-500 transition-colors group flex items-center justify-center"
+              title="Xem Giỏ Hàng Mua Lẻ"
             >
               <ShoppingCart className="w-5 h-5 text-slate-700 dark:text-slate-300 group-hover:text-blue-600 transition-colors" />
               {mounted && cartCount > 0 && (
@@ -300,7 +299,7 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                   {cartCount > 99 ? '99+' : cartCount}
                 </span>
               )}
-            </button>
+            </Link>
 
             {/* Mobile Menu Toggle */}
             <button
@@ -409,9 +408,6 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
           </div>
         )}
       </header>
-
-      {/* Cart Drawer for Retail Shopping */}
-      <CartDrawer />
     </>
   );
 }
