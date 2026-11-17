@@ -33,6 +33,15 @@ services:
       DATABASE_URL: postgres://postgres:postgres@db:5432/me_supplies?sslmode=disable&search_path=me_supplies
       JWT_SECRET: ${JWT_SECRET:-tdt-me-platform-jwt-secret-key-change-in-prod}
       PORT: 8080
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-AQ.Ab8RN6KWJm5ueZ3OvGYFDsdL_h0YYdB-tZ4FiV7vL_0bxFNjzA}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-d7f9b399-3d56-45c7-b937-0970ddc97f21}
+      PAYOS_API_KEY: ${PAYOS_API_KEY:-e8226858-d2c4-4fde-a760-f1141cd78768}
+      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-3a99117abf7ed84649f13c1880461b629b559c6b790b8111cc6dfdda5f0c07d0}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-1017933497759-0b981fb3g3qftvco5t7jblsm60s2ktu7.apps.googleusercontent.com}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-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}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-https://tdtmaterial.id.vn/api/v1/auth/google/callback}
+      FRONTEND_URL: ${FRONTEND_URL:-https://tdtmaterial.id.vn}
     restart: unless-stopped
 
   frontend:

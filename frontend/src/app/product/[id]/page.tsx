@@ -40,6 +40,7 @@ interface ProductDetailData {
   unit: string;
   stock: number;
   image: string;
+  images: string[];
   description: string;
   diameterMm?: number | null;
   crossSectionMm2?: number | null;
@@ -70,6 +71,17 @@ function normalizeProductDetail(raw: any): ProductDetailData {
     ? Number(rawStock)
     : 500;
   const image = String(specs.image || raw.image || '');
+
+  let images: string[] = [];
+  if (Array.isArray(specs.images) && specs.images.length > 0) {
+    images = specs.images.map(String).filter(Boolean);
+  } else if (Array.isArray(raw.images) && raw.images.length > 0) {
+    images = raw.images.map(String).filter(Boolean);
+  }
+  if (images.length === 0 && image) {
+    images = [image];
+  }
+
   const description = String(
     specs.description ||
       raw.description ||
@@ -88,7 +100,8 @@ function normalizeProductDetail(raw: any): ProductDetailData {
     basePrice,
     unit,
     stock,
-    image,
+    image: images[0] || image,
+    images,
     description,
     diameterMm: raw.diameterMm ?? raw.diameter_mm ?? null,
     crossSectionMm2: raw.crossSectionMm2 ?? raw.cross_section_mm2 ?? null,
@@ -229,6 +242,7 @@ export default function ProductDetailPage() {
   const productId = params?.id ? decodeURIComponent(String(params.id)) : '';
 
   const [product, setProduct] = useState<ProductDetailData | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [notFoundError, setNotFoundError] = useState<boolean>(false);
   const [quantity, setQuantity] = useState<number>(1);
@@ -467,18 +481,49 @@ export default function ProductDetailPage() {
         ) : (
           <div className="bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-sm">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-              {/* Left: Large Product Image (5 cols) */}
-              <div className="lg:col-span-5">
-                <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-inner">
+              {/* Left: Product Image & Gallery Thumbnails (5 cols) */}
+              <div className="lg:col-span-5 space-y-4">
+                {/* Main Large Image */}
+                <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm group">
                   <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
+                    src={product.images[selectedImageIndex] || product.image}
+                    alt={`${product.name} - Ảnh ${selectedImageIndex + 1}`}
+                    className="w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
                   />
                   <span className="absolute top-4 left-4 px-3 py-1 bg-slate-900/85 backdrop-blur-md text-white font-bold text-xs rounded-xl shadow">
                     {product.brand}
                   </span>
+                  {product.images.length > 1 && (
+                    <span className="absolute bottom-4 right-4 px-2.5 py-1 bg-slate-900/75 backdrop-blur-md text-white font-mono text-[11px] rounded-lg">
+                      {selectedImageIndex + 1} / {product.images.length}
+                    </span>
+                  )}
                 </div>
+
+                {/* Thumbnails list */}
+                {product.images.length > 1 && (
+                  <div className="flex items-center gap-3 overflow-x-auto pb-1 pt-1">
+                    {product.images.map((imgUrl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedImageIndex(idx)}
+                        className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 transition-all p-1.5 bg-white dark:bg-slate-900 flex-shrink-0 cursor-pointer ${
+                          selectedImageIndex === idx
+                            ? 'border-blue-600 ring-2 ring-blue-600/30 shadow-md scale-105'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 opacity-70 hover:opacity-100'
+                        }`}
+                        title={`Xem ảnh ${idx + 1}`}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`${product.name} thumbnail ${idx + 1}`}
+                          className="w-full h-full object-contain"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Right: Product Info & Actions (7 cols) */}

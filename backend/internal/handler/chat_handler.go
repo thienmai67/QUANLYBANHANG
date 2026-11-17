@@ -44,18 +44,19 @@ type ChatRequest struct {
 }
 
 type ChatProductDTO struct {
-	ID           string  `json:"id"`
-	SKU          string  `json:"sku"`
-	Name         string  `json:"name"`
-	Brand        string  `json:"brand"`
-	Category     string  `json:"category"`
-	BasePrice    float64 `json:"basePrice"`
-	DiscountRate float64 `json:"discountRate"`
-	FinalPrice   float64 `json:"finalPrice"`
-	PriceStr     string  `json:"priceStr"`
-	Unit         string  `json:"unit"`
-	Image        string  `json:"image"`
-	Description  string  `json:"description,omitempty"`
+	ID           string   `json:"id"`
+	SKU          string   `json:"sku"`
+	Name         string   `json:"name"`
+	Brand        string   `json:"brand"`
+	Category     string   `json:"category"`
+	BasePrice    float64  `json:"basePrice"`
+	DiscountRate float64  `json:"discountRate"`
+	FinalPrice   float64  `json:"finalPrice"`
+	PriceStr     string   `json:"priceStr"`
+	Unit         string   `json:"unit"`
+	Image        string   `json:"image"`
+	Images       []string `json:"images,omitempty"`
+	Description  string   `json:"description,omitempty"`
 }
 
 type ChatResponse struct {
@@ -135,6 +136,7 @@ func toProductDTO(p domain.Product) ChatProductDTO {
 
 	unit := "Cái"
 	image := "/images/products/day-cap-don-1.jpg"
+	var images []string
 	description := ""
 
 	if p.Specifications != nil {
@@ -143,6 +145,13 @@ func toProductDTO(p domain.Product) ChatProductDTO {
 		}
 		if img, ok := p.Specifications["image"].(string); ok && img != "" {
 			image = img
+		}
+		if imgsRaw, ok := p.Specifications["images"].([]interface{}); ok {
+			for _, item := range imgsRaw {
+				if s, ok := item.(string); ok && s != "" {
+					images = append(images, s)
+				}
+			}
 		}
 		if desc, ok := p.Specifications["description"].(string); ok && desc != "" {
 			description = desc
@@ -161,6 +170,7 @@ func toProductDTO(p domain.Product) ChatProductDTO {
 		PriceStr:     formatVND(p.BasePrice),
 		Unit:         unit,
 		Image:        image,
+		Images:       images,
 		Description:  description,
 	}
 }
@@ -463,11 +473,14 @@ func (h *ChatHandler) callGemini(
 
 	modelName := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
 	if modelName == "" {
-		modelName = "gemini-3.5-flash"
+		modelName = "gemini-flash-latest"
 	}
 	modelsToTry := []string{modelName}
-	if modelName != "gemini-3.1-flash-lite" {
-		modelsToTry = append(modelsToTry, "gemini-3.1-flash-lite")
+	if modelName != "gemini-flash-lite-latest" {
+		modelsToTry = append(modelsToTry, "gemini-flash-lite-latest")
+	}
+	if modelName != "gemini-2.5-flash" {
+		modelsToTry = append(modelsToTry, "gemini-2.5-flash")
 	}
 
 	var gResp geminiRespBody
