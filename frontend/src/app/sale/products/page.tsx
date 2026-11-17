@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Search,
   Calculator,
@@ -285,7 +286,15 @@ export default function SaleProductsPage() {
                 {/* Header: Title & SKU */}
                 <div className="border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
                   <div className="font-bold text-slate-900 dark:text-white text-sm">
-                    {p.name}
+                    <Link
+                      href={`/product/${p.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
+                      title="Xem trên cửa hàng"
+                    >
+                      {p.name}
+                    </Link>
                   </div>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
@@ -401,7 +410,15 @@ export default function SaleProductsPage() {
                       {/* Product Name & SKU */}
                       <td className="py-3 px-4">
                         <div className="font-medium text-slate-900 dark:text-slate-100 line-clamp-2">
-                          {p.name}
+                          <Link
+                            href={`/product/${p.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
+                            title="Xem trên cửa hàng"
+                          >
+                            {p.name}
+                          </Link>
                         </div>
                         <div className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">
                           {p.sku || p.code}

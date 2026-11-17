@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type ProductModelKey = 'cable' | 'cb' | 'meter';
+export type ProductModelKey = 'cable' | 'pipe' | 'cb' | 'meter';
 
 export interface LayerUserData {
   title?: string;

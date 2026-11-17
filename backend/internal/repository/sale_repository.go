@@ -28,14 +28,15 @@ func NewSaleRepository(db *sqlx.DB) domain.SaleRepository {
 }
 
 func generateQuoteNumber(t time.Time) string {
+	ict := t.In(time.FixedZone("ICT", 7*3600))
 	b := make([]byte, 6)
 	if _, err := cryptorand.Read(b); err != nil {
-		return fmt.Sprintf("BG-%s-%06d", t.Format("060102"), time.Now().Nanosecond()%1000000)
+		return fmt.Sprintf("BG-%s-%06d", ict.Format("060102"), time.Now().Nanosecond()%1000000)
 	}
 	for i := range b {
 		b[i] = alphanumericCharset[int(b[i])%len(alphanumericCharset)]
 	}
-	return fmt.Sprintf("BG-%s-%s", t.Format("060102"), string(b))
+	return fmt.Sprintf("BG-%s-%s", ict.Format("060102"), string(b))
 }
 
 func generateSecureRandomPassword(length int) (string, error) {

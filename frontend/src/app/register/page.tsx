@@ -519,7 +519,10 @@ export default function RegisterPage() {
           placeholder="Nguyễn Văn A"
           required
           value={shipperFullName}
-          onChange={(e) => setShipperFullName(e.target.value)}
+          onChange={(e) => {
+            setShipperFullName(e.target.value);
+            if (fieldErrors.fullName) setFieldErrors((prev) => ({ ...prev, fullName: '' }));
+          }}
           errorMessage={fieldErrors.fullName}
           trailingIcon={<User className="w-4 h-4" />}
         />
@@ -531,7 +534,10 @@ export default function RegisterPage() {
           placeholder="0912 345 678"
           required
           value={shipperPhone}
-          onChange={(e) => setShipperPhone(e.target.value)}
+          onChange={(e) => {
+            setShipperPhone(e.target.value);
+            if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: '' }));
+          }}
           errorMessage={fieldErrors.phone}
           trailingIcon={<Phone className="w-4 h-4" />}
         />
@@ -542,7 +548,10 @@ export default function RegisterPage() {
           label="Ngày sinh (đủ 18 tuổi)"
           required
           value={shipperDob}
-          onChange={(e) => setShipperDob(e.target.value)}
+          onChange={(e) => {
+            setShipperDob(e.target.value);
+            if (fieldErrors.dateOfBirth) setFieldErrors((prev) => ({ ...prev, dateOfBirth: '' }));
+          }}
           errorMessage={fieldErrors.dateOfBirth}
         />
 
@@ -573,12 +582,15 @@ export default function RegisterPage() {
           placeholder="Nhập số giấy tờ"
           required
           value={shipperDocNumber}
-          onChange={(e) => setShipperDocNumber(e.target.value)}
+          onChange={(e) => {
+            setShipperDocNumber(e.target.value);
+            if (fieldErrors.documentNumber) setFieldErrors((prev) => ({ ...prev, documentNumber: '' }));
+          }}
           errorMessage={fieldErrors.documentNumber}
           trailingIcon={<ShieldCheck className="w-4 h-4" />}
         />
         <p className="-mt-1 text-[11px] text-slate-500 px-1">
-          Hệ thống chỉ lưu 4 số cuối để đối chiếu, không lưu toàn bộ số giấy tờ.
+          Vui lòng nhập đầy đủ 12 chữ số CCCD (hệ thống sẽ mã hóa và lưu 4 số cuối để đối chiếu bảo mật).
         </p>
 
         <AuthField

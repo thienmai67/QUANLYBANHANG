@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import { useManagerStore } from '@/store/useManagerStore';
 import { Brand, CORE_BRANDS, Product } from '@/types/manager';
 import { calculateDiscountedPrice } from '@/lib/stock';
@@ -305,7 +306,15 @@ export default function ManagerProductsPage() {
                         {/* Name */}
                         <td className="px-4 py-3">
                           <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[220px]">
-                            {prod.name}
+                            <Link
+                              href={`/product/${prod.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
+                              title="Xem chi tiết trên cửa hàng"
+                            >
+                              {prod.name}
+                            </Link>
                           </div>
                           {prod.description && (
                             <div className="text-[10px] text-slate-400 truncate max-w-[220px]">
@@ -429,7 +438,15 @@ export default function ManagerProductsPage() {
                   {/* Name & Category */}
                   <div>
                     <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
-                      {prod.name}
+                      <Link
+                        href={`/product/${prod.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
+                        title="Xem chi tiết trên cửa hàng"
+                      >
+                        {prod.name}
+                      </Link>
                     </h3>
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       {prod.category}

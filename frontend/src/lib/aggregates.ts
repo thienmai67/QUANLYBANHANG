@@ -210,6 +210,12 @@ export function calculateTimeRevenueBuckets(
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date(maxTime);
         endDate.setHours(23, 59, 59, 999);
+
+        // Ensure at least 7 days range (BUG-93)
+        if (endDate.getTime() - startDate.getTime() < 6 * 24 * 3600 * 1000) {
+          startDate = new Date(endDate.getTime() - 6 * 24 * 3600 * 1000);
+          startDate.setHours(0, 0, 0, 0);
+        }
       } else {
         const now = new Date();
         startDate = new Date(now.getTime() - 6 * 24 * 3600 * 1000);

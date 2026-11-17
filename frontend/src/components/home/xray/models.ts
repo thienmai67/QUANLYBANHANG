@@ -596,6 +596,136 @@ export function buildMeter(): ModelBuildResult {
   };
 }
 
+// ─── 4. ỐNG NƯỚC BÌNH MINH uPVC DN21 C1 PN10 ───────────────────────────────────
+// Cấu trúc: 0 vỏ uPVC xám, 1 mực in định danh, 2 đầu nong loe Socket,
+// 3 gioăng cao su EPDM, 4 lòng trong nhẵn thủy lực, 5 vát mép 15°
+export function buildPipe(): ModelBuildResult {
+  const group = new THREE.Group();
+  const layers: XRayMesh[] = [];
+
+  const wallU = {
+    title: 'Vỏ ngoài uPVC',
+    sub: 'Nhựa uPVC nguyên sinh · dày 1.6mm',
+    detail: 'Vỏ ống uPVC Bình Minh đùn ép nguyên sinh chịu va đập, kháng tia UV, chống ăn mòn hóa chất và áp suất danh định PN10 (10 bar).',
+    fade: 0.65,
+  };
+  const printU = {
+    title: 'Mực in Bình Minh',
+    sub: 'In chìm: BÌNH MINH ISO 1452 · PN10',
+    detail: 'Mực in phun laser sắc nét dọc thân ống: Thương hiệu Nhựa Bình Minh, tiêu chuẩn ISO 1452:2009 / TCVN 8491, cấp C1, áp lực PN10.',
+    fade: 0.45,
+  };
+  const socketU = {
+    title: 'Đầu nong loe Socket',
+    sub: 'Nong loe đầu nối · chuẩn TCVN',
+    detail: 'Đầu nong loe đúc sẵn nhiệt độ cao theo khuôn tiêu chuẩn giúp kết nối lồng ống chính xác, tiết kiệm phụ kiện măng sông và mối nối chắc chắn.',
+    fade: 0.55,
+  };
+  const gasketU = {
+    title: 'Gioăng cao su EPDM',
+    sub: 'Khóa kín nước tự động · đàn hồi cao',
+    detail: 'Vòng đệm gioăng EPDM chịu dầu và hóa chất, rãnh hãm ôm khít chống rò rỉ nước tuyệt đối dưới áp lực thủy tĩnh cao.',
+    fade: 0.2,
+  };
+  const coreU = {
+    title: 'Lòng trong thủy lực',
+    sub: 'Hệ số nhám Hazen C=150 · chống bám cặn',
+    detail: 'Lòng ống siêu nhẵn bóng giảm tổn thất áp lực thủy lực tối đa, chống bám rong rêu và cặn vôi trong suốt tuổi thọ công trình.',
+    fade: 0,
+  };
+  const bevelU = {
+    title: 'Vát mép 15° tiêu chuẩn',
+    sub: 'Góc vát bảo vệ gioăng khi lắp ghép',
+    detail: 'Mặt cắt đầu ống được vát mép góc 15 độ theo kỹ thuật chuẩn giúp dẫn hướng trơn tru khi đút ống vào socket không làm rách gioăng.',
+    fade: 0.35,
+  };
+
+  // [0] Thân ống chính uPVC xám
+  const pipeMat = createMat(0x6b7280, 0.45, 0.05);
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.0, 1.0, 5.2, 48),
+    pipeMat
+  ) as XRayMesh;
+  body.rotation.z = Math.PI / 2;
+  body.userData = { ...wallU };
+  group.add(body);
+  layers.push(body);
+
+  // [1] Dải in thương hiệu & quy chuẩn
+  const printMat = createMat(0x1f2937, 0.4, 0.1);
+  const printBand = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.015, 1.015, 0.8, 48, 1, true),
+    printMat
+  ) as XRayMesh;
+  printBand.rotation.z = Math.PI / 2;
+  printBand.position.x = 1.2;
+  printBand.userData = { ...printU };
+  group.add(printBand);
+  layers.push(printBand);
+
+  // [2] Đầu nong loe Socket tại x = -2.2
+  const socketMat = createMat(0x525a66, 0.45, 0.05);
+  const socketBell = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.22, 1.22, 1.4, 48),
+    socketMat
+  ) as XRayMesh;
+  socketBell.rotation.z = Math.PI / 2;
+  socketBell.position.x = -2.2;
+  socketBell.userData = { ...socketU };
+  group.add(socketBell);
+  layers.push(socketBell);
+
+  // [3] Gioăng cao su EPDM đặt trong rãnh nong tại x = -2.3
+  const gasketMat = createMat(0x111827, 0.85, 0.1);
+  const gasket = new THREE.Mesh(
+    new THREE.TorusGeometry(1.15, 0.09, 16, 48),
+    gasketMat
+  ) as XRayMesh;
+  gasket.rotation.y = Math.PI / 2;
+  gasket.position.x = -2.3;
+  gasket.userData = { ...gasketU };
+  group.add(gasket);
+  layers.push(gasket);
+
+  // [4] Lòng trong nhẵn bóng thủy lực (thấu quang xanh nhẹ)
+  const coreMat = createMat(0x38bdf8, 0.2, 0.1);
+  coreMat.emissive = new THREE.Color(0x0369a1);
+  const innerCore = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.82, 0.82, 6.2, 48),
+    coreMat
+  ) as XRayMesh;
+  innerCore.rotation.z = Math.PI / 2;
+  innerCore.userData = { ...coreU };
+  group.add(innerCore);
+  layers.push(innerCore);
+
+  // [5] Vòng vát mép 15° tại đầu ống x = 2.6
+  const bevel = new THREE.Mesh(
+    new THREE.TorusGeometry(0.92, 0.08, 16, 48),
+    createMat(0x0284c7, 0.4, 0.5)
+  ) as XRayMesh;
+  bevel.rotation.y = Math.PI / 2;
+  bevel.position.x = 2.6;
+  bevel.userData = { ...bevelU };
+  group.add(bevel);
+  layers.push(bevel);
+
+  enableShadows(group);
+
+  return {
+    group,
+    layers,
+    camDist: 9.5,
+    setXray(s: number) {
+      layers.forEach((m) => {
+        const u = m.userData;
+        const mat = m.material as THREE.MeshStandardMaterial;
+        mat.opacity = (u.baseO || 1) * (1 - s * (u.fade ?? 0.5));
+      });
+    },
+  };
+}
+
 // ─── MA TRẬN TÁCH TẦNG (EXPLODED VIEW) ─────────────────────────────────────────
 export const EXPLODE: Record<string, [number, number, number][]> = {
   cable: [
@@ -679,6 +809,14 @@ export const EXPLODE: Record<string, [number, number, number][]> = {
     [0, -1.7, 0],
     [0, -1.7, 0],
   ],
+  pipe: [
+    [0, 0, 0],
+    [0.8, 0, 0],
+    [-1.8, 0, 0],
+    [-2.6, 0, 0],
+    [2.0, 0, 0],
+    [2.8, 0, 0],
+  ],
 };
 
 // ─── NHÃN CHI TIẾT THEO NGƯỠNG SLIDER (LABELS) ────────────────────────────────
@@ -709,5 +847,13 @@ export const LABELS: Record<string, LabelSpec[]> = {
     { t: 'Bánh răng & khớp từ', s: 'Truyền động xuyên vách kín', at: 0.64, mesh: 24, p: [0, 0.05, 0.17] },
     { t: 'Lưới lọc đầu vào', s: 'Chặn cặn bẩn trước buồng đo', at: 0.74, mesh: 28, p: [0, 0.73, 0] },
     { t: 'Tuabin đo lưu lượng', s: 'Quay theo dòng nước', at: 0.84, mesh: 32, p: [0, 0.28, 0.18] },
+  ],
+  pipe: [
+    { t: 'Vỏ ngoài uPVC', s: 'Nhựa uPVC nguyên sinh · dày 1.6mm', at: 0.05, mesh: 0, p: [0, 0, 1.05] },
+    { t: 'Mực in Bình Minh', s: 'In chìm: BÌNH MINH ISO 1452 · PN10', at: 0.20, mesh: 1, p: [1.2, 0, 1.08] },
+    { t: 'Đầu nong loe Socket', s: 'Nong loe đầu nối · chuẩn TCVN', at: 0.40, mesh: 2, p: [-2.3, 0, 1.28] },
+    { t: 'Gioăng cao su EPDM', s: 'Khóa kín nước tự động · đàn hồi cao', at: 0.60, mesh: 3, p: [-2.4, 1.2, 0] },
+    { t: 'Lòng trong thủy lực', s: 'Hệ số nhám Hazen C=150 · chống bám cặn', at: 0.78, mesh: 4, p: [1.5, 0.4, 0] },
+    { t: 'Vát mép 15° tiêu chuẩn', s: 'Góc vát bảo vệ gioăng khi lắp ghép', at: 0.88, mesh: 5, p: [2.75, 0.95, 0] },
   ],
 };

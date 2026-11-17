@@ -3,6 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 	"net/http"
 	"regexp"
 	"strings"
@@ -65,26 +67,36 @@ func writeJSONError(w http.ResponseWriter, statusCode int, message string, code 
 	})
 }
 
-func isRateLimited(email string) bool {
+func getRateLimitInfo(email string) (bool, string, int) {
 	attemptMutex.Lock()
 	defer attemptMutex.Unlock()
 
 	attempt, exists := failedLoginMap[email]
 	if !exists {
-		return false
+		return false, "", 0
 	}
 
 	if attempt.count >= maxFailedAttempts {
 		if time.Since(attempt.blockedAt) < lockoutDuration {
-			return true
+			unlockTime := attempt.blockedAt.Add(lockoutDuration).In(time.FixedZone("ICT", 7*3600))
+			remainingMins := int(math.Ceil(time.Until(attempt.blockedAt.Add(lockoutDuration)).Minutes()))
+			if remainingMins < 1 {
+				remainingMins = 1
+			}
+			return true, unlockTime.Format("15:04"), remainingMins
 		}
 		// Lockout expired, reset counter
 		delete(failedLoginMap, email)
 	}
-	return false
+	return false, "", 0
 }
 
-func recordFailedAttempt(email string) {
+func isRateLimited(email string) bool {
+	locked, _, _ := getRateLimitInfo(email)
+	return locked
+}
+
+func recordFailedAttempt(email string) int {
 	attemptMutex.Lock()
 	defer attemptMutex.Unlock()
 
@@ -100,11 +112,13 @@ func recordFailedAttempt(email string) {
 	attempt, exists := failedLoginMap[email]
 	if !exists {
 		failedLoginMap[email] = &loginAttempt{count: 1, blockedAt: time.Now()}
+		return 1
 	} else {
 		attempt.count++
 		if attempt.count >= maxFailedAttempts {
 			attempt.blockedAt = time.Now()
 		}
+		return attempt.count
 	}
 }
 
@@ -227,16 +241,22 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Rate limit check
-	if isRateLimited(cleanEmail) {
-		writeJSONError(w, http.StatusTooManyRequests, "Tài khoản tạm thời bị khóa 15 phút do nhập sai mật khẩu quá 5 lần. Vui lòng thử lại sau.")
+	if locked, unlockTime, remainingMins := getRateLimitInfo(cleanEmail); locked {
+		writeJSONError(w, http.StatusTooManyRequests, fmt.Sprintf("Tài khoản tạm thời bị khóa 15 phút do nhập sai mật khẩu quá 5 lần. Thời gian mở khóa: %s (còn khoảng %d phút). Vui lòng thử lại sau.", unlockTime, remainingMins))
 		return
 	}
 
 	user, err := h.userRepo.FindByEmailOrPhone(r.Context(), cleanEmail)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
-			recordFailedAttempt(cleanEmail)
-			writeJSONError(w, http.StatusUnauthorized, "Email hoặc mật khẩu không chính xác")
+			attempts := recordFailedAttempt(cleanEmail)
+			remaining := maxFailedAttempts - attempts
+			if remaining > 0 {
+				writeJSONError(w, http.StatusUnauthorized, fmt.Sprintf("Email hoặc mật khẩu không chính xác. Bạn còn %d lần thử trước khi tài khoản bị khóa 15 phút.", remaining))
+			} else {
+				unlockTime := time.Now().Add(lockoutDuration).In(time.FixedZone("ICT", 7*3600)).Format("15:04")
+				writeJSONError(w, http.StatusTooManyRequests, fmt.Sprintf("Tài khoản tạm thời bị khóa 15 phút do nhập sai mật khẩu quá 5 lần. Thời gian mở khóa: %s (còn khoảng 15 phút). Vui lòng thử lại sau.", unlockTime))
+			}
 			return
 		}
 		writeJSONError(w, http.StatusInternalServerError, "Lỗi hệ thống máy chủ")
@@ -260,8 +280,14 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if !matchedAlt {
-			recordFailedAttempt(cleanEmail)
-			writeJSONError(w, http.StatusUnauthorized, "Email hoặc mật khẩu không chính xác")
+			attempts := recordFailedAttempt(cleanEmail)
+			remaining := maxFailedAttempts - attempts
+			if remaining > 0 {
+				writeJSONError(w, http.StatusUnauthorized, fmt.Sprintf("Email hoặc mật khẩu không chính xác. Bạn còn %d lần thử trước khi tài khoản bị khóa 15 phút.", remaining))
+			} else {
+				unlockTime := time.Now().Add(lockoutDuration).In(time.FixedZone("ICT", 7*3600)).Format("15:04")
+				writeJSONError(w, http.StatusTooManyRequests, fmt.Sprintf("Tài khoản tạm thời bị khóa 15 phút do nhập sai mật khẩu quá 5 lần. Thời gian mở khóa: %s (còn khoảng 15 phút). Vui lòng thử lại sau.", unlockTime))
+			}
 			return
 		}
 	}

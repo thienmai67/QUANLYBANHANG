@@ -22,6 +22,18 @@ function decodeJwtPayload(token: string): any {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Case normalization: redirect any uppercase path to lowercase (BUG-63)
+  if (
+    !pathname.startsWith('/_next') &&
+    !pathname.startsWith('/api') &&
+    !pathname.includes('.') &&
+    /[A-Z]/.test(pathname)
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.toLowerCase();
+    return NextResponse.redirect(url, 308);
+  }
+
   const isManagerRoute = pathname.startsWith('/manager');
   const isShipperRoute = pathname.startsWith('/shipper');
   const isSaleRoute = pathname.startsWith('/sale');
@@ -71,5 +83,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/manager/:path*', '/shipper/:path*', '/sale/:path*'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };

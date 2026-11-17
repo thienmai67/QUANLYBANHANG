@@ -42,8 +42,8 @@ function ForbiddenContent() {
         </p>
       </div>
 
-      {/* Current User Role Notice */}
-      {user && (
+      {/* Current User Role Notice or Guest Notice */}
+      {user ? (
         <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 text-left text-xs space-y-1">
           <div className="text-slate-400">Tài khoản hiện tại:</div>
           <div className="font-bold text-slate-200 truncate">{user.email}</div>
@@ -53,6 +53,10 @@ function ForbiddenContent() {
               {user.role}
             </span>
           </div>
+        </div>
+      ) : (
+        <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 text-center text-xs space-y-1 text-slate-300">
+          Bạn chưa đăng nhập vào hệ thống. Vui lòng đăng nhập với tài khoản có quyền truy cập khu vực này.
         </div>
       )}
 
@@ -64,7 +68,7 @@ function ForbiddenContent() {
           className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-lg shadow-amber-500/20"
         >
           <LogIn className="w-4 h-4" />
-          Đổi Tài Khoản
+          {user ? 'Đổi Tài Khoản' : 'Đăng Nhập'}
         </button>
 
         <Link

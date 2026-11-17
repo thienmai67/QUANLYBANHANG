@@ -102,8 +102,7 @@ function getProductCategoryName(p: any): string {
     name.includes('mccb') ||
     name.includes('aptomat') ||
     name.includes('công tắc') ||
-    name.includes('ổ cắm') ||
-    name.includes('máy bơm')
+    name.includes('ổ cắm')
   ) {
     return 'Tủ & Thiết Bị Đóng Cắt';
   }
@@ -238,9 +237,12 @@ function ShopContent() {
 
   const availableBrands = useMemo(() => {
     const brands = Array.from(new Set(allProducts.map((p) => p.brand).filter(Boolean)));
+    if (!brands.some((b) => b.toLowerCase().includes('khác') || b.toLowerCase().includes('other'))) {
+      brands.push('Khác');
+    }
     return brands.length > 0
       ? brands
-      : ['Cadivi', 'Bình Minh', 'Schneider Electric', 'Panasonic'];
+      : ['Cadivi', 'Bình Minh', 'Schneider Electric', 'Panasonic', 'Khác'];
   }, [allProducts]);
 
   // Filtering + Sorting
@@ -256,7 +258,14 @@ function ShopContent() {
 
       const matchesSearch = matchSearchTerm(pSearchTarget, search);
 
-      const matchesBrand = selectedBrand === 'ALL' || p.brand === selectedBrand;
+      const isOtherSelected = selectedBrand === 'Khác' || selectedBrand === 'OTHER';
+      const isMajorBrand = ['cadivi', 'bình minh', 'binh minh', 'schneider', 'panasonic'].some((b) =>
+        p.brand.toLowerCase().includes(b)
+      );
+      const matchesBrand =
+        selectedBrand === 'ALL' ||
+        p.brand === selectedBrand ||
+        (isOtherSelected && !isMajorBrand);
       const matchesCat =
         selectedCat === 'ALL' ||
         p.categoryName === selectedCat ||
@@ -307,7 +316,7 @@ function ShopContent() {
     } else if (sortBy === 'PRICE_DESC') {
       sorted.sort((a, b) => (b.rawPrice || 0) - (a.rawPrice || 0));
     } else if (sortBy === 'NAME_ASC') {
-      sorted.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+      sorted.sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true, sensitivity: 'base' }));
     }
 
     return sorted;
@@ -414,6 +423,8 @@ function ShopContent() {
                   key={chip.id}
                   type="button"
                   onClick={() => {
+                    setSearch('');
+                    updateUrlParam('search', '');
                     setSelectedDiy(chip.id);
                     setCurrentPage(1);
                   }}
@@ -530,7 +541,10 @@ function ShopContent() {
             </div>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              onChange={(e) => {
+                setSortBy(e.target.value as SortOption);
+                setCurrentPage(1);
+              }}
               className="px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:border-cyan-500 outline-none"
             >
               <option value="DEFAULT">Nổi bật / Mặc định</option>
@@ -579,7 +593,7 @@ function ShopContent() {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                 Không tìm thấy sản phẩm phù hợp
               </h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
+              <p className="text-xs text-slate-500 max-w-md mx-auto break-words line-clamp-3">
                 Không có vật tư nào khớp với từ khóa &quot;{search}&quot; hoặc tiêu chí bộ lọc đã chọn.
               </p>
             </div>

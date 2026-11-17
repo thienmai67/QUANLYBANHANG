@@ -176,17 +176,88 @@ export function mapOrderFromApi(raw: any): Order {
         }
       : undefined);
 
-  const statusHistory =
+  let statusHistory =
     Array.isArray(raw.statusHistory) && raw.statusHistory.length > 0
-      ? raw.statusHistory
-      : [
-          {
-            status: (raw.status || 'PENDING') as OrderStatus,
-            timestamp: createdAt,
-            changedBy: 'Hệ thống',
-            note: cancellationReason || undefined,
-          },
-        ];
+      ? [...raw.statusHistory]
+      : [];
+
+  if (statusHistory.length <= 1) {
+    const currentStatus = (raw.status || 'PENDING') as OrderStatus;
+    const historyList = [
+      {
+        status: 'PENDING' as OrderStatus,
+        timestamp: createdAt,
+        changedBy: 'Khách hàng',
+        note: 'Tạo đơn hàng thành công',
+      },
+    ];
+
+    if (currentStatus !== 'PENDING') {
+      const appTime =
+        raw.approvedAt ||
+        raw.approved_at ||
+        new Date(new Date(createdAt).getTime() + 10 * 60 * 1000).toISOString();
+      historyList.push({
+        status: 'CONFIRMED' as OrderStatus,
+        timestamp: appTime,
+        changedBy: 'Quản lý kho',
+        note: 'Đã duyệt đơn và kiểm tra tồn kho',
+      });
+    }
+
+    if (
+      currentStatus === 'PACKING' ||
+      currentStatus === 'SHIPPING' ||
+      currentStatus === 'DELIVERED'
+    ) {
+      const packTime = new Date(new Date(createdAt).getTime() + 20 * 60 * 1000).toISOString();
+      historyList.push({
+        status: 'PACKING' as OrderStatus,
+        timestamp: packTime,
+        changedBy: 'Quản lý điều phối',
+        note: 'Đã đóng gói và bàn giao shipper',
+      });
+    }
+
+    if (currentStatus === 'SHIPPING' || currentStatus === 'DELIVERED') {
+      const shipTime =
+        raw.shippingStartedAt ||
+        raw.shipping_started_at ||
+        new Date(new Date(createdAt).getTime() + 30 * 60 * 1000).toISOString();
+      historyList.push({
+        status: 'SHIPPING' as OrderStatus,
+        timestamp: shipTime,
+        changedBy: raw.shipperName || raw.shipper_name || 'Shipper',
+        note: 'Đang vận chuyển giao hàng',
+      });
+    }
+
+    if (currentStatus === 'DELIVERED') {
+      historyList.push({
+        status: 'DELIVERED' as OrderStatus,
+        timestamp: deliveredAt || updatedAt,
+        changedBy: raw.shipperName || raw.shipper_name || 'Shipper',
+        note: podRecipientName
+          ? `Đã giao thành công cho ${podRecipientName}`
+          : 'Đã giao thành công',
+      });
+    } else if (currentStatus === 'CANCELLED') {
+      historyList.push({
+        status: 'CANCELLED' as OrderStatus,
+        timestamp: raw.cancelledAt || raw.cancelled_at || updatedAt,
+        changedBy: 'Hệ thống',
+        note: cancellationReason || 'Hủy đơn hàng',
+      });
+    } else if (currentStatus === 'DELIVERY_FAILED') {
+      historyList.push({
+        status: 'DELIVERY_FAILED' as OrderStatus,
+        timestamp: incidentReportedAt || updatedAt,
+        changedBy: incidentReportedBy || 'Shipper',
+        note: incidentDetail || 'Giao hàng không thành công',
+      });
+    }
+    statusHistory = historyList;
+  }
 
   const rawCustomerName = raw.customerName || raw.customer_name || 'Khách hàng';
   const namePhoneMatch = rawCustomerName.match(/\((0\d{9})\)|\b(0[35789]\d{8})\b/);

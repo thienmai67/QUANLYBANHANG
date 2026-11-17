@@ -15,7 +15,7 @@ interface MaterialProductShowcaseProps {
   onOpenRFQ?: (productName?: string) => void;
 }
 
-type BrandFilter = "ALL" | "Cadivi" | "Bình Minh" | "Schneider" | "Panasonic";
+type BrandFilter = "ALL" | "Cadivi" | "Bình Minh" | "Schneider" | "Panasonic" | "OTHER";
 
 const BRAND_TABS: Array<{ id: BrandFilter; label: string; badge: string }> = [
   { id: "ALL", label: "Tất cả nổi bật", badge: "Đa dạng" },
@@ -23,6 +23,7 @@ const BRAND_TABS: Array<{ id: BrandFilter; label: string; badge: string }> = [
   { id: "Bình Minh", label: "Ống Nhựa Bình Minh", badge: "Nước" },
   { id: "Schneider", label: "Thiết Bị Schneider", badge: "Aptomat" },
   { id: "Panasonic", label: "Thiết Bị Panasonic", badge: "Công tắc" },
+  { id: "OTHER", label: "Thương Hiệu Khác", badge: "Phụ kiện" },
 ];
 
 export default function MaterialProductShowcase(_props: MaterialProductShowcaseProps) {
@@ -84,6 +85,21 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
       return allDisplayProducts.slice(0, 12);
     }
 
+    if (selectedBrand === "OTHER") {
+      return allDisplayProducts
+        .filter((p) => {
+          const b = p.brand.toLowerCase();
+          return (
+            !b.includes("cadivi") &&
+            !b.includes("bình minh") &&
+            !b.includes("binh minh") &&
+            !b.includes("schneider") &&
+            !b.includes("panasonic")
+          );
+        })
+        .slice(0, 12);
+    }
+
     return allDisplayProducts
       .filter((p) => p.brand.toLowerCase().includes(selectedBrand.toLowerCase()))
       .slice(0, 12);
@@ -138,6 +154,17 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
               >
                 {tab.id === "ALL"
                   ? allDisplayProducts.length
+                  : tab.id === "OTHER"
+                  ? allDisplayProducts.filter((p) => {
+                      const b = p.brand.toLowerCase();
+                      return (
+                        !b.includes("cadivi") &&
+                        !b.includes("bình minh") &&
+                        !b.includes("binh minh") &&
+                        !b.includes("schneider") &&
+                        !b.includes("panasonic")
+                      );
+                    }).length
                   : allDisplayProducts.filter((p) => p.brand.toLowerCase().includes(tab.id.toLowerCase())).length}
               </span>
             </button>
@@ -147,8 +174,15 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
 
       {/* 3. Products Grid */}
       {productsLoading && displayProducts.length === 0 ? (
-        <div className="py-16 text-center text-slate-400 text-sm font-medium">
-          Đang tải danh sách sản phẩm...
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 animate-pulse">
+              <div className="aspect-square w-full bg-slate-200 dark:bg-slate-800 rounded-xl" />
+              <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+              <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
+            </div>
+          ))}
         </div>
       ) : displayProducts.length === 0 ? (
         <div className="py-16 text-center bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
@@ -266,7 +300,14 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
                   <div className="mt-4 flex items-end justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
                     <div>
                       <p className="text-[10px] text-slate-400 mb-0.5">Giá bán lẻ ({prod.unit})</p>
-                      <span className="font-bold text-orange-500 text-base">{prod.price}</span>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-bold text-orange-500 text-base">{prod.price}</span>
+                        {prod.discount > 0 && prod.rawPrice > 0 && (
+                          <span className="text-[11px] text-slate-400 line-through">
+                            {Math.round(prod.rawPrice / (1 - prod.discount / 100)).toLocaleString("vi-VN")} ₫
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {prod.discount > 0 && (
                       <span className="text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded">
@@ -282,7 +323,17 @@ export default function MaterialProductShowcase(_props: MaterialProductShowcaseP
       )}
 
       {/* 4. Bottom Callout Button linking to /shop */}
-      <div className="pt-4 text-center">
+      <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+        {selectedBrand !== "ALL" && (
+          <Link
+            href={`/shop?brand=${encodeURIComponent(selectedBrand === "OTHER" ? "Khác" : selectedBrand)}`}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs transition-all border border-slate-200 dark:border-slate-700"
+          >
+            <span>
+              Xem thêm các sản phẩm {selectedBrand === "OTHER" ? "thương hiệu khác" : selectedBrand} tại Cửa hàng &rarr;
+            </span>
+          </Link>
+        )}
         <Link
           href="/shop"
           className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-xl shadow-blue-600/25 transition-all transform hover:scale-[1.02] active:scale-[0.98]"

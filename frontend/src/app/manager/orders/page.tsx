@@ -79,6 +79,9 @@ function OrdersManagementContent() {
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [only2H, setOnly2H] = useState<boolean>(false);
+  const [onlyOverdue2H, setOnlyOverdue2H] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 15;
 
   // Modals state
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
@@ -135,8 +138,16 @@ function OrdersManagementContent() {
       }
 
       // 2H filter
-      if (only2H && !o.is2H) {
+      if (only2H && !o.is2H && !o.is2h) {
         return false;
+      }
+
+      // Overdue 2H filter
+      if (onlyOverdue2H) {
+        const is2h = Boolean(o.is2H || o.is2h);
+        const isPendingDeliver = o.status === 'PENDING' || o.status === 'PACKING' || o.status === 'SHIPPING';
+        const isOverdue = Date.now() - new Date(o.createdAt).getTime() > 2 * 3600 * 1000;
+        if (!is2h || !isPendingDeliver || !isOverdue) return false;
       }
 
       // Search query
@@ -153,7 +164,11 @@ function OrdersManagementContent() {
 
       return true;
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [orders, selectedStatus, only2H, searchQuery]);
+  }, [orders, selectedStatus, only2H, onlyOverdue2H, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedOrders = filteredOrders.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   // Action: Approve Order (Atomic deduction with stock guard & backend sync)
   const handleApprove = async (order: Order) => {
@@ -373,12 +388,32 @@ function OrdersManagementContent() {
           <input
             type="checkbox"
             checked={only2H}
-            onChange={(e) => setOnly2H(e.target.checked)}
+            onChange={(e) => {
+              setOnly2H(e.target.checked);
+              setCurrentPage(1);
+            }}
             className="w-3.5 h-3.5 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
           />
           <Zap className="w-3.5 h-3.5 text-amber-500" />
           <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
             Chỉ đơn hỏa tốc 2H
+          </span>
+        </label>
+
+        {/* Overdue 2H Filter Toggle */}
+        <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer select-none shrink-0 hover:border-rose-400 transition-colors">
+          <input
+            type="checkbox"
+            checked={onlyOverdue2H}
+            onChange={(e) => {
+              setOnlyOverdue2H(e.target.checked);
+              setCurrentPage(1);
+            }}
+            className="w-3.5 h-3.5 text-rose-600 rounded border-slate-300 focus:ring-rose-500"
+          />
+          <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+            Quá hạn 2H
           </span>
         </label>
       </div>
@@ -413,7 +448,7 @@ function OrdersManagementContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                  {filteredOrders.map((order) => {
+                  {paginatedOrders.map((order) => {
                     const finalAmt = order.finalAmount ?? order.totalAmount;
 
                     return (
@@ -656,7 +691,7 @@ function OrdersManagementContent() {
 
           {/* ===================== MOBILE CARD VIEW (< 768px, NO HORIZONTAL OVERFLOW) ===================== */}
           <div className="md:hidden space-y-3">
-            {filteredOrders.map((order) => {
+            {paginatedOrders.map((order) => {
               const finalAmt = order.finalAmount ?? order.totalAmount;
 
               return (
@@ -847,6 +882,51 @@ function OrdersManagementContent() {
               );
             })}
           </div>
+
+          {/* Pagination Bar */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs text-xs mt-4">
+              <div className="text-slate-500">
+                Hiển thị <strong>{(safePage - 1) * pageSize + 1}</strong> - <strong>{Math.min(safePage * pageSize, filteredOrders.length)}</strong> trên tổng số <strong>{filteredOrders.length}</strong> đơn hàng
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 disabled:opacity-40 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Trước
+                </button>
+                {Array.from({ length: totalPages }).map((_, idx) => {
+                  const pageNum = idx + 1;
+                  const isActive = pageNum === safePage;
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-xl font-bold transition-all ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 disabled:opacity-40 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 

@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import * as THREE from 'three';
 import { init3DScene, project3DToScreen, SceneContext } from './xray/scene';
-import { buildCable, buildCB, buildMeter, EXPLODE, LABELS } from './xray/models';
+import { buildCable, buildCB, buildMeter, buildPipe, EXPLODE, LABELS } from './xray/models';
 import { BannerProductConfig, ModelBuildResult, ProjectedLabel } from './xray/types';
 
 const BANNER_PRODUCTS: BannerProductConfig[] = [
@@ -16,6 +16,15 @@ const BANNER_PRODUCTS: BannerProductConfig[] = [
     defaultCode: 'Mã CV-2.5 · 450/750V · TCVN 6610-3',
     defaultPrice: '16.330 ₫/m',
     build: buildCable,
+  },
+  {
+    key: 'pipe',
+    productId: '1dea5afd-dad4-4b00-8a0b-a90c6aeed5af',
+    tabLabel: '🚰 Ống uPVC',
+    defaultName: 'Ống uPVC Bình Minh C1 D21',
+    defaultCode: 'Mã BM-CPVC-21 · PN10 · TCVN 8491',
+    defaultPrice: '3.100 ₫/m',
+    build: buildPipe,
   },
   {
     key: 'cb',

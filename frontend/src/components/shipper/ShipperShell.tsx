@@ -91,7 +91,7 @@ export default function ShipperShell({ children }: ShipperShellProps) {
     >
       {/* Centered responsive container */}
       <div
-        className={`max-w-md mx-auto min-h-screen flex flex-col border-x shadow-2xl transition-colors ${
+        className={`w-full max-w-md md:max-w-3xl lg:max-w-4xl mx-auto min-h-screen flex flex-col border-x shadow-2xl transition-colors ${
           isHighContrast
             ? 'bg-[#0f172a] border-[#1e293b]'
             : 'bg-[#ffffff] border-[#e2e8f0]'

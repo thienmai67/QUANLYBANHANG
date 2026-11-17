@@ -48,6 +48,19 @@ export default function CartPage() {
     fetchProducts();
   }, [fetchProducts]);
 
+  function inferUnit(name?: string, category?: string, rawUnit?: string): string {
+    if (rawUnit && rawUnit !== 'Bộ' && rawUnit !== '—' && rawUnit !== 'N/A') return rawUnit;
+    const text = `${name || ''} ${category || ''}`.toLowerCase();
+    if (text.includes('ống') || text.includes('pipe')) return 'Cây';
+    if (text.includes('dây') || text.includes('cáp') || text.includes('cable')) {
+      if (text.includes('cuộn')) return 'Cuộn';
+      return 'Mét';
+    }
+    if (text.includes('keo') || text.includes('tuýp')) return 'Tuýp';
+    if (text.includes('băng keo') || text.includes('băng tan')) return 'Cuộn';
+    return 'Cái';
+  }
+
   // Lookup product metadata helper
   const getProductMeta = (id: string, sku: string) => {
     // 1. Try adminProducts
@@ -64,7 +77,7 @@ export default function CartPage() {
         : typeof adminProd.specs === 'string'
         ? adminProd.specs
         : '';
-      const unitStr = (adminProd as any).unit || 'Bộ';
+      const unitStr = inferUnit(adminProd.name, adminProd.category, (adminProd as any).unit);
       return { brand: brandStr, specs: specsArr, unit: unitStr, stock: adminProd.stock };
     }
 
@@ -76,12 +89,13 @@ export default function CartPage() {
       return {
         brand: matProd.brand || 'Chính hãng',
         specs: Array.isArray(matProd.specs) ? matProd.specs.join(', ') : '',
-        unit: matProd.unit || 'Bộ',
+        unit: inferUnit(matProd.name, matProd.category, matProd.unit),
         stock: 500,
       };
     }
 
-    return { brand: 'Chính hãng', specs: '', unit: 'Bộ', stock: 500 };
+    const item = items.find((i) => i.id === id || (i.sku && sku && i.sku.toLowerCase() === sku.toLowerCase()));
+    return { brand: 'Chính hãng', specs: '', unit: inferUnit(item?.name), stock: 500 };
   };
 
   const commitQuantity = (id: string, currentQty: number) => {

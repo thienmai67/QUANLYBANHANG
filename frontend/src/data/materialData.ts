@@ -265,12 +265,10 @@ export interface MaterialPartner {
 export const MATERIAL_PARTNERS: MaterialPartner[] = [
   { id: "binhminh", name: "BÌNH MINH", country: "VN", highlight: "Ống & Phụ kiện uPVC/HDPE chính hãng" },
   { id: "cadivi", name: "CADIVI", country: "VN", highlight: "Dây & Cáp điện hạ thế, trung thế" },
-  { id: "panasonic", name: "PANASONIC", country: "JP", highlight: "Thiết bị đóng cắt MCB/RCBO, Công tắc" },
-  { id: "tienphong", name: "TIỀN PHONG", country: "VN", highlight: "Ống nước nóng PPR, ống uPVC chịu áp" },
   { id: "schneider", name: "SCHNEIDER", country: "FR", highlight: "Thiết bị điện & Tủ điện công nghiệp" },
-  { id: "rangdong", name: "RẠNG ĐÔNG", country: "VN", highlight: "Đèn LED chiếu sáng & Thiết bị thông minh" },
-  { id: "daphaco", name: "DAPHACO", country: "VN", highlight: "Dây điện dân dụng & Cáp lực đồng" },
-  { id: "minhhoa", name: "MINH HÒA", country: "VN", highlight: "Van nước đồng thau & Đồng hồ nước" },
+  { id: "panasonic", name: "PANASONIC", country: "JP", highlight: "Thiết bị đóng cắt MCB/RCBO, Công tắc" },
+  { id: "zenner", name: "ZENNER", country: "DE", highlight: "Đồng hồ nước & Thiết bị đo đếm cơ điện" },
+  { id: "other", name: "PHỤ KIỆN KHÁC", country: "VN", highlight: "Phụ kiện M&E, băng keo nano, keo dán chuyên dụng" },
 ];
 
 export interface MaterialNewsItem {
@@ -288,7 +286,7 @@ export const MATERIAL_NEWS: MaterialNewsItem[] = [
     title: "Cập nhật Biểu phí Chiết khấu Vật tư Điện Nước Tháng 9/2026",
     category: "BÁO GIÁ ĐẠI LÝ",
     date: "25/09/2026",
-    image: "/images/products/day-dien-cong-trinh.jpg",
+    image: "/images/products/cadivi-cap-luc-kho.jpg",
     desc: "TDT Platform áp dụng bảng chiết khấu đại lý Cấp 1 mới nhất: Cadivi -22%, Nhựa Bình Minh -18%, Panasonic -15% cho nhà thầu.",
   },
   {

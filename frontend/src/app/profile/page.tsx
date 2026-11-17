@@ -13,6 +13,7 @@ import {
   Package,
   RotateCcw,
   Loader2,
+  LogOut,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -159,7 +160,7 @@ const formatPriceTick = (val: number): string => {
 export default function CustomerProfilePage() {
   const router = useRouter();
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const { user, isAuthenticated, setAuth } = useAuthStore();
+  const { user, isAuthenticated, setAuth, logout } = useAuthStore();
   const toast = useToast();
   const { addItem } = useCartStore();
 
@@ -421,6 +422,12 @@ export default function CustomerProfilePage() {
     loadProfile();
     loadOrders();
   }, [loadProfile, loadOrders, isAuthenticated, router]);
+
+  const handleLogout = () => {
+    clearTokens();
+    logout();
+    router.push('/login');
+  };
 
   // Handle Save Profile
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -893,6 +900,16 @@ export default function CustomerProfilePage() {
             <span className="profile-badge-role">{formatRole(user?.role)}</span>
 
             <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold transition-all shadow-sm cursor-pointer"
+              title="Đăng xuất khỏi tài khoản"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Đăng xuất</span>
+            </button>
+
+            <button
               className="profile-theme-btn"
               onClick={() => setTheme(activeTheme === 'dark' ? 'light' : 'dark')}
               title="Đổi giao diện Sáng / Tối"
@@ -1041,7 +1058,13 @@ export default function CustomerProfilePage() {
                       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                     </svg>
                   </div>
-                  <div className="profile-stat-number">{loadingOrders && orders.length === 0 ? '...' : orders.length}</div>
+                  <div className="profile-stat-number">
+                    {loadingOrders && orders.length === 0 ? (
+                      <span className="inline-block w-16 h-7 bg-slate-700/40 animate-pulse rounded-md" />
+                    ) : (
+                      orders.length
+                    )}
+                  </div>
                   <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>
                     Tổng số đơn hàng của bạn trên hệ thống
                   </div>
@@ -1061,7 +1084,9 @@ export default function CustomerProfilePage() {
                     <span>TỔNG CHI TIÊU</span>
                   </div>
                   <div className="profile-stat-number money-val">
-                    {loadingOrders && orders.length === 0 ? '...' : (
+                    {loadingOrders && orders.length === 0 ? (
+                      <span className="inline-block w-28 h-7 bg-slate-700/40 animate-pulse rounded-md" />
+                    ) : (
                       <>
                         {totalSpend.toLocaleString('vi-VN')} <small>đ</small>
                       </>
@@ -2081,7 +2106,7 @@ export default function CustomerProfilePage() {
         order={selectedOrder}
         isOpen={showInvoiceModal}
         onClose={() => setShowInvoiceModal(false)}
-        customerPhone={phoneInput || user?.phone}
+        customerPhone={selectedOrder?.customerPhone || phoneInput || user?.phone}
         customerEmail={user?.email}
       />
 

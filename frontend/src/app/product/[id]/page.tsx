@@ -118,9 +118,72 @@ interface AccessoryItem {
   image: string;
 }
 
+function getProductCategoryName(product: ProductDetailData): string {
+  const brand = product.brand.toLowerCase();
+  const name = product.name.toLowerCase();
+  const sku = product.sku.toLowerCase();
+  const cat = product.category.toLowerCase();
+
+  if (
+    brand.includes('bình minh') ||
+    brand.includes('binh minh') ||
+    sku.startsWith('bm') ||
+    cat.includes('pipe') ||
+    cat.includes('nước') ||
+    cat.includes('upvc') ||
+    cat.includes('ppr') ||
+    name.includes('ống')
+  ) {
+    return 'Ống & Phụ Kiện Nhựa';
+  }
+  if (
+    brand.includes('cadivi') ||
+    sku.startsWith('cad') ||
+    sku.startsWith('cv') ||
+    cat.includes('cable') ||
+    cat.includes('điện') ||
+    name.includes('dây') ||
+    name.includes('cáp')
+  ) {
+    return 'Dây & Cáp Điện';
+  }
+  if (
+    brand.includes('schneider') ||
+    brand.includes('panasonic') ||
+    sku.startsWith('sch') ||
+    sku.startsWith('pan') ||
+    name.includes('mcb') ||
+    name.includes('mccb') ||
+    name.includes('aptomat') ||
+    name.includes('công tắc') ||
+    name.includes('ổ cắm')
+  ) {
+    return 'Tủ & Thiết Bị Đóng Cắt';
+  }
+  return 'Thiết Bị Chiếu Sáng & Khác';
+}
+
 function getRecommendedAccessories(product: ProductDetailData): AccessoryItem[] {
   const text = `${product.name} ${product.category} ${product.sku}`.toLowerCase();
-  if (text.includes('ống') || text.includes('upvc') || text.includes('ppr') || text.includes('bình minh') || text.includes('tiền phong')) {
+  if (text.includes('ppr') || text.includes('hàn nhiệt') || text.includes('nóng')) {
+    return [
+      {
+        id: 'acc-keo-cat-ppr',
+        name: 'Kéo cắt ống PPR chuyên dụng lưỡi thép SK5',
+        price: 85000,
+        unit: 'Cái',
+        image: '/images/products/ong-binh-minh-1.jpg',
+      },
+      {
+        id: 'acc-dau-han-nhiet-20-25',
+        name: 'Bộ đầu hàn nhiệt PPR 20-25mm phủ chống dính',
+        price: 45000,
+        unit: 'Bộ',
+        image: '/images/products/ong-binh-minh-1.jpg',
+      },
+    ];
+  }
+  if (text.includes('ống') || text.includes('upvc') || text.includes('bình minh') || text.includes('tiền phong')) {
     return [
       {
         id: 'acc-keo-upvc-200g',
@@ -195,13 +258,33 @@ function getRecommendedAccessories(product: ProductDetailData): AccessoryItem[] 
 
 function getInstallationAdvice(product: ProductDetailData): { title: string; tips: string[] } {
   const text = `${product.name} ${product.category} ${product.sku}`.toLowerCase();
-  if (text.includes('ống') || text.includes('upvc') || text.includes('ppr') || text.includes('bình minh') || text.includes('tiền phong')) {
+  if (text.includes('ppr') || text.includes('hàn nhiệt') || text.includes('nóng')) {
+    return {
+      title: '💡 Hướng Dẫn Hàn Nhiệt Ống Nước Nóng PPR',
+      tips: [
+        'Ống PPR tuyệt đối KHÔNG dùng keo dán PVC. Bắt buộc sử dụng máy hàn nhiệt ở nhiệt độ chuẩn 260°C.',
+        'Cắt vuông góc miệng ống bằng kéo cắt chuyên dụng, vệ sinh sạch bề mặt hàn trước khi gia nhiệt.',
+        'Đẩy đồng thời ống và phụ kiện vào đầu hàn nhiệt, giữ đúng thời gian quy định (5-7 giây), rút ra nối thẳng không xoay vặn.',
+      ],
+    };
+  }
+  if (text.includes('ống') || text.includes('upvc') || text.includes('bình minh') || text.includes('tiền phong')) {
     return {
       title: '💡 Mẹo Dán Ống Nước & Thi Công Tại Nhà',
       tips: [
         'Cắt vuông góc miệng ống, mài vát nhẹ đầu ống và lau khô tuyệt đối bụi bẩn trước khi quét keo.',
         'Quét đều keo dán PVC lên cả đầu ống và mặt trong phụ kiện, ấn sâu dứt khoát và giữ chặt 15 giây (không xoay).',
         'Với mối nối ren đồng / nhựa: Quấn băng tan xuôi theo chiều kim đồng hồ 12 - 15 vòng để chống rò rỉ nước ngầm.',
+      ],
+    };
+  }
+  if (text.includes('axv') || text.includes('nhôm')) {
+    return {
+      title: '💡 Lưu Ý Thi Công Cáp Nhôm AXV An Toàn',
+      tips: [
+        'Cáp nhôm có cơ tính mềm hơn đồng, khi tuốt vỏ tuyệt đối không cứa sâu vào sợi nhôm làm gãy tao cáp.',
+        'Bắt buộc dùng đầu cốt đồng-nhôm (hoặc cốt nhôm) và bôi mỡ tiếp xúc chống oxy hóa tại mối nối để tránh rỗ bề mặt sinh nhiệt.',
+        'Siết bu-lông lực vừa đủ theo tiêu chuẩn nhà sản xuất để tránh biến dạng lõi nhôm theo thời gian.',
       ],
     };
   }
@@ -488,6 +571,13 @@ export default function ProductDetailPage() {
           </Link>
           {product && (
             <>
+              <ChevronRight className="w-3.5 h-3.5" />
+              <Link
+                href={`/shop?cat=${encodeURIComponent(getProductCategoryName(product))}`}
+                className="hover:text-blue-600 transition-colors font-medium text-slate-600 dark:text-slate-300"
+              >
+                {getProductCategoryName(product)}
+              </Link>
               <ChevronRight className="w-3.5 h-3.5" />
               <span className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-xs">
                 {product.name}
@@ -818,7 +908,13 @@ export default function ProductDetailPage() {
                           const parsed = Number(val);
                           if (Number.isInteger(parsed) && parsed >= 1) {
                             const maxStock = product && product.stock > 0 ? product.stock : 9999;
-                            setQuantity(Math.min(maxStock, parsed));
+                            if (parsed > maxStock) {
+                              toast.error(`Số lượng không được vượt quá tồn kho (${maxStock} ${product?.unit || 'sản phẩm'})!`);
+                              setQuantity(maxStock);
+                              setQtyInput(String(maxStock));
+                            } else {
+                              setQuantity(parsed);
+                            }
                           }
                         }}
                         onKeyDown={(e) => {

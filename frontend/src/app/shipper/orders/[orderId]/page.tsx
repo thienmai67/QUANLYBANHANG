@@ -28,6 +28,7 @@ import {
   Banknote,
   MapPin,
   Clock,
+  Truck,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -263,6 +264,12 @@ export default function ShipperOrderDetailPage() {
                   {order.customerPhone}
                 </span>
               )}
+            </div>
+
+            {/* Shipper in charge badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-900/60 text-xs font-bold text-blue-700 dark:text-blue-300">
+              <Truck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Shipper phụ trách: {order.shipperName || currentShipperName}</span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-start gap-2 text-xs">
@@ -548,6 +555,11 @@ export default function ShipperOrderDetailPage() {
           onSuccess={() => {
             setIsPodModalOpen(false);
             fetchOrders();
+            if (orderId) {
+              api.get<any>(`/orders/${orderId}`).then((raw) => {
+                if (raw) setDetailOrder(mapOrderFromApi(raw));
+              });
+            }
           }}
         />
 
@@ -562,6 +574,11 @@ export default function ShipperOrderDetailPage() {
             setIsIncidentModalOpen(false);
             loadLocalIncident();
             fetchOrders();
+            if (orderId) {
+              api.get<any>(`/orders/${orderId}`).then((raw) => {
+                if (raw) setDetailOrder(mapOrderFromApi(raw));
+              });
+            }
           }}
         />
       </ShipperShell>

@@ -34,6 +34,16 @@ interface MaterialHeaderProps {
 export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('search');
+      if (q !== null) {
+        setSearchQuery(q);
+      }
+    }
+  }, []);
   const [searchResults, setSearchResults] = useState<{ id: string; name: string; sku: string; brand: string; price: string; image: string }[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -138,8 +148,22 @@ export default function MaterialHeader({ onOpenRFQ }: MaterialHeaderProps) {
                   }
                 }}
                 placeholder="Tìm mua: ống uPVC, cadivi, aptomat, van đồng, đèn LED..."
-                className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900/50 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-[#070b14] text-sm text-slate-900 dark:text-slate-100 transition-all font-medium placeholder:text-slate-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                className="w-full pl-11 pr-10 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900/50 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-[#070b14] text-sm text-slate-900 dark:text-slate-100 transition-all font-medium placeholder:text-slate-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                  className="absolute right-3.5 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  title="Xóa tìm kiếm"
+                  aria-label="Xóa từ khóa tìm kiếm"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Autocomplete Dropdown */}

@@ -56,7 +56,7 @@ export default function FloatingContactDock() {
 
       {/* Hotline Call Button */}
       <a
-        href="tel:0937292769"
+        href="tel:19006868"
         aria-label="Gọi điện thoại tư vấn kỹ thuật trực tiếp"
         className="group flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 hover:scale-105 transition-all duration-200 border border-emerald-400/30"
       >
@@ -66,10 +66,10 @@ export default function FloatingContactDock() {
         </div>
         <div className="hidden sm:flex flex-col text-left pr-1">
           <span className="text-[10px] font-semibold text-emerald-100 uppercase tracking-wider leading-none">
-            Tư vấn tại quầy
+            Hotline Tổng Đài
           </span>
           <span className="text-xs font-bold font-mono mt-0.5 leading-tight">
-            0937.292.769
+            1900 6868
           </span>
         </div>
         <span className="sm:hidden text-xs font-bold">Gọi</span>

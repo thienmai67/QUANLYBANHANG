@@ -1381,7 +1381,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                     <span>Thuế VAT (8%):</span>
                     <span className="font-mono text-xs text-slate-500">
-                      Đã bao gồm trong giá
+                      {Math.round(displayTotal - displayTotal / 1.08).toLocaleString('vi-VN')} VND (đã gồm trong giá)
                     </span>
                   </div>
 
