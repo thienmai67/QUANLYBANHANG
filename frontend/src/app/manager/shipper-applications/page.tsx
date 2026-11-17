@@ -43,7 +43,7 @@ function formatDate(value: string): string {
 // Duyệt có 2 lớp nhắc: thiếu tick/mail thì báo rõ còn thiếu gì, đủ rồi thì
 // hỏi lại "có chắc cấp quyền không" trước khi gọi API.
 export default function ManagerShipperApplicationsPage() {
-  const [filter, setFilter] = useState<Filter>("PENDING");
+  const [filter, setFilter] = useState<Filter>("");
   const [applications, setApplications] = useState<ShipperApplication[]>([]);
   const [pool, setPool] = useState<ShipperEmailPoolEntry[]>([]);
   const [selected, setSelected] = useState<ShipperApplication | null>(null);

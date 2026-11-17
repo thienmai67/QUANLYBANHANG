@@ -21,6 +21,7 @@ func NewShipperRepository(db *sqlx.DB) domain.ShipperRepository {
 }
 
 const shipperApplicationColumns = `id, full_name, phone, date_of_birth, document_type, document_number_masked, license_plate, driver_license, terms_accepted, training_confirmed, status, rejection_reason, identity_checked, vehicle_checked, terms_checked, training_checked, reviewed_by, reviewed_at, issued_user_id, issued_email, lookup_code_hash, password_set_at, created_at, updated_at`
+const shipperApplicationSelect = `sa.id, COALESCE(NULLIF(u.full_name, ''), sa.full_name) AS full_name, sa.phone, sa.date_of_birth, sa.document_type, sa.document_number_masked, sa.license_plate, sa.driver_license, sa.terms_accepted, sa.training_confirmed, sa.status, sa.rejection_reason, sa.identity_checked, sa.vehicle_checked, sa.terms_checked, sa.training_checked, sa.reviewed_by, sa.reviewed_at, sa.issued_user_id, sa.issued_email, sa.lookup_code_hash, sa.password_set_at, sa.created_at, sa.updated_at`
 
 func (r *shipperRepository) CreateApplication(ctx context.Context, app *domain.ShipperApplication) error {
 	const query = `
@@ -35,13 +36,13 @@ func (r *shipperRepository) CreateApplication(ctx context.Context, app *domain.S
 }
 
 func (r *shipperRepository) ListApplications(ctx context.Context, status domain.ApplicationStatus) ([]*domain.ShipperApplication, error) {
-	query := `SELECT ` + shipperApplicationColumns + ` FROM me_supplies.shipper_applications`
+	query := `SELECT ` + shipperApplicationSelect + ` FROM me_supplies.shipper_applications sa LEFT JOIN me_supplies.users u ON sa.issued_user_id = u.id`
 	var args []any
 	if status != "" {
-		query += ` WHERE status = $1`
+		query += ` WHERE sa.status = $1`
 		args = append(args, string(status))
 	}
-	query += ` ORDER BY created_at ASC`
+	query += ` ORDER BY sa.created_at ASC`
 
 	var apps []*domain.ShipperApplication
 	if err := r.db.SelectContext(ctx, &apps, query, args...); err != nil {
@@ -51,7 +52,7 @@ func (r *shipperRepository) ListApplications(ctx context.Context, status domain.
 }
 
 func (r *shipperRepository) GetApplicationByID(ctx context.Context, id uuid.UUID) (*domain.ShipperApplication, error) {
-	const query = `SELECT ` + shipperApplicationColumns + ` FROM me_supplies.shipper_applications WHERE id = $1`
+	const query = `SELECT ` + shipperApplicationSelect + ` FROM me_supplies.shipper_applications sa LEFT JOIN me_supplies.users u ON sa.issued_user_id = u.id WHERE sa.id = $1`
 
 	var app domain.ShipperApplication
 	if err := r.db.GetContext(ctx, &app, query, id); err != nil {
