@@ -70,6 +70,7 @@ interface DBOrder {
   podConfirmedAt?: string;
   createdAt: string;
   updatedAt: string;
+  version?: number;
   items: DBOrderItem[];
 }
 
@@ -393,6 +394,7 @@ export default function CustomerProfilePage() {
           podConfirmedAt: ord.podConfirmedAt,
           createdAt: ord.createdAt,
           updatedAt: ord.updatedAt,
+          version: typeof ord.version === 'number' ? ord.version : 1,
           items: Array.isArray(ord.items)
             ? ord.items.map((it: any) => ({
                 id: it.id,

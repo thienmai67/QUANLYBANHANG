@@ -53,3 +53,30 @@
 | **P0-5** | **R2-11** | Major | Mã OTP xác minh email hiển thị trực tiếp trên màn hình | **ĐÃ SỬA (FIXED)** | • Xóa bỏ hoàn toàn khối JSX render `{generatedOtp}` trong `frontend/src/app/register/page.tsx`.<br>• Browser test: Điền form đăng ký với "TEST_R2_User", mở popup OTP: hộp thoại chỉ có 6 ô nhập mã OTP gửi về email, hoàn toàn KHÔNG còn dòng chữ hay ô nào làm lộ mã xác thực.<br>• Ảnh chụp: `p0_evidence/03_r2_11_otp_hidden.png` |
 | **P0-6** | **R2-12** | Major | Hãng Rạng Đông biến mất khỏi shop (12 sản phẩm LED thành OTHER) | **ĐÃ SỬA (FIXED)** | • Thêm thương hiệu `RANGDONG` vào bảng `me_supplies.brands` trên DB production và cập nhật 12 sản phẩm LED sang `brand_id` mới.<br>• Cập nhật seed DDL trong `backend/cmd/server/main.go` và fallback filter trong `frontend/src/app/shop/page.tsx`.<br>• Browser test: Vào `/shop`, bộ lọc thương hiệu xuất hiện `Rạng Đông`. Click vào bộ lọc hiển thị chính xác 12 sản phẩm đèn LED.<br>• Ảnh chụp: `p0_evidence/02_r2_12_rang_dong_12_items.png` |
 | **P0-7** | **R2-01**<br>*(kèm BUG-17, R2-13)* | Major | Giá chiết khấu 2 lần; sai giá Aptomat và số đếm banner | **ĐÃ SỬA (FIXED)** | • Xóa phép nhân chiết khấu lần 2 trong `shop/page.tsx` và `product/[id]/page.tsx`. Giá bán hiển thị thống nhất là đơn giá thực tế sau chiết khấu.<br>• Sửa giá Aptomat trong `Banner3DXray.tsx` từ 185.000đ thành 157.250đ (BUG-17) và sửa số đếm banner thành `01 / 03` (R2-13).<br>• Đối chiếu tay trên Live: Giá Co PPR (6.696đ) và GP-129 (1.053.000đ) khớp nhau 100% giữa Trang chủ, `/shop` và trang chi tiết. |
+
+---
+
+## ĐỢT SỬA 3 LỖI THỰC TẾ (18/11/2026) — TDT M&E
+**Hệ thống:** https://tdtmaterial.id.vn  
+**Nhánh:** `fix/qa-retest-2026-11-17`  
+
+### 1. ĐỢT 0 — KẾT QUẢ TÁI HIỆN TRƯỚC KHI SỬA (100% REPRODUCED TRÊN PRODUCTION)
+
+| STT | Lỗi | Mức độ | Kết quả tái hiện | Hiện tượng thực tế trên Live & Nguyên nhân gốc rễ trên HEAD |
+| :--- | :--- | :--- | :--- | :--- |
+| **Lỗi 1** | Đơn COD không chuyển được sang ĐÃ THANH TOÁN | Major | **TÁI HIỆN 100%** | • Vào `/sale/payments`, bấm "Thu đủ" đơn COD `ORD-261117-3cd317` -> Báo lỗi HTTP 400: *"Đơn hàng COD do Shipper thu tiền khi giao hàng..."*.<br>• **Nguyên nhân thật trên HEAD:** `UpdateOrderPaymentStatus` chỉ chấp nhận `BANK_TRANSFER` và `CASH`, từ chối COD. Đồng thời trang `sale/payments/page.tsx` vẫn hiển thị nút "Thu tiền" cho đơn COD gây hiểu lầm. Ngoài ra điều kiện `order.Status == domain.OrderStatusDelivered` chặn luôn đơn chuyển khoản/tiền mặt đã giao nhưng chưa kịp thanh toán. |
+| **Lỗi 2** | Ô nhập Số lượng / Đơn giá / CK Sale trên form báo giá trống & gõ không ăn | Major | **TÁI HIỆN 100%** | • Vào `/sale/quotes/new`, thêm Aptomat MCB Schneider. DOM & State nhận số đủ, tính tổng đúng, nhưng 3 ô input hiển thị thành khối đen kịt, trống trơn, gõ không hiện số.<br>• **Nguyên nhân thật trên HEAD:** Bảng `table` không có `min-w` và `<td>` không có `min-w`, bị cột sản phẩm ép co rúm chiều ngang: ô Số lượng rộng `33.5px`, ô Đơn giá rộng `28.8px`, ô CK Sale rộng `25.2px`. Với `px-2` (16px) + nút spinner Chromium (15px) = 31px padding/spinner => diện tích hiển thị text <= 0px khiến toàn bộ chữ số bị che khuất hoàn toàn. |
+| **Lỗi 3** | Khách hủy đơn bị báo "Đơn hàng vừa được cập nhật bởi người khác" | Major | **TÁI HIỆN 100%** | • Khách vào `/profile`, chọn đơn Chờ xử lý `ORD-261117-e7c489`, nhập lý do và bấm hủy -> Báo lỗi HTTP 409 Conflict: *"Đơn hàng vừa được cập nhật bởi người khác, đã tải lại dữ liệu mới"*.<br>• **Nguyên nhân thật trên HEAD:** `profile/page.tsx` khi gọi `/orders?scope=personal` đã bỏ rơi trường `version` trong lúc map sang `DBOrder`. `CancelOrderModal` gửi `version = undefined` -> Go backend unmarshal thành `0` -> So với `o.Version >= 1` trong DB bị lệch -> Ném `ErrVersionConflict`. |
+
+### 2. KẾT QUẢ SỬA CODE & GIẢI PHÁP TRIỂN KHAI
+* **Lỗi 1:**
+  - `backend/internal/handler/handlers.go`: Bỏ điều kiện chặn `order.Status == domain.OrderStatusDelivered` trong `UpdateOrderPaymentStatus`.
+  - `backend/internal/handler/payment_handlers_test.go`: Cập nhật unit test `MarkPaid_DeliveredOrderAllowed` khớp logic nghiệp vụ mới.
+  - `frontend/src/app/sale/payments/page.tsx`: Với đơn COD, ẩn hoàn toàn nút "Thu tiền" / "Thu đủ", thay bằng badge trạng thái nộp tiền COD: "Chờ shipper nộp tiền" (nếu chưa quyết toán) hoặc "Đã nộp COD" (nếu đã quyết toán). Hộp thoại thu tiền chỉ áp dụng cho đơn tiền mặt hoặc chuyển khoản tại quầy.
+* **Lỗi 2:**
+  - `frontend/src/components/sale/QuoteForm.tsx`: Thêm `min-w-[880px]` cho `<table>`, cố định chiều rộng cột `<td>` chứa input: Số lượng (`w-28 min-w-[100px]`), Đơn giá (`w-36 min-w-[130px]`), CK Sale (`w-28 min-w-[100px]`).
+  - Thêm CSS `[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none` ẩn spinner native Chromium để toàn bộ chiều rộng ô input hiển thị text rõ nét trên cả light/dark theme.
+* **Lỗi 3:**
+  - `frontend/src/app/profile/page.tsx`: Khai báo `version?: number` trong `DBOrder` và map `version: typeof ord.version === 'number' ? ord.version : 1`.
+  - `frontend/src/components/CancelOrderModal.tsx`: Luôn gửi `version` vào request hủy đơn. Bổ sung cơ chế phòng thủ: nếu gặp HTTP 409 Conflict thì tự động fetch lại version mới nhất của đơn hàng từ server và retry 1 lần trước khi báo lỗi.
+

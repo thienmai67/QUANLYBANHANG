@@ -112,6 +112,12 @@ export default function SalePaymentsPage() {
 
   const handleConfirmMarkPaid = async () => {
     if (!markPaidTarget) return;
+    const pm = (markPaidTarget.order.paymentMethod || '').toUpperCase();
+    if (pm === 'COD') {
+      toast.error('Đơn hàng COD do Shipper thu tiền khi giao hàng. Tiền được tự động tất toán khi Shipper nộp biên bản quyết toán COD.');
+      setMarkPaidTarget(null);
+      return;
+    }
     try {
       setIsMarkingPaid(true);
       await markPaid(markPaidTarget.order.id);
@@ -265,6 +271,8 @@ export default function SalePaymentsPage() {
           filteredPayments.map((item) => {
             const isPaid = item.order.paymentStatus === 'PAID';
             const isOverdue = !isPaid && (item.isOverdue || item.daysDelivered > OVERDUE_DEBT_DAYS);
+            const isCod = (item.order.paymentMethod || '').toUpperCase() === 'COD';
+            const isCodRemitted = isPaid || Boolean(item.order.codRemitted);
 
             return (
               <div
@@ -351,7 +359,27 @@ export default function SalePaymentsPage() {
                       </a>
                     )}
 
-                    {!isPaid && (
+                    {isCod ? (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold ${
+                          isCodRemitted
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                        }`}
+                      >
+                        {isCodRemitted ? (
+                          <>
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            <span>Đã nộp COD</span>
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Chờ shipper nộp tiền</span>
+                          </>
+                        )}
+                      </span>
+                    ) : !isPaid ? (
                       <button
                         type="button"
                         onClick={() => setMarkPaidTarget(item)}
@@ -360,7 +388,7 @@ export default function SalePaymentsPage() {
                         <CreditCard className="w-3.5 h-3.5" />
                         <span>Thu tiền</span>
                       </button>
-                    )}
+                    ) : null}
                   </div>
 
                   <button
@@ -410,6 +438,8 @@ export default function SalePaymentsPage() {
                 filteredPayments.map((item) => {
                   const isPaid = item.order.paymentStatus === 'PAID';
                   const isOverdue = !isPaid && (item.isOverdue || item.daysDelivered > OVERDUE_DEBT_DAYS);
+                  const isCod = (item.order.paymentMethod || '').toUpperCase() === 'COD';
+                  const isCodRemitted = isPaid || Boolean(item.order.codRemitted);
 
                   return (
                     <tr
@@ -512,16 +542,41 @@ export default function SalePaymentsPage() {
                             <span>Ghi chú</span>
                           </button>
 
-                          {!isPaid && (
+                          {isCod ? (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg ${
+                                isCodRemitted
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              }`}
+                              title={
+                                isCodRemitted
+                                  ? 'Shipper đã nộp tiền quyết toán COD'
+                                  : 'Tiền COD do Shipper thu khi giao hàng, đang chờ nộp về quỹ'
+                              }
+                            >
+                              {isCodRemitted ? (
+                                <>
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  <span>Đã nộp COD</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>Chờ shipper nộp</span>
+                                </>
+                              )}
+                            </span>
+                          ) : !isPaid ? (
                             <button
                               onClick={() => setMarkPaidTarget(item)}
                               className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
-                              title="Xác nhận đã nhận đủ tiền"
+                              title="Xác nhận đã nhận đủ tiền tại quầy"
                             >
                               <CheckCircle className="w-3.5 h-3.5" />
                               <span>Thu đủ</span>
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>

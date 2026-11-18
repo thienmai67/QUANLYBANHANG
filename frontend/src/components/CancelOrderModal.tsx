@@ -51,15 +51,35 @@ export default function CancelOrderModal({
     setErrorMessage(null);
 
     try {
-      const payload: any = {
-        status: 'CANCELLED',
-        cancellationReason: trimmedReason,
-      };
-      if (typeof order.version === 'number') {
-        payload.version = order.version;
+      let targetVersion = typeof order.version === 'number' ? order.version : 1;
+
+      try {
+        const payload: any = {
+          status: 'CANCELLED',
+          cancellationReason: trimmedReason,
+          version: targetVersion,
+        };
+        await api.patch(`/orders/${order.id}/status`, payload);
+      } catch (patchErr: any) {
+        // Phòng thủ: Nếu gặp 409 conflict, tải lại đơn hàng để lấy version mới nhất và thử lại 1 lần
+        const status = patchErr?.status || patchErr?.response?.status;
+        if (status === 409 || patchErr?.message?.includes('cập nhật bởi người khác')) {
+          const freshOrder = await api.get<any>(`/orders/${order.id}`);
+          if (freshOrder && typeof freshOrder.version === 'number') {
+            targetVersion = freshOrder.version;
+            await api.patch(`/orders/${order.id}/status`, {
+              status: 'CANCELLED',
+              cancellationReason: trimmedReason,
+              version: targetVersion,
+            });
+          } else {
+            throw patchErr;
+          }
+        } else {
+          throw patchErr;
+        }
       }
 
-      await api.patch(`/orders/${order.id}/status`, payload);
       toast.success(`Đã hủy thành công đơn hàng #${order.orderNumber}`);
       onCancelSuccess(order.id, trimmedReason);
       onClose();

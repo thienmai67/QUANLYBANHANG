@@ -410,8 +410,8 @@ func TestPaymentHandlers_AllScenarios(t *testing.T) {
 		}
 	})
 
-	// Test 11: D1.2 (F09) - MarkPaid rejected for DELIVERED order
-	t.Run("MarkPaid_DeliveredOrderRejected", func(t *testing.T) {
+	// Test 11: Cho phép MarkPaid cho đơn DELIVERED (BANK_TRANSFER / CASH) chưa thanh toán
+	t.Run("MarkPaid_DeliveredOrderAllowed", func(t *testing.T) {
 		deliveredOrderID := uuid.New()
 		mockRepo.orders = append(mockRepo.orders, domain.Order{
 			ID:            deliveredOrderID,
@@ -430,8 +430,8 @@ func TestPaymentHandlers_AllScenarios(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		if rr.Code != http.StatusBadRequest {
-			t.Fatalf("expected 400 for delivered order mark-paid, got %d: %s", rr.Code, rr.Body.String())
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200 for delivered order mark-paid, got %d: %s", rr.Code, rr.Body.String())
 		}
 	})
 

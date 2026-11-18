@@ -543,7 +543,7 @@ export function QuoteForm() {
                               handleItemFieldChange(index, 'quantity', e.target.value)
                             }
                             onBlur={() => handleQuantityBlur(index)}
-                            className="w-full px-2 py-1.5 text-xs text-center font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                            className="w-full px-2 py-1.5 text-xs text-center font-bold font-mono rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </div>
                       </div>
@@ -570,7 +570,7 @@ export function QuoteForm() {
                               }
                             }}
                             onBlur={() => handlePriceBlur(index)}
-                            className="w-full px-2 py-1.5 text-xs text-right font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-mono"
+                            className="w-full px-2 py-1.5 text-xs text-right font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </div>
 
@@ -614,11 +614,11 @@ export function QuoteForm() {
                               }
                             }}
                             onBlur={() => handleDiscountBlur(index)}
-                            className={`w-full px-2 py-1.5 text-xs text-center font-bold rounded-xl border ${
+                            className={`w-full px-2 py-1.5 text-xs text-center font-bold font-mono rounded-xl border ${
                               isOverLimit
                                 ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
                                 : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400'
-                            } focus:outline-none focus:ring-2 focus:ring-blue-500/30`}
+                            } focus:outline-none focus:ring-2 focus:ring-blue-500/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                           />
                         </div>
 
@@ -654,15 +654,15 @@ export function QuoteForm() {
 
               {/* Desktop Items Table (>= md) */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-left text-sm border-collapse">
+                <table className="w-full text-left text-sm border-collapse min-w-[880px]">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400">
                       <th className="py-2.5 px-3">Sản phẩm</th>
                       <th className="py-2.5 px-3 w-28">Đơn vị</th>
-                      <th className="py-2.5 px-3 w-24 text-center">Số lượng</th>
-                      <th className="py-2.5 px-3 w-32 text-right">Đơn giá niêm yết</th>
+                      <th className="py-2.5 px-3 w-28 min-w-[100px] text-center">Số lượng</th>
+                      <th className="py-2.5 px-3 w-36 min-w-[130px] text-right">Đơn giá niêm yết</th>
                       <th className="py-2.5 px-3 w-24 text-center">CK Hãng</th>
-                      <th className="py-2.5 px-3 w-28 text-center">CK Sale (%)</th>
+                      <th className="py-2.5 px-3 w-28 min-w-[100px] text-center">CK Sale (%)</th>
                       <th className="py-2.5 px-3 w-24 text-center">Tổng CK</th>
                       <th className="py-2.5 px-3 w-36 text-right">Thành tiền</th>
                       <th className="py-2.5 px-3 w-10 text-center"></th>
@@ -711,36 +711,40 @@ export function QuoteForm() {
                           </td>
 
                           {/* Quantity */}
-                          <td className="py-2 px-3">
+                          <td className="py-2 px-3 w-28 min-w-[100px]">
                             <input
                               type="number"
                               min="1"
+                              max="10000"
+                              step="any"
                               value={item.quantity}
                               onChange={(e) =>
-                                handleItemFieldChange(
-                                  index,
-                                  'quantity',
-                                  Math.max(1, Number(e.target.value) || 1)
-                                )
+                                handleItemFieldChange(index, 'quantity', e.target.value)
                               }
-                              className="w-full px-2 py-1.5 text-xs text-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              onBlur={() => handleQuantityBlur(index)}
+                              className="w-full px-2.5 py-1.5 text-xs text-center font-bold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </td>
 
                           {/* Unit price */}
-                          <td className="py-2 px-3 text-right">
+                          <td className="py-2 px-3 w-36 min-w-[130px] text-right">
                             <input
                               type="number"
-                              step="1000"
+                              min="0"
+                              step="any"
                               value={item.unitPrice}
-                              onChange={(e) =>
-                                handleItemFieldChange(
-                                  index,
-                                  'unitPrice',
-                                  Number(e.target.value) || 0
-                                )
-                              }
-                              className="w-full px-2 py-1.5 text-xs text-right font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              onChange={(e) => {
+                                const rawVal = e.target.value;
+                                if (rawVal === '') {
+                                  handleItemFieldChange(index, 'unitPrice', 0);
+                                } else {
+                                  const val = parseFloat(rawVal);
+                                  const clamped = Math.max(0, Number.isNaN(val) ? 0 : val);
+                                  handleItemFieldChange(index, 'unitPrice', clamped);
+                                }
+                              }}
+                              onBlur={() => handlePriceBlur(index)}
+                              className="w-full px-2.5 py-1.5 text-xs text-right font-medium font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </td>
 
@@ -752,7 +756,7 @@ export function QuoteForm() {
                           </td>
 
                           {/* Additional discount entered by sale */}
-                          <td className="py-2 px-3">
+                          <td className="py-2 px-3 w-28 min-w-[100px]">
                             <div className="relative">
                               <input
                                 type="number"
@@ -760,18 +764,22 @@ export function QuoteForm() {
                                 max="50"
                                 step="0.5"
                                 value={item.additionalDiscountRate}
-                                onChange={(e) =>
-                                  handleItemFieldChange(
-                                    index,
-                                    'additionalDiscountRate',
-                                    Number(e.target.value) || 0
-                                  )
-                                }
-                                className={`w-full px-2 py-1.5 text-xs text-center font-bold rounded-lg border ${
+                                onChange={(e) => {
+                                  const rawVal = e.target.value;
+                                  if (rawVal === '') {
+                                    handleItemFieldChange(index, 'additionalDiscountRate', 0);
+                                  } else {
+                                    const val = parseFloat(rawVal);
+                                    const clamped = Math.max(0, Math.min(50, Number.isNaN(val) ? 0 : val));
+                                    handleItemFieldChange(index, 'additionalDiscountRate', clamped);
+                                  }
+                                }}
+                                onBlur={() => handleDiscountBlur(index)}
+                                className={`w-full px-2.5 py-1.5 text-xs text-center font-bold font-mono rounded-lg border ${
                                   isOverLimit
                                     ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
                                     : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400'
-                                } focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                                } focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                               />
                               {isOverLimit && (
                                 <span

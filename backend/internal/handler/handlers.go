@@ -1338,10 +1338,7 @@ func (h *Handler) MarkPaid(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if order.Status == domain.OrderStatusDelivered {
-		writeAPIError(w, http.StatusBadRequest, "ORDER_DELIVERED", "Không thể đánh dấu thanh toán cho đơn hàng đã giao thành công")
-		return
-	}
+	// Cho phép đánh dấu thanh toán cho đơn hàng đã giao (BANK_TRANSFER / CASH), miễn là chưa hủy và chưa thanh toán trước đó
 	now := time.Now()
 	if err := h.productRepo.UpdateOrderPaymentStatus(req.Context(), orderID, domain.PaymentStatusPaid, &now); err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Lỗi cập nhật trạng thái thanh toán")
