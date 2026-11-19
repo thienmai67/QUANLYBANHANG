@@ -73,6 +73,9 @@ export function getFriendlyErrorMessage(err: unknown): string {
         if (err.code === "PAYMENT_NOT_CONFIRMED") {
           return "Đơn hàng chuyển khoản ngân hàng phải được xác nhận thanh toán (PAID) trước khi đóng gói.";
         }
+        if (err.code === "PHONE_BELONGS_TO_SHIPPER") {
+          return "Số điện thoại này thuộc về nhân viên giao hàng (Shipper). Vui lòng sử dụng số điện thoại của khách hàng.";
+        }
         return cleanMessage(err.message) || "Dữ liệu yêu cầu không hợp lệ";
       case 401:
         return "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại";

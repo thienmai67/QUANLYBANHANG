@@ -111,4 +111,5 @@ type UserRepository interface {
 	ListUsers(ctx context.Context, search string, role string) ([]User, error)
 	UpdateUserRole(ctx context.Context, id uuid.UUID, role UserRole) error
 	UpdateUserStatus(ctx context.Context, id uuid.UUID, isActive bool) error
+	IsPhoneBelongToShipper(ctx context.Context, phone string) (bool, error)
 }

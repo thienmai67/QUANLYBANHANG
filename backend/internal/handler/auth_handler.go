@@ -166,6 +166,15 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate that phone number does not belong to a Shipper
+	if req.Phone != nil && strings.TrimSpace(*req.Phone) != "" {
+		isShipper, err := h.userRepo.IsPhoneBelongToShipper(r.Context(), *req.Phone)
+		if err == nil && isShipper {
+			writeJSONError(w, http.StatusBadRequest, "Số điện thoại này đã được đăng ký cho tài xế giao hàng (Shipper), không thể dùng cho khách hàng.", "PHONE_BELONGS_TO_SHIPPER")
+			return
+		}
+	}
+
 	// Check if user exists
 	if _, err := h.userRepo.FindByEmail(r.Context(), cleanEmail); err == nil {
 		writeJSONError(w, http.StatusConflict, "Email này đã được sử dụng. Vui lòng chọn email khác hoặc đăng nhập.")

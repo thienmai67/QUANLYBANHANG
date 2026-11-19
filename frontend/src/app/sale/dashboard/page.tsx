@@ -65,13 +65,6 @@ export default function SaleDashboardPage() {
             <Plus className="w-4 h-4" />
             <span>Tạo đơn hộ</span>
           </Link>
-          <Link
-            href="/sale/quotes/new"
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs font-bold bg-purple-600/60 hover:bg-purple-600 text-white border border-purple-400/40 transition-all shrink-0"
-          >
-            <FileText className="w-4 h-4" />
-            <span>Lập báo giá</span>
-          </Link>
         </div>
       </div>
 
@@ -185,7 +178,7 @@ export default function SaleDashboardPage() {
                 <span>Việc Cần Xử Lý Hôm Nay</span>
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-300">
-                {stats.dueFollowupsCount + stats.expiringQuotesCount + stats.unpaidOrdersCount} mục
+                {stats.dueFollowupsCount + stats.unpaidOrdersCount} mục
               </span>
             </div>
 
@@ -216,33 +209,7 @@ export default function SaleDashboardPage() {
                 </div>
               </Link>
 
-              {/* Item 2: Expiring quotes */}
-              <Link
-                href="/sale/quotes"
-                className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-slate-200/60 dark:border-slate-700/60 transition-all group"
-              >
-                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                      Báo giá sắp hết hạn
-                    </div>
-                    <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">
-                      Hiệu lực còn dưới 3 ngày
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/50">
-                    {stats.expiringQuotesCount}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Link>
-
-              {/* Item 3: Unpaid orders */}
+              {/* Item 2: Unpaid orders */}
               <Link
                 href="/sale/payments?unpaid_only=true"
                 className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200/60 dark:border-slate-700/60 transition-all group"

@@ -1863,6 +1863,10 @@ func (r *saleRepository) GetDashboardStats(ctx context.Context, saleID *uuid.UUI
 
 	scopeCondition := "1=1"
 	var args []any
+	if saleID != nil && *saleID != uuid.Nil {
+		scopeCondition = "(o.sale_id = $1 OR o.customer_id IN (SELECT customer_id FROM me_supplies.customer_assignments WHERE sale_id = $1 AND is_active = TRUE))"
+		args = append(args, *saleID)
+	}
 
 	// 1. Pending orders
 	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`

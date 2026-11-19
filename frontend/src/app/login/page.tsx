@@ -124,8 +124,20 @@ export default function LoginPage() {
     const redirectParam = search ? (search.get('from') || search.get('redirect')) : null;
 
     if (redirectParam && redirectParam.startsWith('/')) {
-      window.location.href = redirectParam;
-      return;
+      const isAllowed =
+        (role === 'MANAGER' && (redirectParam.startsWith('/manager') || redirectParam.startsWith('/admin'))) ||
+        (role === 'SALE' && redirectParam.startsWith('/sale')) ||
+        (role === 'SHIPPER' && redirectParam.startsWith('/shipper')) ||
+        (role === 'CUSTOMER' &&
+          !redirectParam.startsWith('/manager') &&
+          !redirectParam.startsWith('/admin') &&
+          !redirectParam.startsWith('/sale') &&
+          !redirectParam.startsWith('/shipper'));
+
+      if (isAllowed) {
+        window.location.href = redirectParam;
+        return;
+      }
     }
 
     if (role === 'MANAGER') {

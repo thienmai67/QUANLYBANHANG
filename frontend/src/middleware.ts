@@ -63,7 +63,7 @@ export function middleware(request: NextRequest) {
 
     const role = (roleCookie || payload.role || '').toUpperCase();
 
-    // Check required role
+    // Check required role strictly: each role stays in its own area
     if (isManagerRoute && role !== 'MANAGER' && role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/403?required=MANAGER', request.url));
     }
@@ -72,7 +72,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/403?required=SHIPPER', request.url));
     }
 
-    if (isSaleRoute && role !== 'SALE' && role !== 'ADMIN' && role !== 'MANAGER') {
+    if (isSaleRoute && role !== 'SALE') {
       return NextResponse.redirect(new URL('/403?required=SALE', request.url));
     }
   }

@@ -61,6 +61,7 @@ export default function ShipperOrderCard({
 
   const isCod = order.paymentMethod === 'COD';
   const totalAmount = order.total ?? order.totalAmount ?? 0;
+  const earningAmount = order.is2h ? 40000 : 25000;
   const customerName =
     order.siteContact?.name || order.customerName || 'Khách hàng';
 
@@ -238,6 +239,23 @@ export default function ShipperOrderCard({
           </span>
         </div>
 
+        {/* Shipper Earning Badge */}
+        <div className="p-2.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+              Thu nhập của bạn cho đơn này:
+            </span>
+            {order.is2h && (
+              <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                +15.000đ Hỏa tốc
+              </span>
+            )}
+          </div>
+          <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">
+            +{formatCurrencyVND(earningAmount)}
+          </div>
+        </div>
+
         {/* COD Amount High-Visibility Box */}
         <div
           className={`p-3 rounded-xl border flex items-center justify-between ${
@@ -381,20 +399,25 @@ export default function ShipperOrderCard({
       href={`/shipper/orders/${order.id}`}
       className="group block bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all active:scale-[0.99]"
     >
-      {/* Top line: Customer Name + COD Amount */}
+      {/* Top line: Customer Name + Earnings + COD Amount */}
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
           {customerName}
         </span>
-        <span
-          className={`text-sm font-black tabular-nums shrink-0 ${
-            isCod
-              ? 'text-amber-700 dark:text-amber-400'
-              : 'text-emerald-700 dark:text-emerald-400'
-          }`}
-        >
-          {isCod ? formatCurrencyVND(totalAmount) : '0 ₫'}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-mono">
+            +{formatCurrencyVND(earningAmount)}
+          </span>
+          <span
+            className={`text-sm font-black tabular-nums ${
+              isCod
+                ? 'text-amber-700 dark:text-amber-400'
+                : 'text-emerald-700 dark:text-emerald-400'
+            }`}
+          >
+            {isCod ? formatCurrencyVND(totalAmount) : '0 ₫'}
+          </span>
+        </div>
       </div>
 
       {/* Bottom line: Shortened address + status pill */}

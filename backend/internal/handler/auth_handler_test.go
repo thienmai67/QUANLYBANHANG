@@ -190,6 +190,18 @@ func (m *mockUserRepo) UpdateUserStatus(ctx context.Context, id uuid.UUID, isAct
 	return domain.ErrUserNotFound
 }
 
+func (m *mockUserRepo) IsPhoneBelongToShipper(ctx context.Context, phone string) (bool, error) {
+	m.Lock()
+	defer m.Unlock()
+	cleanPhone := strings.TrimSpace(phone)
+	for _, u := range m.users {
+		if u.Phone != nil && *u.Phone == cleanPhone && u.Role == domain.RoleShipper {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func TestHandleRegister_Success(t *testing.T) {
 	repo := newMockUserRepo()
 	jwtSvc := auth.NewJWTService("secret-for-test-jwt-1234567890")

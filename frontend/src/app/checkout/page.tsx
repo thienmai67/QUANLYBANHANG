@@ -123,6 +123,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
+        const savedPhone = localStorage.getItem('tdt_customer_saved_phone');
+        if (savedPhone) {
+          setCustomerPhone(savedPhone);
+        }
         const saved = localStorage.getItem('tdt_checkout_draft');
         if (saved) {
           const draft = JSON.parse(saved);
@@ -288,6 +292,11 @@ export default function CheckoutPage() {
       }
       if (user.phone) {
         setCustomerPhone(user.phone);
+      } else if (typeof window !== 'undefined') {
+        const savedPhone = localStorage.getItem('tdt_customer_saved_phone');
+        if (savedPhone) {
+          setCustomerPhone(savedPhone);
+        }
       }
     }
   }, [user]);
@@ -449,6 +458,12 @@ export default function CheckoutPage() {
         'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại gồm 10 chữ số (bắt đầu bằng 03, 05, 07, 08, 09, ví dụ: 0901234567)'
       );
       return;
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('tdt_customer_saved_phone', sanitizedPhone);
+      } catch {}
     }
 
     let finalShippingAddress = fullDeliveryAddress;

@@ -98,6 +98,7 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
 	productHandler := handler.New(productRepo)
+	productHandler.SetUserRepo(userRepo)
 	productHandler.SetSaleRepo(saleRepo)
 	saleHandler := handler.NewSaleHandler(saleRepo, productRepo)
 
@@ -240,6 +241,7 @@ func main() {
 			r.Post("/products", productHandler.CreateProduct)
 			r.Put("/products/{id}", productHandler.UpdateProduct)
 			r.Delete("/products/{id}", productHandler.DeleteProduct)
+			r.Post("/categories", productHandler.CreateCategory)
 		})
 
 		// COD Settlement APIs (MANAGER, SHIPPER)

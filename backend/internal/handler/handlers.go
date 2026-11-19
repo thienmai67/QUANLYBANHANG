@@ -24,6 +24,7 @@ import (
 type Handler struct {
 	productRepo domain.ProductRepository
 	saleRepo    domain.SaleRepository
+	userRepo    domain.UserRepository
 	payosClient *payos.Client
 	frontendURL string
 }
@@ -33,6 +34,10 @@ func New(productRepo domain.ProductRepository) *Handler {
 		productRepo: productRepo,
 		frontendURL: "http://localhost:3000",
 	}
+}
+
+func (h *Handler) SetUserRepo(repo domain.UserRepository) {
+	h.userRepo = repo
 }
 
 func (h *Handler) SetSaleRepo(repo domain.SaleRepository) {
@@ -338,6 +343,29 @@ func (h *Handler) ListCategories(w http.ResponseWriter, req *http.Request) {
 	_ = json.NewEncoder(w).Encode(categories)
 }
 
+func (h *Handler) CreateCategory(w http.ResponseWriter, req *http.Request) {
+	var input domain.CreateCategoryInput
+	if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "INVALID_REQUEST", "Dữ liệu danh mục không hợp lệ")
+		return
+	}
+
+	if strings.TrimSpace(input.Code) == "" || strings.TrimSpace(input.Name) == "" {
+		writeAPIError(w, http.StatusBadRequest, "MISSING_FIELDS", "Mã và tên danh mục không được để trống")
+		return
+	}
+
+	cat, err := h.productRepo.CreateCategory(req.Context(), input)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "CREATE_FAILED", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(cat)
+}
+
 func (h *Handler) ListOrders(w http.ResponseWriter, req *http.Request) {
 	limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
 	if limit <= 0 || limit > 1000 {
@@ -581,6 +609,15 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, req *http.Request) {
 						break
 					}
 				}
+			}
+		}
+
+		if order.CustomerPhone != nil && strings.TrimSpace(*order.CustomerPhone) != "" && h.userRepo != nil {
+			trimmedPhone := strings.TrimSpace(*order.CustomerPhone)
+			isShipper, err := h.userRepo.IsPhoneBelongToShipper(req.Context(), trimmedPhone)
+			if err == nil && isShipper {
+				writeAPIError(w, http.StatusBadRequest, "PHONE_BELONGS_TO_SHIPPER", "Số điện thoại này đã được đăng ký cho tài xế giao hàng (Shipper), không thể dùng làm số điện thoại khách hàng.")
+				return
 			}
 		}
 	}

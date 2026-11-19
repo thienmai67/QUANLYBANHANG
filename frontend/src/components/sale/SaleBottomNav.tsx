@@ -102,24 +102,6 @@ export function SaleBottomNav() {
           </Link>
 
           <Link
-            href="/sale/quotes/new"
-            onClick={() => setIsSpeedDialOpen(false)}
-            className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-800 dark:text-slate-200 transition-colors group"
-          >
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-              <FileText className="w-4 h-4" />
-            </div>
-            <div className="flex-1">
-              <div className="text-xs font-bold text-slate-900 dark:text-white">
-                Lập báo giá dự án
-              </div>
-              <div className="text-[10px] text-slate-500">
-                Chiết khấu thương hiệu vật tư M&E
-              </div>
-            </div>
-          </Link>
-
-          <Link
             href="/sale/customers"
             onClick={() => setIsSpeedDialOpen(false)}
             className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-800 dark:text-slate-200 transition-colors group"

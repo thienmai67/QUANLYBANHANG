@@ -36,6 +36,9 @@ export default function ShipperProfilePage() {
 
   const myOrders = orders.filter((o) => o.shipperId === currentShipperId);
   const deliveredCount = myOrders.filter((o) => o.status === 'DELIVERED').length;
+  const totalEarned = myOrders
+    .filter((o) => o.status === 'DELIVERED')
+    .reduce((sum, o) => sum + (o.is2h ? 40000 : 25000), 0);
   const totalCodCollected = myOrders
     .filter((o) => o.status === 'DELIVERED' && o.paymentMethod === 'COD')
     .reduce((sum, o) => sum + (o.codCollected || o.total || o.totalAmount || 0), 0);
@@ -109,7 +112,39 @@ export default function ShipperProfilePage() {
             </div>
           </div>
 
-          {/* 3. Performance Today Card */}
+          {/* 3. Driver Earnings Wallet */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 border border-emerald-500/40 text-white shadow-md space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                Ví Thu Nhập Giao Hàng
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Đã cộng số dư tự động
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between pt-1">
+              <div>
+                <div className="text-[11px] text-slate-400 font-medium">Số dư kiếm được tích lũy</div>
+                <div className="text-2xl font-black text-emerald-400 font-mono tracking-tight mt-0.5">
+                  +{formatCurrencyVND(totalEarned)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] text-slate-400 font-medium">Hoàn thành</div>
+                <div className="text-base font-bold text-white tabular-nums mt-0.5">
+                  {deliveredCount} đơn
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300">
+              <span>Đơn chuẩn: 25.000 ₫/đơn</span>
+              <span>Đơn hỏa tốc 2H: 40.000 ₫/đơn</span>
+            </div>
+          </div>
+
+          {/* 4. Performance Today Card */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md space-y-3">
             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">
               Kết quả ca hôm nay

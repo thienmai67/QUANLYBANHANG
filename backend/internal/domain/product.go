@@ -59,6 +59,13 @@ type Category struct {
 	UpdatedAt time.Time    `json:"updatedAt" db:"updated_at"`
 }
 
+type CreateCategoryInput struct {
+	Code     string       `json:"code"`
+	Name     string       `json:"name"`
+	Type     CategoryType `json:"type"`
+	ParentID *uuid.UUID   `json:"parentId,omitempty"`
+}
+
 type Brand struct {
 	ID              uuid.UUID `json:"id" db:"id"`
 	Code            string    `json:"code" db:"code"`
@@ -133,6 +140,7 @@ type OrderItem struct {
 	ProductID    uuid.UUID `json:"productId" db:"product_id"`
 	ProductName  string    `json:"productName,omitempty" db:"-"`
 	SKU          string    `json:"sku,omitempty" db:"-"`
+	BrandName    string    `json:"brand,omitempty" db:"-"`
 	Quantity     float64   `json:"quantity" db:"quantity"`
 	UnitPrice    float64   `json:"unitPrice" db:"unit_price"`
 	ConvertedQty *float64  `json:"convertedQuantity,omitempty" db:"converted_quantity"`
@@ -280,6 +288,7 @@ type ProductRepository interface {
 	ListUnits(ctx context.Context) ([]Unit, error)
 	ListBrands(ctx context.Context) ([]Brand, error)
 	ListCategories(ctx context.Context) ([]Category, error)
+	CreateCategory(ctx context.Context, input CreateCategoryInput) (*Category, error)
 	ListOrders(ctx context.Context, customerID *uuid.UUID, limit, offset int) ([]Order, error)
 	ListOrdersByShipper(ctx context.Context, shipperID uuid.UUID, limit, offset int) ([]Order, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*Order, error)

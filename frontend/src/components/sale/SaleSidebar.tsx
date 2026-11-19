@@ -82,16 +82,6 @@ export function SaleSidebar() {
       icon: Users,
     },
     {
-      name: 'Báo giá',
-      href: '/sale/quotes',
-      icon: FileText,
-    },
-    {
-      name: 'Tra cứu sản phẩm',
-      href: '/sale/products',
-      icon: Boxes,
-    },
-    {
       name: 'Thanh toán & Công nợ',
       href: '/sale/payments',
       icon: CreditCard,

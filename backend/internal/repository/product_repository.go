@@ -617,6 +617,49 @@ func (r *productRepository) ListCategories(ctx context.Context) ([]domain.Catego
 	return categories, nil
 }
 
+func (r *productRepository) CreateCategory(ctx context.Context, input domain.CreateCategoryInput) (*domain.Category, error) {
+	code := strings.ToUpper(strings.TrimSpace(input.Code))
+	name := strings.TrimSpace(input.Name)
+	if code == "" || name == "" {
+		return nil, errors.New("mã danh mục và tên danh mục không được để trống")
+	}
+
+	catType := input.Type
+	if catType == "" {
+		catType = domain.CategoryTypeAccessory
+	}
+
+	cat := &domain.Category{
+		ID:        uuid.New(),
+		Code:      code,
+		Name:      name,
+		Type:      catType,
+		ParentID:  input.ParentID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	query := `
+		INSERT INTO me_supplies.categories (id, code, name, type, parent_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, code, name, type, parent_id, created_at
+	`
+	var parentID sql.NullString
+	err := r.db.QueryRowContext(ctx, query, cat.ID, cat.Code, cat.Name, cat.Type, cat.ParentID, cat.CreatedAt).Scan(
+		&cat.ID, &cat.Code, &cat.Name, &cat.Type, &parentID, &cat.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("tạo danh mục thất bại: %w", err)
+	}
+	if parentID.Valid {
+		if pid, pErr := uuid.Parse(parentID.String); pErr == nil {
+			cat.ParentID = &pid
+		}
+	}
+	cat.UpdatedAt = cat.CreatedAt
+	return cat, nil
+}
+
 const orderBaseSelectColumns = `
     id, order_number, customer_id, customer_name, shipper_id, payment_method,
     is_2h, deadline_2h, delivered_at, cancellation_reason, total_amount, status,
@@ -868,9 +911,10 @@ func (r *productRepository) loadOrderItems(ctx context.Context, orderID uuid.UUI
 	items := make([]domain.OrderItem, 0)
 	itemRows, err := r.db.QueryContext(ctx, `
 		SELECT oi.id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.converted_quantity, oi.created_at,
-		       p.id, p.sku, p.name, p.base_price
+		       p.id, p.sku, p.name, p.base_price, COALESCE(b.name, ''), COALESCE(b.code, '')
 		FROM me_supplies.order_items oi
 		LEFT JOIN me_supplies.products p ON oi.product_id = p.id
+		LEFT JOIN me_supplies.brands b ON p.brand_id = b.id
 		WHERE oi.order_id = $1
 		ORDER BY oi.created_at ASC
 	`, orderID)
@@ -885,12 +929,16 @@ func (r *productRepository) loadOrderItems(ctx context.Context, orderID uuid.UUI
 		var pID uuid.NullUUID
 		var pSKU, pName sql.NullString
 		var pPrice sql.NullFloat64
+		var bName, bCode sql.NullString
 		if scanErr := itemRows.Scan(
 			&it.ID, &it.OrderID, &it.ProductID, &it.Quantity, &it.UnitPrice, &convQty, &it.CreatedAt,
-			&pID, &pSKU, &pName, &pPrice,
+			&pID, &pSKU, &pName, &pPrice, &bName, &bCode,
 		); scanErr == nil {
 			if convQty.Valid {
 				it.ConvertedQty = &convQty.Float64
+			}
+			if bName.Valid && bName.String != "" {
+				it.BrandName = bName.String
 			}
 			if pID.Valid {
 				it.ProductName = pName.String
@@ -900,6 +948,10 @@ func (r *productRepository) loadOrderItems(ctx context.Context, orderID uuid.UUI
 					SKU:       pSKU.String,
 					Name:      pName.String,
 					BasePrice: pPrice.Float64,
+					Brand: domain.Brand{
+						Name: bName.String,
+						Code: bCode.String,
+					},
 				}
 			}
 			items = append(items, it)

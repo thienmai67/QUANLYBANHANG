@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -188,4 +189,20 @@ func (r *userRepository) UpdateUserStatus(ctx context.Context, id uuid.UUID, isA
 		return domain.ErrUserNotFound
 	}
 	return nil
+}
+
+func (r *userRepository) IsPhoneBelongToShipper(ctx context.Context, phone string) (bool, error) {
+	trimmed := strings.TrimSpace(phone)
+	if trimmed == "" {
+		return false, nil
+	}
+	var count int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM me_supplies.users 
+		WHERE phone = $1 AND role = 'SHIPPER'
+	`, trimmed).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

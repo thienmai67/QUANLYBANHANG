@@ -7,6 +7,7 @@ import RouteGuard from '@/components/auth/RouteGuard';
 import ShipperShell from '@/components/shipper/ShipperShell';
 import PodModal from '@/components/shipper/PodModal';
 import IncidentModal from '@/components/shipper/IncidentModal';
+import { SwipeSlider } from '@/components/shipper/SwipeSlider';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
@@ -45,11 +46,26 @@ export default function ShipperOrderDetailPage() {
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [isPickingUp, setIsPickingUp] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [hasArrived, setHasArrived] = useState(false);
   const [localIncident, setLocalIncident] = useState<{
     category: string;
     detail: string;
     reportedAt: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && orderId) {
+      setHasArrived(localStorage.getItem(`shipper_arrived_${orderId}`) === 'true');
+    }
+  }, [orderId]);
+
+  const handleMarkArrived = () => {
+    setHasArrived(true);
+    if (typeof window !== 'undefined' && orderId) {
+      localStorage.setItem(`shipper_arrived_${orderId}`, 'true');
+    }
+    toast.success('Đã xác nhận đến điểm giao hàng! Hãy giao hàng cho khách.');
+  };
 
   const loadLocalIncident = React.useCallback(() => {
     if (typeof window !== 'undefined' && orderId) {
@@ -144,6 +160,7 @@ export default function ShipperOrderDetailPage() {
 
   const isCod = order.paymentMethod === 'COD';
   const totalAmount = order.total ?? order.totalAmount ?? 0;
+  const earningAmount = order.is2h ? 40000 : 25000;
   const customerName =
     order.siteContact?.name || order.customerName || 'Khách hàng';
 
@@ -331,7 +348,27 @@ export default function ShipperOrderDetailPage() {
             </div>
           </div>
 
-          {/* 3. COD & Payment Highlight Box */}
+          {/* 3. Shipper Earning Box */}
+          <div className="p-4 rounded-2xl border bg-emerald-500/10 border-emerald-500/30 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <Banknote className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 block">
+                  Thu nhập dự kiến đơn này
+                </span>
+                <span className="text-xs text-slate-600 dark:text-slate-400">
+                  {order.is2h ? 'Đơn hỏa tốc 2 giờ (+15.000đ thưởng)' : 'Đơn giao tiêu chuẩn trong ngày'}
+                </span>
+              </div>
+            </div>
+            <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
+              +{formatCurrencyVND(earningAmount)}
+            </div>
+          </div>
+
+          {/* 4. COD & Payment Highlight Box */}
           <div
             className={`p-4 rounded-2xl border flex items-center justify-between ${
               isCod
@@ -464,17 +501,74 @@ export default function ShipperOrderDetailPage() {
             </div>
           )}
 
-          {/* 5. Floating Bottom Action Controls */}
-          <div className="space-y-2 pt-2">
-            {order.status === 'SHIPPING' && (
-              <>
+          {/* 5. Floating Bottom Action Controls (3-Step Delivery Flow) */}
+          <div className="space-y-3 pt-2">
+            {/* Step 1: PACKING -> Swipe to start delivery */}
+            {order.status === 'PACKING' && (
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-slate-600 dark:text-slate-300 text-center">
+                  Bước 1: Vuốt để nhận hàng & bắt đầu đi giao
+                </div>
+                <SwipeSlider
+                  label="Vuốt để bắt đầu đi giao"
+                  color="blue"
+                  disabled={isPickingUp}
+                  onSuccess={handlePickup}
+                />
+              </div>
+            )}
+
+            {/* Step 2: SHIPPING & not arrived -> Swipe when arrived */}
+            {order.status === 'SHIPPING' && !hasArrived && (
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-slate-600 dark:text-slate-300 text-center">
+                  Bước 2: Vuốt khi đã đến điểm giao hàng
+                </div>
+                <SwipeSlider
+                  label="Vuốt khi đã đến nơi"
+                  color="amber"
+                  onSuccess={handleMarkArrived}
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsIncidentModalOpen(true)}
+                  className="w-full min-h-[46px] rounded-xl bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-50 text-xs font-bold flex items-center justify-center gap-2 transition-all mt-2"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Báo cáo sự cố cho Quản lý (Manager)</span>
+                </button>
+              </div>
+            )}
+
+            {/* Step 3: SHIPPING & arrived -> Customer confirms receiving */}
+            {order.status === 'SHIPPING' && hasArrived && (
+              <div className="space-y-2.5">
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Đã đến nơi. Chờ khách nhận hàng xong bấm xác nhận.</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHasArrived(false);
+                      if (typeof window !== 'undefined' && orderId) {
+                        localStorage.removeItem(`shipper_arrived_${orderId}`);
+                      }
+                    }}
+                    className="text-[11px] underline text-slate-500 hover:text-slate-700 ml-2 shrink-0"
+                  >
+                    Chưa đến?
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setIsPodModalOpen(true)}
                   className="w-full min-h-[52px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all"
                 >
                   <CheckCircle2 className="w-5 h-5" />
-                  <span>Đã giao — Chụp ảnh POD</span>
+                  <span>Khách đã nhận thành công — Ký & Chụp ảnh POD</span>
                 </button>
 
                 <button
@@ -485,28 +579,7 @@ export default function ShipperOrderDetailPage() {
                   <AlertTriangle className="w-4 h-4" />
                   <span>Báo cáo sự cố cho Quản lý (Manager)</span>
                 </button>
-              </>
-            )}
-
-            {order.status === 'PACKING' && (
-              <button
-                type="button"
-                onClick={handlePickup}
-                disabled={isPickingUp}
-                className="w-full min-h-[52px] rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all"
-              >
-                {isPickingUp ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Đang cập nhật lấy hàng...</span>
-                  </>
-                ) : (
-                  <>
-                    <Package className="w-5 h-5" />
-                    <span>Xác nhận lấy hàng tại kho</span>
-                  </>
-                )}
-              </button>
+              </div>
             )}
 
             {order.status === 'DELIVERED' && (

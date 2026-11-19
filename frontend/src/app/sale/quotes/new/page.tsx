@@ -1,12 +1,18 @@
 'use client';
 
-import React, { Suspense } from 'react';
-import QuoteForm from '@/components/sale/QuoteForm';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function SaleQuoteCreatePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/sale/orders/new');
+  }, [router]);
+
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500">Đang tải biểu mẫu...</div>}>
-      <QuoteForm />
-    </Suspense>
+    <div className="min-h-screen flex items-center justify-center p-6 text-slate-500">
+      Đang chuyển hướng đến trang tạo đơn hàng...
+    </div>
   );
 }

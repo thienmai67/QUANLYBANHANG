@@ -12,7 +12,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
 import { Order } from '@/types/manager';
 import { formatCurrencyVND } from '@/lib/formatters';
-import { Package, Banknote, CheckCircle2, RotateCw } from 'lucide-react';
+import { Package, Banknote, CheckCircle2, RotateCw, Coins } from 'lucide-react';
 
 export default function ShipperDispatchFeedPage() {
   const { user } = useAuthStore();
@@ -89,6 +89,13 @@ export default function ShipperDispatchFeedPage() {
   const deliveredOrders = useMemo(() => {
     return myOrders.filter((o) => o.status === 'DELIVERED');
   }, [myOrders]);
+
+  const totalEarned = useMemo(() => {
+    return deliveredOrders.reduce((sum, o) => {
+      const perOrder = o.is2h ? 40000 : 25000;
+      return sum + perOrder;
+    }, 0);
+  }, [deliveredOrders]);
 
   // Next order:
   // 1. Highest priority is an active SHIPPING order
@@ -178,28 +185,38 @@ export default function ShipperDispatchFeedPage() {
               </div>
             </div>
 
-            {/* Metrics Row: 2 Quick Stats */}
-            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-1.5 text-slate-300 text-[11px]">
-                  <Package className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Đơn cần giao</span>
+            {/* Metrics Row: 3 Quick Stats including Wallet Balance */}
+            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/10">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-1 text-slate-300 text-[10px] sm:text-[11px] truncate">
+                  <Package className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>Cần giao</span>
                 </div>
-                <div className="text-lg font-black text-white tabular-nums mt-0.5">
+                <div className="text-base sm:text-lg font-black text-white tabular-nums mt-0.5 truncate">
                   {activeOrders.length}{' '}
-                  <span className="text-xs font-normal text-slate-400">
-                    / {myOrders.length} đơn
+                  <span className="text-[10px] font-normal text-slate-400">
+                    / {myOrders.length}
                   </span>
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-1.5 text-slate-300 text-[11px]">
-                  <Banknote className="w-3.5 h-3.5 text-amber-400" />
-                  <span>COD cần thu</span>
+              <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-1 text-slate-300 text-[10px] sm:text-[11px] truncate">
+                  <Banknote className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>COD thu</span>
                 </div>
-                <div className="text-base font-black text-amber-300 tabular-nums mt-0.5">
+                <div className="text-xs sm:text-sm font-black text-amber-300 tabular-nums mt-0.5 truncate">
                   {formatCurrencyVND(totalRemainingCod)}
+                </div>
+              </div>
+
+              <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30">
+                <div className="flex items-center gap-1 text-emerald-300 text-[10px] sm:text-[11px] truncate">
+                  <Coins className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Số dư kiếm</span>
+                </div>
+                <div className="text-xs sm:text-sm font-black text-emerald-300 tabular-nums mt-0.5 truncate font-mono">
+                  +{formatCurrencyVND(totalEarned)}
                 </div>
               </div>
             </div>

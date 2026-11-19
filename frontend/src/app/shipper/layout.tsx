@@ -30,10 +30,12 @@ export const metadata: Metadata = {
   },
 };
 
+import { ShipperGuard } from '@/components/shipper/ShipperGuard';
+
 export default function ShipperLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <ShipperGuard>{children}</ShipperGuard>;
 }

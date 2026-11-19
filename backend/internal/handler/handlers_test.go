@@ -616,7 +616,7 @@ func TestGetProduct_Success(t *testing.T) {
 	expected := domain.Product{
 		ID:        prodID,
 		SKU:       "BM-U-PVC-042",
-		Name:      "Ống uPVC Bình Minh Phi 42mm C1",
+		Name:      "á»ng uPVC BĂ¬nh Minh Phi 42mm C1",
 		BasePrice: 85000,
 	}
 	repo.products[prodID] = expected
@@ -707,7 +707,7 @@ func TestGetProductBySKU_Success(t *testing.T) {
 	expected := domain.Product{
 		ID:        uuid.New(),
 		SKU:       sku,
-		Name:      "Dây đơn Cadivi CV 2.5mm2",
+		Name:      "DĂ¢y Ä‘Æ¡n Cadivi CV 2.5mm2",
 		BasePrice: 18500,
 	}
 	repo.productsBySKU[sku] = expected
@@ -794,8 +794,8 @@ func TestGetProductBySKU_DBError(t *testing.T) {
 func TestListUnits_Success(t *testing.T) {
 	repo := newMockProductRepo()
 	repo.units = []domain.Unit{
-		{ID: uuid.New(), Code: "MET", Name: "Mét", UnitType: domain.UnitTypeLength, ToMeterFactor: 1.0},
-		{ID: uuid.New(), Code: "CAY", Name: "Cây (4m)", UnitType: domain.UnitTypeTree, ToMeterFactor: 4.0},
+		{ID: uuid.New(), Code: "MET", Name: "MĂ©t", UnitType: domain.UnitTypeLength, ToMeterFactor: 1.0},
+		{ID: uuid.New(), Code: "CAY", Name: "CĂ¢y (4m)", UnitType: domain.UnitTypeTree, ToMeterFactor: 4.0},
 	}
 
 	h := New(repo)
@@ -835,7 +835,7 @@ func TestListUnits_DBError(t *testing.T) {
 func TestListBrands_Success(t *testing.T) {
 	repo := newMockProductRepo()
 	repo.brands = []domain.Brand{
-		{ID: uuid.New(), Code: "BINHMINH", Name: "Bình Minh", DiscountRate: 18.0},
+		{ID: uuid.New(), Code: "BINHMINH", Name: "BĂ¬nh Minh", DiscountRate: 18.0},
 		{ID: uuid.New(), Code: "CADIVI", Name: "Cadivi", DiscountRate: 22.0},
 		{ID: uuid.New(), Code: "PANASONIC", Name: "Panasonic", DiscountRate: 15.0},
 	}
@@ -877,8 +877,8 @@ func TestListBrands_DBError(t *testing.T) {
 func TestListCategories_Success(t *testing.T) {
 	repo := newMockProductRepo()
 	repo.categories = []domain.Category{
-		{ID: uuid.New(), Code: "PIPE", Name: "Ống", Type: domain.CategoryTypePipe},
-		{ID: uuid.New(), Code: "CABLE", Name: "Dây Cáp", Type: domain.CategoryTypeCable},
+		{ID: uuid.New(), Code: "PIPE", Name: "á»ng", Type: domain.CategoryTypePipe},
+		{ID: uuid.New(), Code: "CABLE", Name: "DĂ¢y CĂ¡p", Type: domain.CategoryTypeCable},
 	}
 
 	h := New(repo)
@@ -975,7 +975,7 @@ func TestCreateOrder_Success(t *testing.T) {
 	h := New(repo)
 
 	orderPayload := domain.Order{
-		CustomerName: "Trần Văn Thầu",
+		CustomerName: "Tráº§n VÄƒn Tháº§u",
 		TotalAmount:  3500000,
 		Status:       "pending", // lowercase should be normalized to uppercase PENDING
 		Items: []domain.OrderItem{
@@ -1044,7 +1044,7 @@ func TestCreateOrder_PaymentStatusEnforcedUnpaid(t *testing.T) {
 	reason := "client tried to cancel"
 	bankMethod := "BANK_TRANSFER"
 	orderPayload := domain.Order{
-		CustomerName:       "Khách Gửi Giả Mạo",
+		CustomerName:       "KhĂ¡ch Gá»­i Giáº£ Máº¡o",
 		PaymentMethod:      &bankMethod,
 		PaymentStatus:      domain.PaymentStatusPaid, // Trying to cheat
 		Status:             domain.OrderStatusPacking, // Trying to cheat
@@ -1250,7 +1250,7 @@ func TestCreateOrder_CustomerNameTruncation(t *testing.T) {
 	repo := newMockProductRepo()
 	h := New(repo)
 
-	longName := strings.Repeat("Nguyễn Văn A ", 15) // > 100 characters
+	longName := strings.Repeat("Nguyá»…n VÄƒn A ", 15) // > 100 characters
 	orderPayload := domain.Order{
 		CustomerName: longName,
 		TotalAmount:  50000,
@@ -1281,4 +1281,20 @@ func TestCreateOrder_CustomerNameTruncation(t *testing.T) {
 	if len([]rune(saved.CustomerName)) > 100 {
 		t.Errorf("expected customerName to be truncated to max 100 runes, got %d runes", len([]rune(saved.CustomerName)))
 	}
+}
+
+func (m *mockProductRepo) CreateCategory(ctx context.Context, input domain.CreateCategoryInput) (*domain.Category, error) {
+	m.Lock()
+	defer m.Unlock()
+	cat := domain.Category{
+		ID:        uuid.New(),
+		Code:      input.Code,
+		Name:      input.Name,
+		Type:      input.Type,
+		ParentID:  input.ParentID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	m.categories = append(m.categories, cat)
+	return &cat, nil
 }

@@ -46,7 +46,7 @@ export default function CustomerDetailModal({
     useSaleStore();
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'quotes' | 'activities'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'activities'>('profile');
 
   // Form states for profile editing
   const [phone, setPhone] = useState('');
@@ -192,13 +192,6 @@ export default function CustomerDetailModal({
               <Plus className="w-3.5 h-3.5" />
               <span>Tạo đơn hộ khách</span>
             </Link>
-            <Link
-              href={`/sale/quotes/new?customerId=${customer.id}`}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl shadow-2xs active:scale-95 transition-all whitespace-nowrap"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Lập báo giá</span>
-            </Link>
           </div>
         </div>
 
@@ -257,17 +250,6 @@ export default function CustomerDetailModal({
             }`}
           >
             Đơn hàng ({customerOrders.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('quotes')}
-            className={`py-3 px-1 font-semibold border-b-2 transition-colors shrink-0 ${
-              activeTab === 'quotes'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            Báo giá ({customerQuotes.length})
           </button>
           <button
             type="button"
@@ -415,45 +397,6 @@ export default function CustomerDetailModal({
                             {ord.status} • {ord.paymentStatus}
                           </span>
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'quotes' && (
-            <div className="space-y-2.5">
-              {customerQuotes.length === 0 ? (
-                <div className="text-center py-12 text-slate-400 dark:text-slate-500 text-xs sm:text-sm">
-                  Chưa có báo giá nào được tạo cho khách hàng này.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {customerQuotes.map((q) => (
-                    <div
-                      key={q.id}
-                      className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 hover:bg-slate-100/70 transition-colors space-y-1.5"
-                    >
-                      {/* Dòng 1: Mã báo giá (trái) - Tổng tiền (phải) */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
-                          {q.quoteNumber}
-                        </span>
-                        <span className="font-mono font-black text-xs sm:text-sm text-blue-600 dark:text-blue-400 shrink-0">
-                          {formatCurrencyVND(q.totalAmount)}
-                        </span>
-                      </div>
-
-                      {/* Dòng 2: Hạn hiệu lực (trái) - Trạng thái (phải) */}
-                      <div className="flex items-center justify-between gap-2 text-xs">
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                          Hạn: {new Date(q.validUntil).toLocaleDateString('vi-VN')}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 shrink-0 whitespace-nowrap">
-                          {q.status}
-                        </span>
                       </div>
                     </div>
                   ))}
