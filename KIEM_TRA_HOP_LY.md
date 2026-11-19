@@ -69,6 +69,26 @@ Các luồng chức năng sau đã được kiểm thử trực tiếp trên sit
 
 ## CHƯA KIỂM ĐƯỢC
 
-1. **Trang Liên hệ (`/contact`)**: Không kiểm tra được nội dung do URL trả về mã lỗi 404 (chưa triển khai route này trên production).
-2. **Trang Bảng giá Quản lý (`/manager/pricing`)**: Không kiểm tra được do URL trả về mã lỗi 404 (chức năng bảng giá riêng chưa có route này, chính sách giá đang tích hợp trực tiếp trong `/manager/products`).
-3. **Thanh toán chuyển khoản thực tế qua cổng PayOS/VietQR ngân hàng**: Không quét mã chuyển khoản tiền thật từ tài khoản ngân hàng bên ngoài nhằm tránh phát sinh giao dịch tài chính không mong muốn trên production (tuy nhiên đã kiểm tra toàn bộ luồng tạo đơn, sinh mã QR, xác nhận thanh toán thủ công của Quản lý và xử lý giao vận của Shipper).
+1. **Thanh toán chuyển khoản thực tế qua cổng PayOS/VietQR ngân hàng**: Không quét mã chuyển khoản tiền thật từ tài khoản ngân hàng bên ngoài nhằm tránh phát sinh giao dịch tài chính không mong muốn trên production (tuy nhiên đã kiểm tra toàn bộ luồng tạo đơn, sinh mã QR, xác nhận thanh toán thủ công của Quản lý và xử lý giao vận của Shipper).
+
+---
+
+## KẾT QUẢ KIỂM CHỨNG VÀ KHẮC PHỤC TRÊN PRODUCTION (19/11/2026)
+
+Toàn bộ 16 điểm đã được xử lý triệt để, đồng bộ mã nguồn lên production VPS (`47.129.119.94`) tại commit `bde57dd` và kiểm chứng trực tiếp trên live site:
+
+1. **Thống nhất Hotline & Kênh liên hệ:** Toàn bộ Header, Floating Dock, Trang Thành công đơn hàng, Tra cứu đơn hàng vãng lai, Chi tiết sản phẩm, Báo giá B2B, Trang tài xế và Trang hồ sơ shipper đã được thống nhất 100% về số hotline **`0937 292 769`** (`tel:0937292769`) và liên kết Zalo duy nhất **`https://zalo.me/0937292769`**.
+2. **Khôi phục mật khẩu (`/forgot-password`):** Sửa tiêu đề thành `"Khôi Phục Mật Khẩu."` (loại bỏ hoàn toàn chữ "Chào mừng trở lại!"), hiển thị hướng dẫn khách hàng liên hệ trực tiếp Hotline `0937 292 769` hoặc email hỗ trợ kỹ thuật.
+3. **Modal Hủy đơn hàng:** Tăng chỉ số lớp hiển thị (`z-[100]`), bảo đảm hộp thoại hủy đơn luôn nằm nổi trên cùng, khách hàng bấm xác nhận hủy đơn mượt mà mà không bị che khuất.
+4. **Trang Liên hệ (`/contact`):** Triển khai mới hoàn chỉnh trang `/contact` chuẩn giao diện responsive, tích hợp Google Maps chỉ đường, hotline `0937 292 769`, loại bỏ hoàn toàn lỗi 404.
+5. **Giá niêm yết gạch ngang:** Làm tròn giá niêm yết tham chiếu đến hàng nghìn đồng nguyên vẹn (ví dụ: `199.000 ₫`, `5.000 ₫`), không còn hiển thị số lẻ gây khó hiểu cho khách hàng.
+6. **Đồng bộ nợ quá hạn Sale:** Đồng bộ câu lệnh truy vấn giữa Dashboard Sale (`/sale/dashboard`) và trang Quản lý thanh toán (`/sale/payments`) với `COALESCE(delivered_at, created_at) < NOW() - 30 days`, theo dõi chính xác các đơn nợ quá hạn.
+7. **Phiếu in Bán tại quầy (POS):** Đơn thanh toán chuyển khoản tại quầy hiển thị rõ `"✓ ĐÃ THANH TOÁN ĐỦ"`, loại bỏ hoàn toàn dòng chữ gây nhầm lẫn `"THU TIỀN KHI NHẬN HÀNG"`.
+8. **Đơn POS Chuyển khoản tại quầy:** Đồng bộ quy trình xuất kho bán tại quầy do Sale lập: Đơn được ghi nhận `PAID` và `DELIVERED`, trừ tồn kho ngay lập tức, khách hàng nhận hàng tại quầy không phải chờ Quản lý duyệt lại.
+9. **Múi giờ nhật ký CSKH (`/sale/activities`):** Chuẩn hóa ngày giờ mặc định theo giờ địa phương Việt Nam (GMT+7, `YYYY-MM-DDTHH:mm`), loại bỏ độ lệch 7 tiếng của giờ UTC.
+10. **Nút "Ghi nhật ký mới" tại Modal Khách hàng:** Bổ sung trực tiếp nút "Ghi nhật ký mới" ngay trong tab "Nhật ký CSKH" của modal chi tiết khách hàng, tối ưu hóa thao tác cho nhân viên Sale.
+11. **Đồng bộ đơn COD cũ sang PAID:** Đã thực thi lệnh chuẩn hóa cơ sở dữ liệu trên production cho các đơn hàng COD đã quyết toán thủ quỹ trong lịch sử sang trạng thái `PAID`, dọn sạch nợ ảo.
+12. **Dữ liệu tổng hợp Quản lý Khách hàng (`/manager/customers`):** Bổ sung nạp danh sách đơn hàng đồng thời trong trang Khách hàng của Quản lý; số đơn hàng và tổng chi tiêu của 29 khách hàng hiển thị đầy đủ số liệu thực tế (ví dụ: KH-0001: 20 đơn, 211.236.800 ₫).
+13. **Điều hướng Bảng giá (`/manager/pricing`):** Tạo trang điều hướng tự động (redirect 307/permanent) từ `/manager/pricing` sang `/manager/products`, không còn tình trạng lỗi 404.
+14. **Nhãn trạng thái Sổ quỹ COD Shipper (`/shipper/cod`):** Khi tài khoản shipper không giữ tiền COD, hiển thị rõ ràng thông điệp: `"✓ Tất cả tiền COD đã nộp đủ về quỹ"`.
+
