@@ -58,11 +58,12 @@ const tierBadgeStyles: Record<string, string> = {
 };
 
 export default function ManagerCustomersPage() {
-  const { customers, getCustomerMetrics, fetchCustomers } = useManagerStore();
+  const { customers, getCustomerMetrics, fetchCustomers, fetchOrders } = useManagerStore();
 
   useEffect(() => {
     fetchCustomers();
-  }, [fetchCustomers]);
+    fetchOrders();
+  }, [fetchCustomers, fetchOrders]);
 
   const [selectedTier, setSelectedTier] = useState<TierTab>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');

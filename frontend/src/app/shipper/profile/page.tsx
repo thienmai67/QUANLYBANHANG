@@ -7,6 +7,7 @@ import RouteGuard from '@/components/auth/RouteGuard';
 import ShipperShell from '@/components/shipper/ShipperShell';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
+import { CONTACT_INFO } from '@/config/contact';
 import {
   User,
   Truck,
@@ -157,12 +158,12 @@ export default function ShipperProfilePage() {
 
               {/* Support Hotline */}
               <a
-                href="tel:19006868"
+                href={CONTACT_INFO.hotlineTel}
                 className="p-3.5 flex items-center justify-between text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
               >
                 <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
                   <Headphones className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Hotline Quản lý điều phối (1900 6868)</span>
+                  <span>Hotline Quản lý điều phối ({CONTACT_INFO.hotline})</span>
                 </div>
                 <span className="text-xs text-emerald-600 font-bold">Gọi</span>
               </a>

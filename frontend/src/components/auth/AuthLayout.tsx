@@ -6,10 +6,17 @@ import { AUTH_COPY } from "@/lib/auth/authCopy";
 
 export interface AuthLayoutProps {
   variant: "login" | "register";
+  titleOverride?: string;
+  subtitleOverride?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export default function AuthLayout({ variant, children }: AuthLayoutProps) {
+export default function AuthLayout({
+  variant,
+  titleOverride,
+  subtitleOverride,
+  children,
+}: AuthLayoutProps) {
   const copy = AUTH_COPY[variant];
 
   return (
@@ -82,19 +89,25 @@ export default function AuthLayout({ variant, children }: AuthLayoutProps) {
 
               {/* Main Heading with Blue Dot */}
               <h1 className="text-[26px] sm:text-[30px] font-extrabold tracking-tight text-[#0F172A] mb-1.5 leading-snug">
-                {copy.formTitle}
+                {titleOverride || copy.formTitle}
               </h1>
 
               {/* Member Switcher Link */}
-              <p className="text-[13px] text-[#64748B] mb-5">
-                {copy.formSubtitle}{" "}
-                <Link
-                  href={copy.footerActionHref}
-                  className="text-[#1E6BFF] font-semibold hover:underline ml-1"
-                >
-                  {copy.footerActionText}
-                </Link>
-              </p>
+              <div className="text-[13px] text-[#64748B] mb-5">
+                {subtitleOverride !== undefined ? (
+                  subtitleOverride
+                ) : (
+                  <>
+                    {copy.formSubtitle}{" "}
+                    <Link
+                      href={copy.footerActionHref}
+                      className="text-[#1E6BFF] font-semibold hover:underline ml-1"
+                    >
+                      {copy.footerActionText}
+                    </Link>
+                  </>
+                )}
+              </div>
 
               {/* Injected Form Body */}
               <div className="w-full">{children}</div>

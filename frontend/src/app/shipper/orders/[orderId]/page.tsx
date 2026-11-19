@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useManagerStore } from '@/store/useManagerStore';
 import { useToast } from '@/hooks/useToast';
 import { formatCurrencyVND, formatDateTime } from '@/lib/formatters';
+import { CONTACT_INFO } from '@/config/contact';
 import { getTelUrl, getGoogleMapsUrl } from '@/lib/shipperHelpers';
 import { formatShortAddress } from '@/components/shipper/ShipperOrderCard';
 import { api } from '@/lib/api';
@@ -453,11 +454,11 @@ export default function ShipperOrderDetailPage() {
                   Đã báo cáo lên hệ thống Quản lý (Manager)
                 </span>
                 <a
-                  href="tel:19006868"
+                  href={CONTACT_INFO.hotlineTel}
                   className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:underline"
                 >
                   <Phone className="w-3.5 h-3.5" />
-                  <span>Hotline Quản lý: 1900 6868</span>
+                  <span>Hotline Quản lý: {CONTACT_INFO.hotline}</span>
                 </a>
               </div>
             </div>

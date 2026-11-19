@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
+import { CONTACT_INFO } from '@/config/contact';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getAccessToken } from '@/lib/auth';
@@ -669,11 +670,12 @@ function OrderLookupContent() {
                       </button>
 
                       <a
-                        href="tel:19006789"
+                        href={CONTACT_INFO.hotlineTel}
                         className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1.5 transition-colors"
+                        title={`Gọi hotline hỗ trợ: ${CONTACT_INFO.hotline}`}
                       >
                         <Phone className="w-3.5 h-3.5" />
-                        <span>Cần Hỗ Trợ</span>
+                        <span>Cần Hỗ Trợ ({CONTACT_INFO.hotline})</span>
                       </a>
                     </div>
                   </div>

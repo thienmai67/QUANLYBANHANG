@@ -463,7 +463,20 @@ export default function CustomerDetailModal({
           )}
 
           {activeTab === 'activities' && (
-            <div className="space-y-2.5">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Lịch sử tương tác ({customerActivities.length})
+                </span>
+                <Link
+                  href="/sale/activities"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Ghi nhật ký mới</span>
+                </Link>
+              </div>
+
               {customerActivities.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 dark:text-slate-500 text-xs sm:text-sm">
                   Chưa có nhật ký chăm sóc nào.

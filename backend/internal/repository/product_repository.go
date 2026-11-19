@@ -1087,12 +1087,13 @@ func (r *productRepository) createOrderTx(ctx context.Context, order *domain.Ord
 	order.UpdatedAt = now
 
 	isCashPos := order.PaymentMethod != nil && strings.EqualFold(strings.TrimSpace(*order.PaymentMethod), "CASH")
-	if isCashPos {
+	isPosCounterSale := (order.SaleID != nil) && order.PaymentMethod != nil && (strings.EqualFold(strings.TrimSpace(*order.PaymentMethod), "CASH") || strings.EqualFold(strings.TrimSpace(*order.PaymentMethod), "BANK_TRANSFER"))
+	if isCashPos || isPosCounterSale {
 		order.PaymentStatus = domain.PaymentStatusPaid
 		order.Status = domain.OrderStatusDelivered
 		order.DeliveredAt = &now
 
-		// Deduct stock immediately for CASH POS order (BUG-41)
+		// Deduct stock immediately for POS order (BUG-41)
 		for _, it := range order.Items {
 			res, err := tx.ExecContext(ctx, `
 				UPDATE me_supplies.products

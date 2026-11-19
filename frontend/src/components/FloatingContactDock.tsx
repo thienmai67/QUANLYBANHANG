@@ -3,6 +3,7 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import { Phone, MessageCircle } from 'lucide-react';
+import { CONTACT_INFO } from '@/config/contact';
 
 export default function FloatingContactDock() {
   const pathname = usePathname();
@@ -34,7 +35,7 @@ export default function FloatingContactDock() {
     >
       {/* Zalo Button */}
       <a
-        href="https://zalo.me/0937292769"
+        href={CONTACT_INFO.zaloLink}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat Zalo gửi ảnh thiết bị hỏng cho kỹ thuật viên"
@@ -56,7 +57,7 @@ export default function FloatingContactDock() {
 
       {/* Hotline Call Button */}
       <a
-        href="tel:19006868"
+        href={CONTACT_INFO.hotlineTel}
         aria-label="Gọi điện thoại tư vấn kỹ thuật trực tiếp"
         className="group flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 hover:scale-105 transition-all duration-200 border border-emerald-400/30"
       >
@@ -69,7 +70,7 @@ export default function FloatingContactDock() {
             Hotline Tổng Đài
           </span>
           <span className="text-xs font-bold font-mono mt-0.5 leading-tight">
-            1900 6868
+            {CONTACT_INFO.hotline}
           </span>
         </div>
         <span className="sm:hidden text-xs font-bold">Gọi</span>

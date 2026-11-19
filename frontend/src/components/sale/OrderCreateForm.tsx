@@ -307,8 +307,8 @@ export function OrderCreateForm() {
 
       const newOrder = await createOrder(payload);
 
-      // Upon creating a CASH order successfully, call markPaid(newOrder.id) to sync order status to PAID
-      if (paymentMethod === 'CASH') {
+      // Upon creating a counter POS order (CASH or BANK_TRANSFER), ensure status is synced to PAID
+      if (paymentMethod === 'CASH' || paymentMethod === 'BANK_TRANSFER') {
         try {
           await markPaid(newOrder.id);
         } catch (markErr) {
@@ -326,7 +326,7 @@ export function OrderCreateForm() {
         customerPhone: sanitizedPhone,
         shippingAddress: deliveryAddress,
         paymentMethod: paymentMethod,
-        paymentStatus: paymentMethod === 'CASH' ? 'PAID' : 'UNPAID',
+        paymentStatus: 'PAID',
         totalAmount: totalAmount,
         items: items.map((i) => {
           const qty = Math.max(1, Math.min(10000, parseFloat(String(i.quantity)) || 1));

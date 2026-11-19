@@ -1896,7 +1896,7 @@ func (r *saleRepository) GetDashboardStats(ctx context.Context, saleID *uuid.UUI
 		SELECT COALESCE(SUM(o.total_amount), 0)
 		FROM me_supplies.orders o
 		WHERE %s AND o.status = 'DELIVERED' AND o.payment_status != 'PAID'
-		  AND o.delivered_at < NOW() - INTERVAL '%s'
+		  AND COALESCE(o.delivered_at, o.created_at) < NOW() - INTERVAL '%s'
 	`, scopeCondition, overdueInterval), args...).Scan(&stats.OverdueDebt); err != nil {
 		return nil, fmt.Errorf("dashboard overdue debt: %w", err)
 	}

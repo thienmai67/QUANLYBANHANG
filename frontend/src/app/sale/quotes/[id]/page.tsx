@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { CONTACT_INFO } from '@/config/contact';
 import {
   ArrowLeft,
   Printer,
@@ -255,8 +256,8 @@ export default function SaleQuoteDetailPage() {
               CÔNG TY TNHH VẬT LIỆU XÂY DỰNG TDT
             </div>
             <div className="text-xs text-slate-600 mt-1 space-y-0.5">
-              <div>Trụ sở: 123 Đường Song Hành, Phường An Khánh, TP. Thủ Đức, TP. Hồ Chí Minh</div>
-              <div>Hotline B2B: (028) 3899 9999 • Email: kinhdoanh@tdt.vn • Website: vlxdtdt.vn</div>
+              <div>Trụ sở: {CONTACT_INFO.address}</div>
+              <div>Hotline: {CONTACT_INFO.hotline} • Email: {CONTACT_INFO.email} • Website: tdtmaterial.id.vn</div>
               <div>Mã số thuế: <strong>0318999999</strong></div>
             </div>
           </div>
@@ -299,7 +300,7 @@ export default function SaleQuoteDetailPage() {
               {quote.saleName || 'Nguyễn Văn Kinh Doanh'}
             </div>
             <div className="text-slate-700">Bộ phận: Phòng Kinh doanh Dự án & B2B</div>
-            <div className="text-slate-700">Hotline hỗ trợ: 0912.888.999</div>
+            <div className="text-slate-700">Hotline hỗ trợ: {CONTACT_INFO.hotline}</div>
           </div>
         </div>
 

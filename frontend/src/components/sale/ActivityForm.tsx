@@ -19,7 +19,11 @@ export function ActivityForm({ initialCustomerId, onSuccess, onCancel }: Activit
   const [customerId, setCustomerId] = useState(initialCustomerId || '');
   const [activityType, setActivityType] = useState<ActivityType>('CALL');
   const [content, setContent] = useState('');
-  const [contactedAt, setContactedAt] = useState(() => new Date().toISOString().slice(0, 16));
+  const [contactedAt, setContactedAt] = useState(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  });
   const [nextFollowupAt, setNextFollowupAt] = useState('');
   const [isDone, setIsDone] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);

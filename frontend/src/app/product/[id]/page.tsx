@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
+import { CONTACT_INFO } from '@/config/contact';
 import { api } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -701,7 +702,10 @@ export default function ProductDetailPage() {
                       const disc = product.discountRate || 0;
                       const rate = disc > 1 ? disc / 100 : disc;
                       const effectiveUnitPrice = product.basePrice;
-                      const originalPrice = rate > 0 ? Math.round(product.basePrice / (1 - rate)) : product.basePrice;
+                      const originalPrice =
+                        rate > 0
+                          ? Math.round((product.basePrice / (1 - rate)) / 1000) * 1000
+                          : product.basePrice;
                       return (
                         <div>
                           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -1024,10 +1028,10 @@ export default function ProductDetailPage() {
                     <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
                       <div className="text-xs text-slate-600 dark:text-slate-300">
                         <span>Hotline kỹ thuật tại quầy: </span>
-                        <a href="tel:0909123456" className="font-mono font-bold text-blue-600 hover:underline">0909 123 456</a>
+                        <a href={CONTACT_INFO.hotlineTel} className="font-mono font-bold text-blue-600 hover:underline">{CONTACT_INFO.hotline}</a>
                       </div>
                       <a
-                        href="https://zalo.me/0909123456"
+                        href={CONTACT_INFO.zaloLink}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"

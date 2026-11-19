@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import MaterialHeader from '@/components/MaterialHeader';
 import MaterialFooter from '@/components/MaterialFooter';
+import { CONTACT_INFO } from '@/config/contact';
 import { api, getFriendlyErrorMessage } from '@/lib/api';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -350,11 +351,11 @@ export default function OrderSuccessPage() {
                   <span>Cần điều chỉnh địa chỉ hoặc giao gấp sự cố?</span>
                 </div>
                 <a
-                  href="tel:19006868"
+                  href={CONTACT_INFO.hotlineTel}
                   className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
                 >
                   <Phone className="w-3.5 h-3.5" />
-                  <span>Hotline Hỗ Trợ 24/7 (1900 6868)</span>
+                  <span>Hotline Hỗ Trợ 24/7 ({CONTACT_INFO.hotline})</span>
                 </a>
               </div>
             </div>

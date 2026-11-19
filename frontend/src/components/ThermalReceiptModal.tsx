@@ -193,9 +193,13 @@ export function ThermalReceiptModal({ isOpen, onClose, order }: ThermalReceiptMo
               <p className="text-center font-bold text-emerald-700 bg-emerald-50 py-1 rounded text-xs">
                 ✓ ĐÃ THANH TOÁN ĐỦ
               </p>
-            ) : (
+            ) : order.paymentMethod === 'COD' ? (
               <p className="text-center font-bold text-amber-700 bg-amber-50 py-1 rounded text-xs">
-                ⏳ THU TIỀN KHI NHẬN HÀNG
+                ⏳ THU TIỀN KHI NHẬN HÀNG (COD)
+              </p>
+            ) : (
+              <p className="text-center font-bold text-blue-700 bg-blue-50 py-1 rounded text-xs">
+                ⏳ CHỜ XÁC NHẬN CHUYỂN KHOẢN
               </p>
             )}
           </div>

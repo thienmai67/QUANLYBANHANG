@@ -196,8 +196,16 @@ export default function ShipperCodLedgerPage() {
             </p>
 
             <div className="pt-3 border-t border-white/20 flex items-center justify-between text-xs text-amber-100">
-              <span>{unsettledOrders.length} đơn đã giao thành công</span>
-              <span className="font-bold underline">Chưa nộp thủ quỹ</span>
+              {unsettledOrders.length > 0 ? (
+                <>
+                  <span>{unsettledOrders.length} đơn đã giao thành công</span>
+                  <span className="font-bold underline">Chưa nộp thủ quỹ</span>
+                </>
+              ) : (
+                <span className="font-medium text-emerald-100 flex items-center gap-1.5">
+                  ✓ Tất cả tiền COD đã nộp đủ về quỹ
+                </span>
+              )}
             </div>
           </div>
 
