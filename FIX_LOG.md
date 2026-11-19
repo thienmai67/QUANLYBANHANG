@@ -80,3 +80,12 @@
   - `frontend/src/app/profile/page.tsx`: Khai báo `version?: number` trong `DBOrder` và map `version: typeof ord.version === 'number' ? ord.version : 1`.
   - `frontend/src/components/CancelOrderModal.tsx`: Luôn gửi `version` vào request hủy đơn. Bổ sung cơ chế phòng thủ: nếu gặp HTTP 409 Conflict thì tự động fetch lại version mới nhất của đơn hàng từ server và retry 1 lần trước khi báo lỗi.
 
+### 3. KẾT QUẢ KIỂM CHỨNG TRÊN LIVE PRODUCTION (https://tdtmaterial.id.vn)
+
+| STT | Lỗi | Mức độ | Kết quả kiểm chứng | Bằng chứng thực tế trên Live (`https://tdtmaterial.id.vn`) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Lỗi 1** | Đơn COD không chuyển được sang ĐÃ THANH TOÁN (thu công nợ bị chặn) | Major | **PASS (ĐÃ SỬA)** | • Đăng nhập Sale (`sale@tdt.vn`), vào `/sale/payments`.<br>• Cột Hành động của các đơn COD (ví dụ `ORD-261117-3cd317`) **hoàn toàn KHÔNG còn nút "Thu tiền" / "Thu đủ"**.<br>• Hiển thị đúng badge trạng thái nộp COD: đơn chưa quyết toán hiện badge **"Chờ shipper nộp"** (vàng/hổ phách), đơn đã nộp hiện badge **"Đã nộp COD"** (xanh).<br>• Không còn tình trạng hứa hẹn mở modal thu tiền rồi bị API từ chối.<br>• **Ảnh xác minh:** `bug1_cod_remitted_verified.png` |
+| **Lỗi 2** | Ô nhập Số lượng / Đơn giá / CK Sale trên form báo giá trống & gõ không ăn | Major | **PASS (ĐÃ SỬA)** | • Đăng nhập Sale, vào `/sale/quotes/new`, thêm Aptomat MCB Schneider Easy9 2P 32A.<br>• Cả 3 ô Số lượng, Đơn giá, CK Sale (%) hiển thị chữ số to, rõ ràng, căn lề chuẩn và không bị co ép thành khối đen.<br>• Gõ thử các số: Số lượng = 15, Đơn giá = 170.000, CK Sale = 5% -> Số hiển thị ngay lập tức khi gõ, tổng tiền cuối trang tính chuẩn: Tạm tính 2.550.000₫, CK 20% (-510.000₫), Tổng thanh toán B2B: 2.040.000₫.<br>• **Ảnh xác minh:** `bug2_quote_inputs_verified.png` |
+| **Lỗi 3** | Khách hủy đơn bị báo "Đơn hàng vừa được cập nhật bởi người khác" | Major | **PASS (ĐÃ SỬA)** | • Đăng nhập khách hàng (`customer@tdt.vn`), tạo đơn test `#ORD-261119-b05122` (trạng thái Chờ xử lý / PENDING).<br>• Mở Hồ sơ -> "Đơn hàng", bấm "Hủy đơn hàng", nhập lý do "Đổi ý không mua nữa", bấm Xác nhận.<br>• Đơn được hủy thành công tức thì với Toast màu xanh: *"Đã hủy thành công đơn hàng #ORD-261119-b05122"*. Hoàn toàn không còn lỗi 409 xung đột cập nhật.<br>• Badge trạng thái đơn chuyển ngay sang **"ĐÃ HỦY"**, nút hủy đơn tự động ẩn.<br>• **Ảnh xác minh:** `bug3_customer_cancel_verified.png` |
+
+
